@@ -3,19 +3,20 @@
 Settings for the `wraithbox` organization and the `wraithbox/wraithbox`
 repository are stored in GitHub, not in this tree. This page records what they
 are meant to be, why, and how to apply them with `gh api`, so they can
-be checked and re-applied. Last reviewed 2026-10-03.
+be checked and re-applied. Last reviewed 2026-11-10.
 
 Every command below is idempotent: it sets a value, it does not toggle.
 
 ## Constraints on these settings
 
 - The organization is on the **Team** plan and the repository is
-  **private**. Rulesets work. Secret scanning and code scanning on a
-  private repository need the paid GitHub Secret Protection and GitHub
-  Code Security add-ons, billed per active committer, so they stay off
-  until the owner subscribes to them or makes the repository public.
-  Private vulnerability reporting, and approval of workflow runs from
-  forks, exist only for public repositories.
+  **public**. Rulesets work. Secret scanning, push protection, code
+  scanning, and private vulnerability reporting are free for a public
+  repository. They are listed under [Repository: to
+  apply](#repository-to-apply) until they are switched on.
+- Actions minutes are free for a public repository, and every
+  workflow's logs are public. A workflow never prints a secret or a
+  token.
 - Organization-level settings need a token with the `admin:org` scope:
   `gh auth refresh -h github.com -s admin:org`.
 
@@ -25,12 +26,14 @@ Needs a token with `repo` scope and admin rights on the repository.
 
 | Setting | Value | Why |
 | ------- | ----- | --- |
-| Dependabot alerts | on | Supply-chain policy (S10-tech-stack) |
-| Dependabot security updates | on | Same; `.github/dependabot.yml` covers version updates |
+| Dependabot alerts | on | Supply-chain policy (S10-tech-stack). Renovate reads them and opens the fixes |
+| Dependabot security updates | off | Renovate opens version and security updates ([Renovate](#renovate)) |
 | Actions allowed | GitHub-owned plus `jdx/mise-action@*`, `zizmorcore/zizmor-action@*` | Only actions the workflows use; a new third-party action needs an explicit entry here |
 | Actions SHA pinning required | on | Enforces the "pin to full-length commit SHA" rule from `AGENTS.md` |
 | Default `GITHUB_TOKEN` permissions | read | Workflows ask for more per job |
 | Actions can approve pull requests | off | |
+| Fork pull request workflow approval | first-time contributors | GitHub's default for a public repository |
+| Environment `renovate`, deployable from `main` only | set | Holds the Renovate App's secrets, out of reach of workflows on other branches ([Renovate](#renovate)) |
 | Squash merge | off | Owner prefers rebase, then merge commit |
 | Rebase merge, merge commit | on | Stacked branches need merge commits |
 | Delete branch on merge | on | |
@@ -42,7 +45,7 @@ Needs a token with `repo` scope and admin rights on the repository.
 ```sh
 R=repos/wraithbox/wraithbox
 gh api -X PUT "$R/vulnerability-alerts"
-gh api -X PUT "$R/automated-security-fixes"
+gh api -X DELETE "$R/automated-security-fixes"
 gh api -X PATCH "$R" -F has_wiki=false -F has_projects=false \
   -F allow_squash_merge=false -F allow_merge_commit=true -F allow_rebase_merge=true \
   -F delete_branch_on_merge=true -F allow_update_branch=true
@@ -54,12 +57,70 @@ gh api -X PUT "$R/actions/permissions/selected-actions" \
   -f 'patterns_allowed[]=zizmorcore/zizmor-action@*'
 gh api -X PUT "$R/actions/permissions/workflow" \
   -f default_workflow_permissions=read -F can_approve_pull_request_reviews=false
+gh api -X PUT "$R/actions/permissions/fork-pr-contributor-approval" \
+  -f approval_policy=first_time_contributors
 ```
 
 Adding a third-party action to a workflow means adding its
 `owner/repo@*` pattern to both `selected-actions` calls on this page
 (repository and organization) in the same pull request, and applying
 them; otherwise the workflow fails to start.
+
+### Renovate
+
+Renovate keeps the dependencies current (S02-toolchain, "Dependency
+updates"). `.github/workflows/renovate.yml` runs it daily, as a GitHub
+App of the `wraithbox` organization, on this repository only. Nothing is shared
+with the maintainer's other Renovate setups: it has its own App,
+secrets, and configuration.
+
+Create the App under **Organization settings > Developer settings >
+GitHub Apps > New GitHub App**:
+
+- Name `wraithbox-renovate`, any homepage URL, webhook off.
+- Repository permissions: Administration read, Checks read and write,
+  Commit statuses read and write, Contents read and write, Dependabot
+  alerts read, Issues read and write, Pull requests read and write, and
+  Workflows read and write. Metadata read is implied. These are the
+  permissions of [Renovate's GitHub App
+  docs](https://docs.renovatebot.com/modules/platform/github/#running-as-a-github-app),
+  and the ones the workflow asks for when it creates a token.
+- Installable only on this account. Install it on `wraithbox/wraithbox`
+  only, through **Only select repositories**.
+
+Then create the environment `renovate`, which only `main` may deploy
+to, and store the App's client ID and a private key in it. A workflow on
+another branch can't read them. Anyone with write access can push such
+a branch, `lsimons-bot` included.
+
+```sh
+gh api -X PUT repos/wraithbox/wraithbox/environments/renovate --input - <<'JSON'
+{"deployment_branch_policy": {"protected_branches": false, "custom_branch_policies": true}}
+JSON
+gh api -X POST repos/wraithbox/wraithbox/environments/renovate/deployment-branch-policies \
+  -f name=main -f type=branch
+gh secret set RENOVATE_CLIENT_ID -R wraithbox/wraithbox -e renovate
+gh secret set RENOVATE_PRIVATE_KEY -R wraithbox/wraithbox -e renovate < wraithbox-renovate.private-key.pem
+```
+
+Delete the downloaded key file afterwards.
+
+The App merges its own pull requests, by rebase, once every check has
+passed. The `main` ruleset applies to it unchanged: it needs a pull
+request and a passing `CI result`, and the App is not a bypass actor.
+Renovate also waits for checks the ruleset doesn't require, such as
+`Dependency vulnerability scan`. A red one stops the merge.
+
+Run it by hand under **Actions > Renovate > Run workflow**, or:
+
+```sh
+gh workflow run renovate.yml -R wraithbox/wraithbox                   # everything due now
+gh workflow run renovate.yml -R wraithbox/wraithbox -f dryRun=lookup  # report only
+```
+
+A manual run ignores the Monday schedule unless `force=false`. Each run
+uploads the `renovate-report` artifact, and the **Dependency
+Dashboard** issue lists pending, held, and failed updates.
 
 ### Default branch ruleset
 
@@ -181,7 +242,7 @@ Needs `admin:org`.
 | Members can create repositories (public, private) | no |
 | Members can fork private repositories | no |
 | Members can create teams | no |
-| Dependency graph, Dependabot alerts, Dependabot security updates for new repositories | on |
+| Dependency graph, Dependabot alerts, Dependabot security updates for new repositories | on (a new repository has no Renovate until it gets its own `renovate.json`) |
 | Actions allowed | selected: GitHub-owned plus `jdx/mise-action@*`, `zizmorcore/zizmor-action@*` |
 | Actions SHA pinning required | on |
 | Default `GITHUB_TOKEN` permissions | read |
@@ -229,19 +290,28 @@ Base permission is `read`, so every member, including `lsimons-bot`,
 can read every repository. Consider `none` plus explicit per-repository
 grants. The owner has kept `read` for now.
 
-## Not available yet
+## Repository: to apply
 
-- Secret scanning and push protection (paid add-on for private
-  repositories, or free once public): `PATCH repos/wraithbox/wraithbox`
-  with `{"security_and_analysis": {"secret_scanning": {"status": "enabled"},
-  "secret_scanning_push_protection": {"status": "enabled"}}}`.
-- Code scanning default setup (paid add-on for private repositories, or
-  free once public; CodeQL covers Go, Swift, JavaScript/TypeScript and
-  Actions, and Swift needs a macOS runner):
+The repository is public, so these are free. Each needs the maintainer's
+go-ahead, and moves to [Repository: applied](#repository-applied) when
+the maintainer switches it on.
+
+- Secret scanning and push protection:
+
+  ```sh
+  gh api -X PATCH repos/wraithbox/wraithbox --input - <<'JSON'
+  {"security_and_analysis": {"secret_scanning": {"status": "enabled"},
+   "secret_scanning_push_protection": {"status": "enabled"}}}
+  JSON
+  ```
+
+- Code scanning default setup. CodeQL covers Go, Swift,
+  JavaScript/TypeScript and Actions, and Swift needs a macOS runner:
   `gh api -X PATCH repos/wraithbox/wraithbox/code-scanning/default-setup -f state=configured`.
-- Private vulnerability reporting (public repositories only):
+- Private vulnerability reporting:
   `gh api -X PUT repos/wraithbox/wraithbox/private-vulnerability-reporting`.
-- Fork pull request workflow approval (public repositories only):
+- Approval of workflow runs on fork pull requests for every outside
+  contributor, instead of first-time ones only:
   `gh api -X PUT repos/wraithbox/wraithbox/actions/permissions/fork-pr-contributor-approval -f approval_policy=all_external_contributors`.
 - `Dependency vulnerability scan` as a required check. GHSA-ch52-4w7c-c8xp,
   the advisory that kept it out, is fixed (I55), so this waits only on

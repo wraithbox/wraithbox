@@ -157,7 +157,9 @@ ai-tells rules flag them:
   or a public domain dedication, such as SQLite's. No copyleft, no
   source-available licenses (S10-tech-stack).
 - Every lockfile is committed (`bun.lock`, each `go.sum`,
-  `Package.resolved`) and has a `.github/dependabot.yml` entry.
+  `Package.resolved`, `mise.lock`), and Renovate keeps it current
+  (`renovate.json`, S02-toolchain, "Dependency updates"). A new
+  lockfile needs a manager in Renovate that reads it.
 - `mise run vuln` must be clean. Fix a finding by moving the dependency,
   never by narrowing the scan. The one exception is an advisory with no
   fixed release: it gets an entry in `osv-scanner.toml` with an
@@ -172,8 +174,8 @@ ai-tells rules flag them:
   annotated tag object). The repository only allows GitHub-owned and
   allowlisted actions; a new third-party action needs an allowlist
   entry, see `docs/github-settings.md`.
-- Every `.mise.toml` tool is exact-pinned and invisible to dependabot;
-  refresh with `mise up` and read the diff.
+- Every `.mise.toml` tool is exact-pinned. Renovate proposes the bumps
+  after 7 days. To bump by hand, run `mise up` and read the diff.
 
 **Mac VMs for spikes and testing:**
 

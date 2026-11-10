@@ -117,7 +117,7 @@ Change the file, then apply it with `mise run gh:labels`.
 | `area:doc` | `packages/wraithbox-doc` | `doc:check`, `doc:build` |
 | `area:spec` | `docs/spec/` | read-through against the requirement IDs |
 | `area:research` | `docs/research/` | `prose:lint`, `prose:spell`, `doc:check`, `doc:build` |
-| `area:ci` | `.github/`, `.mise.toml`, lockfiles, dependabot | `gha:lint`, `audit`, `vuln` |
+| `area:ci` | `.github/`, `.mise.toml`, lockfiles, `renovate.json` | `gha:lint`, `audit`, `vuln`, `renovate:validate` |
 | `area:agents` | `AGENTS.md`, `.claude/`, `docs/agents/` | read-through; restart to test |
 
 The area is mechanical: it follows the paths the change touches, and it

@@ -53,7 +53,7 @@ export const RULES = [
 	{ glob: 'mise.lock', jobs: ALL },
 	{ glob: '.github/workflows/**', jobs: ALL },
 	{ glob: '.github/actions/**', jobs: ALL },
-	{ glob: '.github/dependabot.yml', jobs: ALL },
+	{ glob: 'renovate.json', jobs: ALL },
 	{ glob: 'scripts/**', jobs: ALL },
 
 	// The Swift job builds the app bundle (app:bundle), which holds the Go

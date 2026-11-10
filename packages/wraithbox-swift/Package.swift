@@ -29,7 +29,7 @@ let package = Package(
         .executable(name: "wb-dev-bundle", targets: ["wb-dev-bundle"]),
     ],
     // Exact versions: Package.resolved pins the rest of the tree, and
-    // dependabot proposes the bumps (AGENTS.md, "Supply chain"). The two
+    // Renovate proposes the bumps (AGENTS.md, "Supply chain"). The two
     // protoc plugins that `mise run proto:generate-swift` runs,
     // protoc-gen-swift and protoc-gen-grpc-swift-2, are built from these
     // same packages (B52-proto-contracts).

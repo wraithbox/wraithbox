@@ -25,14 +25,16 @@ Every tool in `[tools]` is pinned to an exact version. This is a
 supply-chain rule, not a stability one. An upstream compromise must
 never arrive by auto-download.
 
-Nothing in `[tools]` is covered by dependabot. So it must be refreshed
-deliberately, with `mise up`.
+Renovate proposes each new release of a pinned tool 7 days after its
+release, and `minimum_release_age = "7d"` keeps `mise up` to the same age
+(see "Dependency updates").
 
 ### Native pin files
 
 Native pin files stay authoritative: the `go` directive in `go.work`
 and `go.mod`, and the tools version in `Package.swift`. They must agree
-with `.mise.toml`.
+with `.mise.toml`. Renovate moves the `go` pin in `.mise.toml`,
+`go.work` and `go.mod` in the same pull request.
 
 ### Swift comes from Xcode, not mise
 
@@ -93,6 +95,43 @@ a pull request doesn't, so a pull request can't write a cache that
 again, such as the package's own programs and debug symbols. What the cache
 keeps is mostly the compiled dependencies. A miss costs time and
 nothing else: no step depends on a hit, and tests always run.
+
+### Dependency updates
+
+[Renovate](https://docs.renovatebot.com/) keeps every pin current: the
+`.mise.toml` tools and `mise.lock`, the Go module, the docs site's
+`package.json` and `bun.lock`, the Swift package's `Package.swift` and
+`Package.resolved`, the GitHub Actions, and Renovate's own image.
+`renovate.json` is the policy, and `.github/workflows/renovate.yml`
+runs it as a GitHub App of the `wraithbox` organization, on this
+repository only (`docs/github-settings.md`, "Renovate").
+
+- Every version is pinned exactly. Actions are pinned to a commit SHA
+  with the version in a comment.
+- A release is proposed 7 days after it was published
+  (`minimumReleaseAge`). New pull requests open on Mondays. All
+  non-major updates go into one pull request, and each major into its
+  own.
+- Renovate merges its own pull request, by rebase, once every check on
+  it has passed, the vulnerability scan included. A red check stops it,
+  and the pull request waits for the maintainer.
+- Vulnerability fixes, from GitHub's alerts and OSV, skip the Monday
+  schedule and the 7-day wait.
+- Once a week, Renovate refreshes `bun.lock` and `mise.lock` (lock
+  file maintenance). A refresh has no release date, so it skips the
+  7-day wait. Each tool's own cooldown ages the transitive packages it
+  pulls in: `minimum_release_age` in `.mise.toml` and
+  `minimumReleaseAge` in `packages/wraithbox-doc/bunfig.toml`.
+- Renovate never moves TypeScript to a new major. 6 to 7 needs the
+  maintainer's agreement, and `astro check` needs the TypeScript 6
+  API. It leaves the `overrides` advisory floors in the docs site's
+  `package.json` alone, except to fix a vulnerability.
+- Renovate updates the direct pins of `Package.resolved` and nothing
+  else, because it does not run SwiftPM. When a bump needs a
+  transitive package to move too, the Swift job fails on
+  `--force-resolved-versions`, and the maintainer resolves it.
+- The Dependency Dashboard issue lists pending, held, and failed
+  updates.
 
 ### Go on three operating systems
 
@@ -204,5 +243,15 @@ not part of `ci`. They are the conformance suite and the benchmarks
 ### One `needs-vm` issue per wave
 
 - **Decided:** I50.
+
+### Renovate instead of Dependabot
+
+- **Decided:** by the maintainer, when the `.mise.toml` tools were
+  brought under automated updates (they were refreshed by hand before).
+- **Why:** Renovate covers the tools, `mise.lock` and the `go`
+  directive that Dependabot doesn't, groups updates into one pull
+  request, and merges them once CI passes. The policy follows the
+  maintainer's other repositories, but the configuration, the App, and
+  the workflow are this repository's own.
 
 **Status:** Active

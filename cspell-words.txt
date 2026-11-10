@@ -366,6 +366,15 @@ fnox
 bunx
 astrojs
 gomod
+renovatebot
+bunfig
+containerbase
+automerges
+argjson
+tostring
+gsub
+elif
+pipefail
 xcodeproj
 xcuserdata
 xctest

@@ -27,14 +27,15 @@ lockfile = true
 
 # Every tool is pinned to an exact version, deliberately and without
 # exception. This is a supply-chain rule, not a stability one: an upstream
-# compromise must never be auto-downloaded. Nothing here is covered by
-# dependabot, so these go stale silently. Refresh them deliberately with
-# `mise up`, read the diff, and keep the native pin files in step
-# (`go.work` and each `go.mod` for go).
+# compromise must never be auto-downloaded. Renovate proposes each bump,
+# and mise.lock with it, once the release is 7 days old, and merges it when
+# CI passes (renovate.json, docs/spec/S02-toolchain.md, "Dependency
+# updates"). It moves the go pin together with `go.work` and the `go`
+# directive of each `go.mod`. To bump by hand, run `mise up`, read the
+# diff, and keep those native pin files in step.
 #
-# The same 7-day cooldown that dependabot applies to dependencies applies
-# here: `minimum_release_age` above keeps `mise up` from picking a release
-# younger than 7 days. A human still reads the changelog of each bump.
+# `minimum_release_age` above applies the same 7-day cooldown to `mise up`
+# and to Renovate's weekly `mise.lock` maintenance.
 [tools]
 go = "1.27.3"
 golangci-lint = "2.15.0"
@@ -571,7 +572,7 @@ run = ["actionlint", "shellcheck scripts/*.sh"]
 # weaker check. Scoped to `.github` so the docs site's node_modules is
 # not walked; `inputs:` on the CI zizmor step matches.
 [tasks.audit]
-description = "zizmor audit of GitHub Actions workflows + dependabot config"
+description = "zizmor audit of GitHub Actions workflows"
 run = """
 set -e
 token="${GH_TOKEN:-}"
@@ -585,6 +586,18 @@ if [ -z "$token" ]; then
 fi
 unset GH_TOKEN GITHUB_TOKEN
 zizmor --github-token "$token" --collect=all --strict-collection .github
+"""
+
+# Renovate's config validator, from the same image the Renovate workflow
+# runs (.github/workflows/renovate.yml). Keep the tag equal to the one
+# there; Renovate bumps both in one PR. Not part of `ci`: it needs Docker
+# and pulls the image over the network. CI runs it in the `actions` job.
+# --strict also fails on a config that only needs migrating.
+[tasks."renovate:validate"]
+description = "Validate renovate.json with Renovate's own validator (Docker, network; not part of `ci`)"
+run = """
+docker run --rm -v "$PWD:/work:ro" -w /work --entrypoint renovate-config-validator \
+  ghcr.io/renovatebot/renovate:44.205.2 --strict renovate.json
 """
 
 # ---------- Dependency vulnerability scanning ----------
