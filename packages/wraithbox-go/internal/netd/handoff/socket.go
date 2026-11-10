@@ -257,7 +257,10 @@ func (k *socket) version(m *fdchan.Message) bool {
 }
 
 // streamReset marks the stream a StreamReset names, so its end of file
-// becomes a reset of the guest connection.
+// becomes a reset of the guest connection. wb-proxyd sends it only for a
+// stream whose end it holds, so wb-netd closes its copy of that end
+// (StreamHoldTimeout), and wb-proxyd's close then reaches it as end of
+// file.
 func (k *socket) streamReset(m *fdchan.Message) bool {
 	hasFD := m.File != nil
 	_ = m.Close()
@@ -274,6 +277,7 @@ func (k *socket) streamReset(m *fdchan.Message) bool {
 		return true
 	}
 	st.resetByProxyd.Store(true)
+	st.release()
 	return true
 }
 

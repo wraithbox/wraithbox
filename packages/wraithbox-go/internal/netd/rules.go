@@ -140,6 +140,22 @@ const (
 	// RuleStreamResetUnknown: a StreamReset that names no open stream.
 	// It is logged and ignored.
 	RuleStreamResetUnknown Rule = "stream-reset-unknown"
+	// RuleStreamHoldExpired: wb-proxyd sent no byte and no StreamReset
+	// for a stream within the hold deadline (handoff.StreamHoldTimeout),
+	// so wb-netd closes its copy of the end it sent. It is logged, not
+	// refused.
+	RuleStreamHoldExpired Rule = "stream-hold-expired"
+	// RuleGuestWriteTimeout: the guest took none of a stream's bytes
+	// within handoff.GuestWriteTimeout (SEC13-bounded-resources). The
+	// guest gets an RST.
+	RuleGuestWriteTimeout Rule = "guest-write-timeout"
+	// RuleGuestWriteFailed: a write of a stream's bytes to the guest
+	// failed. The guest gets an RST.
+	RuleGuestWriteFailed Rule = "guest-write-failed"
+	// RuleProxydStreamReadFailed: a read from wb-proxyd's end of a
+	// stream failed with an error other than end of file. The guest gets
+	// an RST.
+	RuleProxydStreamReadFailed Rule = "proxyd-stream-read-failed"
 	// RuleControlMessageRefused: a control message from wb-hostd of the
 	// wrong form or order, a policy change wb-netd can't apply, or a
 	// record on the accounting channel, where wb-hostd sends none after

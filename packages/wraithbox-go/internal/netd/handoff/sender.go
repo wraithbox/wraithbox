@@ -62,6 +62,9 @@ type Config struct {
 	// VersionTimeout bounds the wait for wb-proxyd's version record on
 	// each socket. Zero is hostversion.Timeout.
 	VersionTimeout time.Duration
+	// StreamHold bounds how long wb-netd keeps its copy of each
+	// stream's end it sent. Zero is StreamHoldTimeout.
+	StreamHold time.Duration
 }
 
 // Sender is wb-netd's end of the hand-off socket. It is safe for
@@ -74,6 +77,9 @@ type Sender struct {
 	// versionTimeout bounds the wait for the peer's version record
 	// (S04-architecture, "The version record").
 	versionTimeout time.Duration
+	// streamHold bounds the copy of a sent stream end that wb-netd
+	// keeps (StreamHoldTimeout).
+	streamHold time.Duration
 
 	// lock is held across each send, so the messages of all callers go
 	// out in one order (S07-05-stream-hand-off, "Transport"). It is a
@@ -101,12 +107,17 @@ func New(cfg Config) *Sender {
 	if timeout == 0 {
 		timeout = hostversion.Timeout
 	}
+	hold := cfg.StreamHold
+	if hold == 0 {
+		hold = StreamHoldTimeout
+	}
 	return &Sender{
 		own:            cfg.Own,
 		log:            log,
 		rec:            netd.NewRecorder(log, nil),
 		streamPair:     pair,
 		versionTimeout: timeout,
+		streamHold:     hold,
 		lock:           make(chan struct{}, 1),
 	}
 }
