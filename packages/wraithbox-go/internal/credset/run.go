@@ -7,7 +7,6 @@ import (
 	"io"
 	"log/slog"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/storeitem"
@@ -71,24 +70,14 @@ func Run(ctx context.Context, p Process, store Store) int {
 	}
 }
 
-// maxQuoted bounds an argument or a variable name that a refusal quotes.
-const maxQuoted = 64
-
-// quoted returns s quoted, cut at maxQuoted bytes.
-func quoted(s string) string {
-	if len(s) > maxQuoted {
-		s = s[:maxQuoted]
-	}
-	return strconv.QuoteToASCII(s)
-}
-
 // check runs the checks of S15-02-secret-store, "`wb-credset`", before any
 // store call, and returns the request, or the reason of the
 // credset-refused refusal. It enforces SEC12-least-privilege for
 // wb-credset, and SEC04-no-guest-secrets: the value only comes on
 // standard input, so an argument or a variable that could carry one is
-// refused. A refusal never quotes a binding name that fails the form,
-// which could be a value pasted in the wrong place.
+// refused. A refusal names a bad operation, variable or binding name by
+// its length only, never its text, which could be a value pasted in the
+// wrong place.
 func check(args, environ []string) (request, string) {
 	if len(args) != 2 {
 		return request{}, fmt.Sprintf("wb-credset takes exactly two arguments, the operation and the binding name, and got %d", len(args))
@@ -96,7 +85,7 @@ func check(args, environ []string) (request, string) {
 	for _, kv := range environ {
 		name, _, _ := strings.Cut(kv, "=")
 		if !slices.Contains(environment, name) {
-			return request{}, "the environment has the variable " + quoted(name) + ", which isn't on wb-credset's fixed list"
+			return request{}, fmt.Sprintf("the environment has a variable (an entry of %d bytes) that isn't on wb-credset's fixed list", len(kv))
 		}
 	}
 	op, arg := args[0], args[1]
@@ -108,7 +97,7 @@ func check(args, environ []string) (request, string) {
 		return request{op: op}, ""
 	case OpWrite, OpDelete:
 	default:
-		return request{}, "the operation " + quoted(op) + " isn't write, delete or list"
+		return request{}, fmt.Sprintf("the operation (%d bytes) isn't write, delete or list", len(op))
 	}
 	item, ok := BindingItem(arg)
 	if !ok {

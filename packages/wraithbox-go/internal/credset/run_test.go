@@ -88,6 +88,9 @@ func TestC05CredsetRefused(t *testing.T) {
 		{"empty name", []string{"write", ""}, nil},
 		{"list with a name", []string{"list", "github"}, nil},
 		{"value as the name", []string{"write", secret}, nil},
+		{"value as the operation", []string{secret, "github"}, nil},
+		{"value as a variable name", []string{"write", "github"}, []string{secret}},
+		{"value as a variable name with =", []string{"write", "github"}, []string{secret + "=x"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			r := runWith(t, newFake(), tc.args, tc.environ, strings.NewReader(secret))
