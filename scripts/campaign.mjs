@@ -186,7 +186,10 @@ export function claudeArgs(prompt, allowance, sessionId) {
  * 10 minutes after the last turn unless this ceiling is 0, and the
  * dispatcher's turn ends while its wave-lead runs (#609). With it, the
  * session resumes when the lead reports, and the final result's
- * `total_cost_usd` counts every turn.
+ * `total_cost_usd` counts every turn. The wait counts only the
+ * dispatcher's own tasks, not the lead's background commands, so the
+ * dispatcher keeps a wait of its own running until it writes the wave
+ * file (the `wave` skill, "Campaign mode", #631).
  * @param {NodeJS.ProcessEnv} base
  * @returns {NodeJS.ProcessEnv}
  */
