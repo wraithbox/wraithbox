@@ -137,21 +137,47 @@ public enum SlotResolution {
     }
 
     /// The restore image check of S04-10-vmd-install, "The restore
-    /// image": `lstat` shows a regular file, so not a symbolic link, and
-    /// its real path is the fixed one under the real path of `<data>`. The
-    /// profile then reads that one file (SEC12-least-privilege).
+    /// image". It opens the file once, without following a symbolic link,
+    /// and checks that descriptor: a regular file with one link, owned by
+    /// this user, whose path is the fixed one under the real path of
+    /// `<data>`. A hard link to a file elsewhere has a second link, so it
+    /// is refused. The profile then reads that one file
+    /// (SEC12-least-privilege).
     static func restoreImage(data: String, realData: String) throws(StartupRefusal) -> String {
         let path = data + "/" + HostPaths.restoreImage
+        let expected = realData + "/" + HostPaths.restoreImage
+        let fd = open(path, O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC)
+        guard fd >= 0 else {
+            throw StartupRefusal(
+                .restoreImageMismatch,
+                "\(path) can't be opened: \(String(cString: strerror(errno)))")
+        }
+        defer { close(fd) }
         var info = stat()
-        guard lstat(path, &info) == 0, info.st_mode & S_IFMT == S_IFREG else {
+        guard fstat(fd, &info) == 0, info.st_mode & S_IFMT == S_IFREG else {
             throw StartupRefusal(.restoreImageMismatch, "\(path) is not a regular file")
         }
-        let expected = realData + "/" + HostPaths.restoreImage
-        guard let real = realPath(path), real == expected else {
+        guard info.st_nlink == 1 else {
+            throw StartupRefusal(
+                .restoreImageMismatch, "\(path) has \(info.st_nlink) links, not 1")
+        }
+        guard info.st_uid == getuid() else {
+            throw StartupRefusal(.restoreImageMismatch, "\(path) is not owned by this user")
+        }
+        guard let real = descriptorPath(fd), real == expected else {
             throw StartupRefusal(
                 .restoreImageMismatch, "\(path) does not resolve to \(expected)")
         }
         return real
+    }
+
+    /// The path the kernel holds for an open descriptor (`F_GETPATH`).
+    static func descriptorPath(_ fd: Int32) -> String? {
+        var buffer = [CChar](repeating: 0, count: Int(MAXPATHLEN))
+        guard fcntl(fd, F_GETPATH, &buffer) == 0 else {
+            return nil
+        }
+        return String(cString: buffer)
     }
 
     static func parseSlot(_ value: String?) throws(StartupRefusal) -> VMSlot {
