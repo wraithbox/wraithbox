@@ -32,11 +32,7 @@ cred list` run as the user.
   standard input, and `wb` prints the rule.
 - The open comes first because the profile blocks the read of the
   process's own signature, which the open needs (S15-02-secret-store,
-  "The group of each call"). On the maintainer's Mac on 2026-11-10, an open after the
-  confinement got OSStatus 100001 and was refused with
-  `keychain-needs-team`. The Keychain item calls still worked after
-  it (`TestC05HostConfineFirst` and `TestC05HostConfineAfterOpen`,
-  C05-credentials-and-store, "Host tests").
+  "The group of each call").
 
 It does one operation and exits:
 
@@ -46,10 +42,9 @@ It does one operation and exits:
 
 It takes exactly two arguments, the operation and the binding name.
 Its environment has only the variable names on a fixed list compiled
-into it, which `wb` also uses when it starts it. The store doesn't need a
-variable: the host tests ran every Keychain call with an empty
-environment but for their own (I505). Before any store call,
-it refuses each of these with the rule `credset-refused`:
+into it, which `wb` also uses when it starts it. The list is empty.
+Before any store call, it refuses each of these with the rule
+`credset-refused`:
 
 - any other argument count;
 - any variable not on that list;
@@ -57,22 +52,20 @@ it refuses each of these with the rule `credset-refused`:
   S15-03-access-rules, "Declared access".
 
 The operations are `write`, `delete` and `list`. The second argument
-of `list` is `-`, because a list doesn't name a binding. A refusal names a bad
-argument by its length, and never prints it.
+of `list` is `-`. A refusal names a bad argument by its length, and
+never prints it.
 
 A *write* reads at most 16 KiB from its standard input. It refuses an
 empty value and a longer one with `credset-refused`, before any store
 call. It zeroes its buffer when the call returns.
 
-A failed store call is refused with the store's rule (S15-02-secret-store, "Failed
-store calls"). For a locked store that refusal comes at once, without a
-wait for the unlock. `wb` tells the user to unlock the Mac's own screen
-and run the command again, since a remote or SSH session doesn't unlock
-the Keychain. On 2026-11-10 a `wb cred set` with the console screen
-locked, run through a remote session, got -25308 (C05-credentials-and-store,
-"wb-credset"). A
-*delete* of a binding that isn't in the store succeeds, and its
-decision has the rule `store-item-not-found`.
+A failed store call is refused with the store's rule
+(S15-02-secret-store, "Failed store calls"). For a locked store that
+refusal comes at once, without a wait for the unlock. `wb` tells the
+user to unlock the Mac's own screen and run the command again, since a
+remote or SSH session doesn't unlock the Keychain. A *delete* of a
+binding that isn't in the store succeeds, and its decision has the
+rule `store-item-not-found`.
 
 It logs one decision line, a JSON line on its standard error with the
 message `wb-credset decision`. The line holds the decision, the rule,
@@ -106,5 +99,83 @@ from `wb-credset` longer than `wb` keeps fails the run with
 `wraith box: <message> (<rule>)` after the fix, and exits 255
 (S05-02-exit-status-and-signals). The rule is `wb-credset`'s, or the
 store's, as it came.
+
+`wb cred` doesn't write an audit record yet. It logs each access at warning
+level, before and after `wb-credset` runs, with the operation and the
+binding name (S15-03-access-rules, rule 6).
+
+## Decisions
+
+### An empty environment list
+
+`wb-credset` doesn't read a variable, and `wb` starts it with an empty
+environment.
+
+- **Why:** the store doesn't need a variable. The host tests ran every
+  Keychain call with an empty environment but for their own (I505). A
+  name added to the list in `internal/credset` needs a comment that
+  says what needs it.
+- **Rejected:** passing the user's environment on. Each variable is
+  input that the helper doesn't use.
+- **Decided:** I504, decision 4, 2026-10-31.
+
+### `-` as the binding of a list
+
+`list` takes `-` as its second argument, so `wb-credset` always takes
+exactly two arguments.
+
+- **Why:** a list doesn't name a binding, and one argument count for
+  every operation is one check.
+- **Rejected:** a list with one argument. The count would depend on the
+  operation.
+- **Decided:** I504, decision 3, 2026-10-31.
+
+### A locked store without a wait
+
+`wb-credset` refuses at once with `store-locked`, and doesn't wait for
+the unlock.
+
+- **Why:** a helper that does one operation has no work to resume, and
+  the user runs the command again after the unlock. On 2026-11-10 a
+  `wb cred set` with the console screen locked, run through a remote
+  session, got -25308 (C05-credentials-and-store, "wb-credset"), so
+  the fix names the Mac's own screen.
+- **Rejected:** a wait for the unlock, as S15-03-access-rules rule 7
+  gives the work that resumes. Nothing in `wb cred` resumes.
+- **Decided:** I504, decision 5, 2026-10-31.
+
+### Open before confine
+
+`wb-credset` opens the store, then confines itself.
+
+- **Why:** on the maintainer's Mac on 2026-11-10, an open after the
+  confinement got OSStatus 100001 and was refused with
+  `keychain-needs-team`. The Keychain item calls still worked after
+  it (`TestC05HostConfineFirst` and `TestC05HostConfineAfterOpen`,
+  C05-credentials-and-store, "Host tests"). S04-03-self-sandboxing,
+  "`wb-proxyd` and the secret store on macOS", gives the rule for every
+  program with store access.
+- **Rejected:** the confinement first, so that the open runs confined
+  too. The open can't read the process's own signature then.
+- **Decided:** I504, decision 2, 2026-10-31. I505 measured it on
+  2026-11-10.
+
+### The audit record comes later
+
+The audit record of each `wb cred` access comes from `wb`, which asks
+`wb-hostd` to write it before and after `wb-credset` runs, and refuses
+when the first record can't be written. I514 builds it.
+
+- **Why:** `wb-credset` reaches no file and no socket, and `wb` starts
+  it, not `wb-hostd`. The record's writer isn't built yet.
+- **Rejected:** no record, only `wb`'s log line. SEC10-audit would have
+  a hole for credential changes.
+- **Decided:** I504, maintainer decision 1 (option A), 2026-10-31.
+
+## Out of scope
+
+- Placeholders and bindings in the policy, and any check of a name
+  against the declared bindings: M4.10.
+- The expired-profile report on a `SIGKILL` of `wb-credset`: M6.6.
 
 **Status:** Draft
