@@ -114,6 +114,47 @@ it refuses each of these with the rule `credset-refused`:
 - an operation or name outside the fixed forms of
   S15-03-access-rules, "Declared access".
 
+The operations are `write`, `delete` and `list`. The second argument
+of `list` is `-`, because a list doesn't name a binding. A refusal names a bad
+argument by its length, and never prints it.
+
+A *write* reads at most 16 KiB from its standard input. It refuses an
+empty value and a longer one with `credset-refused`, before any store
+call. It zeroes its buffer when the call returns.
+
+A failed store call is refused with the store's rule ("Failed store
+calls" below). For a locked store that refusal comes at once, without a
+wait for the unlock, and `wb` tells the user to unlock the Keychain and
+run the command again. A
+*delete* of a binding that isn't in the store succeeds, and its
+decision has the rule `store-item-not-found`.
+
+It logs one decision line, a JSON line on its standard error with the
+message `wb-credset decision`. The line holds the decision, the rule,
+the operation, the binding name and the store's status, never the
+value. It exits 0 after the operation, and 1 after a refusal. `wb`
+reads the outcome from that line, and prints the rule and its fix.
+
+#### `wb cred`
+
+`wb cred` runs `wb-credset` by its path in the bundle `wb` runs from,
+never from `PATH`. It checks the binding name first, and exits 2 on a
+bad one before `set` reads anything.
+
+`set` reads the value from a prompt that doesn't show it. When standard
+input isn't a terminal, it reads standard input to its end, and removes
+one trailing newline, so `echo token | wb cred set github` stores
+`token`. It refuses an empty value, or one over 16 KiB, before
+`wb-credset` starts. It zeroes its buffer once the write to
+`wb-credset` ends.
+
+`list` prints the names on standard output, and the signing team on
+standard error ("Backend guarantees" below). `rm` of a binding that
+isn't in the store succeeds, and says so. A refusal ends with
+`wraith box: <message> (<rule>)` after the fix, and exits 255
+(S05-02-exit-status-and-signals). The rule is `wb-credset`'s, or the
+store's, as it came.
+
 #### The group of each call
 
 Each Keychain call names its group. The cgo shim (S12-platforms) sets

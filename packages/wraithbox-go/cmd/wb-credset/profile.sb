@@ -1,0 +1,10 @@
+(version 1)
+; wb-credset's store-only profile (S04-03-self-sandboxing, "`wb-proxyd`
+; and the secret store on macOS"; SEC12-least-privilege), as measured
+; by X23-sandboxed-daemons (I61, profiles/store-only.sb): the data
+; protection keychain and the Secure Enclave token, and nothing else.
+; Its standard streams are inherited descriptors, which need no rule.
+; It denies files, the network and starting programs, so the deny probe's
+; read of /etc/passwd fails.
+(deny default)
+(allow mach-lookup (global-name "com.apple.securityd.xpc" "com.apple.ctkd.token-client"))

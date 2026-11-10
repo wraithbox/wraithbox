@@ -121,6 +121,32 @@ Spec: S15-02-secret-store, "Keychain".
   input only, never in its arguments or environment.
 - Run `wb cred list`, and see it print names and no value.
 
+`TestC05CredsetRefused` in `internal/credset` is the first case, and
+`TestC05CredsetWrite`, `TestC05CredsetWriteRefusedValue`,
+`TestC05CredsetList`, `TestC05CredsetDelete`,
+`TestC05CredsetDeleteMissing`, `TestC05CredsetStoreErrors` and
+`TestC05CredsetNeedsTeam` run each operation over the fake store. Each
+searches the output for the value and finds none.
+`TestC05CredsetAdhocWrite` and `TestC05CredsetAdhocRefused` in
+`cmd/wb-credset` run the test binary as `wb-credset` on macOS. They see
+it confine itself, and refuse with `keychain-needs-team` and
+`credset-refused`.
+
+The `wb cred` side is in `internal/credcmd`. Its tests put a copy of the
+test binary at `wb-credset`'s place in a bundle, and run it as the
+helper. `TestC05CredSetFromPipe` and `TestC05CredSetFromPrompt` see `wb`
+pass the value to the helper on its standard input only, with two arguments
+and an empty environment. The value is in nothing `wb` or the helper
+prints or logs. `TestC05CredSetNewline` sees one trailing newline
+removed, and `TestC05CredSetValueRefused` an empty or too long value
+refused before the helper starts. `TestC05CredNameInvalid` sees a bad
+name refused with exit 2 before anything is read.
+`TestC05CredHelperRule`, `TestC05CredHelperNoDecision` and
+`TestC05CredHelperKilled` see `wb` print the helper's rule and its fix to the
+user, and a helper that ended on `SIGKILL` named.
+`TestC05CredList`, `TestC05CredListBadName` and `TestC05CredRm` cover
+`list` and `rm`.
+
 ### Signing profile
 
 Spec: S12-03-host-prerequisites, "Development builds on macOS".

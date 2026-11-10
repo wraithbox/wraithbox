@@ -10,6 +10,7 @@ hostd
 netd
 proxyd
 guestd
+credcmd
 credset
 vmd
 hostgit
