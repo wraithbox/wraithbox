@@ -28,7 +28,7 @@ jobs:
   # fails, the others run as if every file changed, and `CI result` fails.
   changes:
     name: Detect changes
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       go: ${{ steps.detect.outputs.go }}
       swift: ${{ steps.detect.outputs.swift }}
@@ -70,7 +70,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [xcode-27, ubuntu-24.04, windows-2025]
+        os: [xcode-27, ubuntu-26.04, windows-2025]
     runs-on: ${{ matrix.os }}
     steps:
       # Full history on Linux only: the contracts step compares the .proto
@@ -128,7 +128,7 @@ jobs:
       fail-fast: false
       matrix:
         shard: [1/4, 2/4, 3/4, 4/4]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -288,7 +288,7 @@ jobs:
     # detection found no docs input changed.
     needs: changes
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -335,7 +335,7 @@ jobs:
     name: Dependency vulnerability scan
     # go:vulncheck analyses the darwin, linux and windows builds itself
     # (GOOS), so one Linux runner covers every host OS.
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
     steps:
@@ -363,7 +363,7 @@ jobs:
 
   actions:
     name: GitHub Actions (lint + audit)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
     steps:
@@ -420,7 +420,7 @@ jobs:
     name: CI result
     needs: [changes, go, fuzz, swift, docs, actions]
     if: ${{ always() }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

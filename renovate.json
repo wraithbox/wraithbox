@@ -32,9 +32,31 @@
   },
   "osvVulnerabilityAlerts": true,
   "postUpdateOptions": [
-    "gomodTidy"
+    "gomodTidy",
+    "gomodUpdateImportPaths"
   ],
   "packageRules": [
+    {
+      "description": "The macOS runner is the oldest v1 host on purpose (S02-toolchain, \"Swift comes from Xcode, not mise\", NFR04-host-platforms), so it moves only when that host does, by hand.",
+      "matchDatasources": [
+        "github-runners"
+      ],
+      "matchPackageNames": [
+        "xcode",
+        "macos"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "A new Ubuntu runner image (24.04 -> 26.04) is proposed as soon as GitHub marks it stable, without automerge: PR CI only exercises ci.yml, not fuzz.yml, deploy.yml or this repository's renovate.yml, so the maintainer merges it after a manual run of those.",
+      "matchDatasources": [
+        "github-runners"
+      ],
+      "matchPackageNames": [
+        "ubuntu"
+      ],
+      "automerge": false
+    },
     {
       "description": "Never move TypeScript to a new major (6 -> 7 needs the maintainer's explicit agreement; `astro check` needs the TypeScript 6 API: https://github.com/withastro/roadmap/discussions/1321).",
       "matchPackageNames": [

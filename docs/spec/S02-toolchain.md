@@ -126,6 +126,16 @@ repository only (`docs/github-settings.md`, "Renovate").
   maintainer's agreement, and `astro check` needs the TypeScript 6
   API. It leaves the `overrides` advisory floors in the docs site's
   `package.json` alone, except to fix a vulnerability.
+- A Go module major changes the import path, and Renovate rewrites the
+  imports with it (`gomodUpdateImportPaths`).
+- Linux jobs run on an explicit Ubuntu image (`ubuntu-26.04`), never
+  `ubuntu-latest`, which lags behind the newest stable image. Renovate
+  proposes the next stable image, but doesn't merge it: PR CI runs only
+  `ci.yml`. The maintainer runs `fuzz.yml`, `deploy.yml` and
+  `renovate.yml` by hand first. Until actionlint knows a new image's
+  label, `.github/actionlint.yaml` lists it. The macOS runner stays on the oldest v1
+  host ("Swift comes from Xcode, not mise"), and Renovate leaves it
+  alone.
 - Renovate updates the direct pins of `Package.resolved` and nothing
   else, because it does not run SwiftPM. When a bump needs a
   transitive package to move too, the Swift job fails on

@@ -249,7 +249,8 @@ describe('ci.yml', () => {
 
 	test('the fuzz shards run under the Go job\'s condition, on Linux', () => {
 		expect(workflow.jobs.fuzz.if).toBe(workflow.jobs.go.if);
-		expect(workflow.jobs.fuzz['runs-on']).toBe('ubuntu-24.04');
+		// Any Ubuntu image: Renovate bumps the version in ci.yml, not here.
+		expect(workflow.jobs.fuzz['runs-on']).toMatch(/^ubuntu-\d+\.\d+$/);
 	});
 
 	test('CI result needs exactly the gated jobs and always runs', () => {
