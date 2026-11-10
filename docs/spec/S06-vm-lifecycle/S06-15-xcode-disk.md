@@ -53,7 +53,12 @@ in place of the data disk's names, plus:
   metadata of the build bundle's parent directories, which `ditto`
   walks;
 - `mach-lookup` of `com.apple.trustd.agent`, the one service `codesign`
-  needs to check a signature.
+  needs to check a signature;
+- the system reads `codesign` and `ditto` make: `sysctl-read` of the
+  seven names X06-guest-xcode, "The profile", lists, `system-info`
+  `vfs.disk-space`, the metadata of `/System/Cryptexes/OS`,
+  `/System/Cryptexes/App`, `/etc`, `/var` and `/Users`, and reading
+  `/usr/share/icu`. That measured list is where I681 starts.
 
 `codesign` with no Mach service refuses Apple's own signatures with
 `CSSMERR_TP_NOT_TRUSTED`. With `com.apple.trustd.agent` alone, the
@@ -78,9 +83,8 @@ reports the device it attached. The shim's volume is a volume of the
 APFS container whose one physical store is that device, read from the
 I/O Registry. APFS reports a mounted volume's `f_mntfromname` as a
 volume of that synthesized container, never as the attached device.
-The shim never looks a volume up by its name or its mount point. It
-never takes a leftover volume named `wb-xcode` for its own. Disk
-Arbitration then mounts the new one at `/Volumes/wb-xcode 1`.
+The shim never looks a volume up by its name or its mount point, so it
+never takes a leftover volume named `wb-xcode` for its own.
 
 ### The steps
 
@@ -92,17 +96,18 @@ As for a data disk (S06-13-data-disk-format, "The shim"), the shim:
    copy drops APFS file compression, so the blocks the source takes
    on the host are too few: an Xcode of 4.0 GB on the host took 10 GB
    on the volume;
-2. attaches it and formats it APFS with the volume name `wb-xcode`.
-   `diskutil eraseDisk` mounts the new, empty volume in `/Volumes`.
-   The shim unmounts that volume by its device, and mounts it with
-   `diskutil mount -mountOptions nobrowse,nosuid,nodev -mountPoint` on
-   `xcode-mnt`, a directory it creates new in the build bundle. An
-   existing `xcode-mnt` refuses the build (`xcode-mnt-exists`). Before
-   any write, `statfs` on `xcode-mnt` has to give that path as
-   `f_mntonname` and a volume of its container as `f_mntfromname`
-   (`xcode-mount-mismatch`). The volume's root has to be empty, apart
-   from a fixed list in code of what macOS makes on a new volume
-   (`xcode-volume-not-empty`);
+2. attaches it, and makes an APFS container on it with a volume named
+   `wb-xcode`. It mounts the volume only on `xcode-mnt`, a directory it
+   creates new in the build bundle, with `owners,nobrowse,nosuid,nodev`,
+   and never in `/Volumes` ("Never mounted in `/Volumes`" below).
+   Before the mount, the build bundle has to be a directory the host
+   user owns, with mode 0700, so no other account can enter it
+   (`xcode-mnt-exposed`). An existing `xcode-mnt` refuses the build
+   (`xcode-mnt-exists`). Before any write, `statfs` on `xcode-mnt` has
+   to give that path as `f_mntonname` and a volume of its container as
+   `f_mntfromname` (`xcode-mount-mismatch`). The volume's root has to
+   be empty, apart from a fixed list in code of what macOS makes on a
+   new volume (`xcode-volume-not-empty`);
 3. copies the app to `Xcode.app` on the volume, and each exported
    runtime to `Runtimes/`, with
    `ditto --norsrc --noextattr --noacl --noqtn`;
@@ -118,16 +123,17 @@ As for a data disk (S06-13-data-disk-format, "The shim"), the shim:
    - the app's signature with S06-14-xcode-image's requirement, and
      each runtime's disk image with `identifier image and anchor
      apple`;
-   - a walk of the volume with `lstat`, which accepts only `Xcode.app`
-     and `Runtimes` at the root and, under `Runtimes`, only the checked
+   - a walk of the volume with `lstat`, which accepts only `Xcode.app`,
+     `Runtimes` and step 2's fixed list at the root and, under
+     `Runtimes`, only the checked
      runtimes in the layout of S06-14-xcode-image, "Where the runtimes
      come from" (`xcode-volume-unexpected`);
    - Xcode's version, build, `LicenseInfo.plist` and minimum macOS
      version, read again from the checked copy, with the license and
      macOS version checks of S06-14-xcode-image made again on them, and
      the SHA-256 of each copied disk image;
-6. checks the device and the root again, as in steps 2 and 5, then
-   unmounts the volume by its device, detaches it, and renames the
+6. checks the device and the root again, as in steps 2 and 5, with
+   step 2's fixed list accepted at the root, then unmounts the volume by its device, detaches it, and renames the
    file to `xcode.img`.
 
 The copy keeps each exported runtime's other files. The guest imports
@@ -147,15 +153,26 @@ is checked on the source and again on the copy. The kill of S06-13-data-disk-for
 "When `wb-diskfmt` doesn't exit", applies to the shim as to the data
 disk entries, and `wb-hostd`'s wait covers the sum of its deadlines.
 
+### Never mounted in `/Volumes`
+
+`diskutil eraseDisk` mounts a new volume in `/Volumes` at once
+(X06-guest-xcode, "Follow-up (I624)"), where another local account
+may be able to write to it until it is unmounted. So the shim doesn't
+use `eraseDisk`. It creates the volume unmounted, or with an explicit mount point, with `diskutil
+apfs createContainer` and `diskutil apfs addVolume` with `-nomount` or
+`-mountpoint`. Which invocation does that is I681's to measure. If none
+avoids the automatic mount in `/Volumes`, I681 stops and reports it,
+and doesn't accept the window.
+
+The empty-root check of step 2 and the exact-contents check of step 5
+stay. They also catch a writer in the host user's own account.
+
 ### The SEC15 exception
 
-The shim mounts the volume twice: once where `eraseDisk` mounts it in
-`/Volumes`, which the shim undoes before any write, and once on
-`xcode-mnt`, where it fills it. Both are SEC15-no-guest-disk-mount's
-one exception, as for a data disk (S06-05-disks, "Formatting a data
-disk"): a blank image the host itself created, before any guest has
-run with it. The shim fills the volume as the bundle build fills the
-guest tools disk.
+The mount on `xcode-mnt` is SEC15-no-guest-disk-mount's one exception,
+as for a data disk (S06-05-disks, "Formatting a data disk"): a blank
+image the host itself created, before any guest has run with it. The
+shim fills the volume as the bundle build fills the guest tools disk.
 
 The host never mounts or opens the file again once a
 guest had it, and it is deleted with the build bundle. That delete
@@ -163,12 +180,13 @@ doesn't follow links, and stops at a directory whose `st_dev` isn't
 the bundle's. A volume left mounted on `xcode-mnt` refuses the build
 with `xcode-mount-left`, which names the mount point.
 
-A shim killed between the two mounts leaves its volume in `/Volumes`.
-As with a killed data disk shim, `wb-hostd` logs the temporary image,
-and the device stays attached until the user ejects it or the host
-restarts (S06-13-data-disk-format, "When `wb-diskfmt` doesn't exit").
-That volume never reaches a guest, because its file is never renamed
-to `xcode.img`, and a later build finds its own volume by device.
+A killed shim can leave its volume attached, or mounted on
+`xcode-mnt`. As with a killed data disk shim, `wb-hostd` logs the
+temporary image, and the device is attached until the user ejects it
+or the host restarts (S06-13-data-disk-format, "When `wb-diskfmt`
+doesn't exit"). That volume never reaches a guest, because its file is
+never renamed to `xcode.img`, and a later build finds its own volume
+by device.
 
 ### What the build records
 
@@ -189,11 +207,11 @@ build then builds every layer.
 
 ### Open for I681
 
-- Whether `diskutil apfs createContainer` and `diskutil apfs
-  addVolume` with `-mountpoint` mount the new volume on `xcode-mnt`
-  directly, which would keep it out of `/Volumes` altogether.
+- The `diskutil` invocation that creates and mounts the volume
+  without a mount in `/Volumes` ("Never mounted in `/Volumes`").
 - What macOS makes on the root of a new volume mounted with
-  `nobrowse`, which is the list `xcode-volume-not-empty` allows.
+  `owners,nobrowse`, which is the list `xcode-volume-not-empty`
+  allows.
 - Whether the confined shim needs any service besides
   `com.apple.trustd.agent`. Adding one needs a measured failure without
   it, and this page then says what a subverted shim gains from it.
@@ -213,10 +231,24 @@ S06-14-xcode-image.
   their deadlines.
 - **Decided:** I624, 2026-11-10.
 
+### Never mounted in `/Volumes`
+
+The blank volume is only ever mounted on `xcode-mnt` in the build
+bundle, which no other account can enter.
+
+- **Why:** while the volume is in `/Volumes`, another local account may
+  be able to write to it, and what it writes would reach the guest's root.
+- **Rejected:** accepting the window of `eraseDisk`'s mount and relying
+  on the content checks alone. The checks don't stop a write from
+  another account that races the copy.
+- **Decided:** the maintainer on PR748, 2026-11-10. Treating other
+  local accounts as adversaries in general is left to a separate
+  review, and T00-index is unchanged.
+
 ## Out of scope
 
-- Other local accounts on the Mac as an adversary. The page is written
-  against the host user's own account, which T00-index trusts.
+- Other local accounts as an adversary beyond this volume. That is
+  left to a separate review, and T00-index is unchanged.
 - Building the disk on a host other than macOS, which Xcode doesn't
   run on.
 - Removing the runtimes that the export leaves installed on the host.

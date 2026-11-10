@@ -318,12 +318,13 @@ descend from them.
   runtime rules now check the directory and what it holds.
 - **Controls touched:** none weakened. SEC12-least-privilege: the
   shim's profile needs more than `wb-diskfmt`'s. S06-15-xcode-disk
-  names the additions and the one Mach service, `com.apple.trustd.agent`,
-  and "The profile" below lists the measured rules.
+  names the additions: the one Mach service, `com.apple.trustd.agent`,
+  and the system reads. "The profile" below lists the measured rules,
+  the list I681 starts from.
   SEC13-bounded-resources: the Xcode disk is sized from file sizes, and
   the build VM needs room for every runtime. SEC15-no-guest-disk-mount:
-  the shim mounts the blank volume twice, in `/Volumes` and on its own
-  directory, and both mounts fall under the existing exception. The runtime's disk image has an
+  the shim mounts the blank volume only on its own directory in the
+  bundle, under the existing exception. The runtime's disk image has an
   Apple signature, which the shim now checks with `identifier image and
   anchor apple`, and a changed byte fails it. The Xcode requirement's
   new third branch uses `anchor apple`, which only Apple's own signing
@@ -334,11 +335,10 @@ descend from them.
   section first left open: the license check compares the license ID
   only, and the code requirement has a third branch for the
   developer-site install.
-- **Asked of the maintainer:** whether other local accounts on the Mac
-  count as an adversary. T00-index trusts the host user's account, and
-  S06-15-xcode-disk is written for that account only. If other
-  accounts count, the shim's volume, while it is mounted, needs a
-  closer look.
+- **Decided by the maintainer:** the blank volume is never mounted in
+  `/Volumes` (S06-15-xcode-disk, "Never mounted in `/Volumes`").
+  Other local accounts as an adversary in general are left to a
+  separate review.
 
 ### Question
 
@@ -364,8 +364,8 @@ From I624, for S06-14-xcode-image as written:
    disk image, `BuildManifest.plist` and `Restore.plist`, and
    `Restore/Firmware/` holds the image's `.cryptex_info`, `.root_hash`
    and `.trustcache` files. `ExportedMetadata.plist` is at the top. The
-   whole download and export took 542 s. The same run also installed
-   both runtimes on the host: `xcrun simctl runtime list` there shows
+   whole download and export took 542 s. After the run, `xcrun simctl
+   runtime list` on the host showed
    `iOS 27.2 (24B8117)` and `iOS 27.2 (24B91016s)`, both Ready, two
    disk images of 15.5 GB in total (attended step 2).
 2. **Yes, with a third branch.** On the App Store Xcode,
@@ -633,8 +633,9 @@ and "What the build records" from S06-14-xcode-image, which had grown
 past a page's length:
 
 - the image is sized from the sum of `st_size`, not from blocks;
-- `eraseDisk` mounts the new volume, and the shim then mounts it on a
-  directory in the bundle. It finds the volume by device only, and
+- `eraseDisk` mounted the new volume in `/Volumes` in this run. The
+  shim instead creates it without that mount and mounts it only on a
+  directory in the bundle, with an invocation I681 measures. It finds the volume by device only, and
   requires an empty volume before the copy and only what it copied
   before the unmount;
 - the copy drops `_MASReceipt` and `.DS_Store` at any depth;
