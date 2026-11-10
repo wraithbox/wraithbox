@@ -66,25 +66,32 @@ jobs:
         with:
           persist-credentials: false
 
-      # Go for version:stamp and the stamp check, which swift:build runs.
-      - name: Set up mise
-        uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
-        with:
-          install: true
-          install_args: go
-          cache: true
-
       - name: Initialize CodeQL
         uses: github/codeql-action/init@1fc58d04a4d4374f921bdac573c3811c240f9c26 # v4.39.2
         with:
           languages: swift
           build-mode: manual
 
-      # The build CI and `mise run ci` run, so CodeQL sees what ships.
-      # No restored .build cache, unlike ci.yml: CodeQL extracts only what
-      # the compiler compiles, and a cached object is not compiled.
-      - name: Build
-        run: mise run swift:build
+      # The Swift package, debug, as swift:build builds it, and the app
+      # target of the Xcode project, as app:bundle builds it. Both run
+      # here directly and not through mise: CodeQL extracts what the
+      # compiler compiles, and the version stamp and the bundle steps of
+      # those tasks add nothing to that. SwiftPM runs the package
+      # manifest under sandbox-exec, which fails with "Bad CPU type in
+      # executable" under CodeQL's build tracer, so the sandbox is off.
+      # A clean build, with no .build cache as in ci.yml: a cached
+      # object is not compiled, so CodeQL would not extract it.
+      - name: Build the Swift package
+        run: swift build --package-path packages/wraithbox-swift --force-resolved-versions --disable-sandbox
+
+      - name: Build the app target
+        run: >-
+          xcodebuild -quiet
+          -project packages/wraithbox-swift/WraithBox.xcodeproj
+          -target WraithBox -configuration Release
+          SYMROOT="$RUNNER_TEMP/xcode/sym" OBJROOT="$RUNNER_TEMP/xcode/obj"
+          CODE_SIGNING_ALLOWED=NO
+          build
 
       - name: Analyze
         uses: github/codeql-action/analyze@1fc58d04a4d4374f921bdac573c3811c240f9c26 # v4.39.2
