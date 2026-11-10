@@ -294,3 +294,14 @@ func TestCredUsage(t *testing.T) {
 		t.Errorf("help: exit %d, stdout %q", o.code, o.stdout)
 	}
 }
+
+// TestC05CredLockedFix sees the fix of store-locked name the Mac's own
+// screen, since a remote or SSH session doesn't unlock the Keychain.
+func TestC05CredLockedFix(t *testing.T) {
+	fix := fixOf(string(storeitem.RuleLocked))
+	for _, want := range []string{"Mac's own screen", "remote or SSH session doesn't unlock it"} {
+		if !strings.Contains(fix, want) {
+			t.Errorf("the fix of store-locked has no %q: %q", want, fix)
+		}
+	}
+}
