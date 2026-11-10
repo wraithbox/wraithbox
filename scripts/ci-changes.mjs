@@ -15,6 +15,14 @@
 // `swift` or `bundle` is true. `swift` runs all of it, and `bundle` alone
 // runs only the build, sign and bundle steps (#354).
 //
+// It also writes `full`, which runs the fuzz smoke and the Windows leg of
+// the Go job (#753). It is `true` for every event but a pull request, and
+// for a train's pull request into main (head `train/**`, base `main`), so
+// those legs run about once an hour during a campaign and catch a break
+// before it reaches main. Every other pull request gets `false`: the
+// local `mise run ci` gate runs the fuzz smoke and `go:cross` before each
+// push.
+//
 // It fails closed. A changed file that no rule matches runs every job,
 // and so does an error: the workflow skips a job only when `detect`
 // succeeded and wrote `false` for it.
@@ -24,7 +32,7 @@
 // because a skipped matrix job never reports
 // the per-OS check names. It exits 1 when a job failed or was cancelled,
 // when `changes` itself failed, or when a job was skipped that `detect`
-// did not skip.
+// did not skip. A job skipped by `full` counts as skipped by `detect`.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 
@@ -157,10 +165,17 @@ export function decide(files) {
 }
 
 /**
- * Jobs the workflow may skip, with the `detect` outputs that run each. A
- * job is skipped by rule only when every one of its outputs is `false`.
+ * Jobs the workflow may skip, each with the test of the `detect` outputs
+ * that skips it. Each test matches the job's `if:` in ci.yml. An output
+ * that is missing is not `false`, so the job counts as skipped wrongly.
+ * @type {Record<string, (outputs: Record<string, string>) => boolean>}
  */
-const SKIPPABLE = /** @type {Record<string, Output[]>} */ ({ go: ['go'], fuzz: ['go'], swift: ['swift', 'bundle'] });
+const SKIPPED_BY = {
+	go: (outputs) => outputs.go === 'false',
+	// A pull request that is not a train's into main skips the fuzz smoke (#753).
+	fuzz: (outputs) => outputs.go === 'false' || outputs.full === 'false',
+	swift: (outputs) => outputs.swift === 'false' && outputs.bundle === 'false',
+};
 
 /** Every job `CI result` must list in `needs:`. */
 export const GATED = ['changes', 'go', 'fuzz', 'swift', 'docs', 'actions'];
@@ -180,8 +195,8 @@ export function verdict(needs) {
 	}
 	for (const [job, { result } = {}] of Object.entries(needs)) {
 		if (job === 'changes' || result === 'success') continue;
-		const outputs = SKIPPABLE[job];
-		const skippedByRule = result === 'skipped' && outputs && detected && outputs.every((output) => changes?.outputs?.[output] === 'false');
+		const skippedBy = SKIPPED_BY[job];
+		const skippedByRule = result === 'skipped' && detected && skippedBy !== undefined && skippedBy(changes?.outputs ?? {});
 		if (!skippedByRule) found.push(`${job}: ${result}`);
 	}
 	return found;
@@ -205,10 +220,29 @@ export function changedFiles(git) {
 }
 
 /**
+ * Whether a run gets the fuzz smoke and the Windows Go leg (#753), and
+ * why. Every event but a pull request does, and so does a train's pull
+ * request into main. A builder's pull request into a train doesn't.
+ * @param {Record<string, string | undefined>} env the environment, for
+ *   GITHUB_EVENT_NAME, GITHUB_HEAD_REF and GITHUB_BASE_REF
+ * @returns {{full: boolean, reason: string}}
+ */
+export function full(env) {
+	const event = env.GITHUB_EVENT_NAME ?? '';
+	if (event !== 'pull_request') return { full: true, reason: `event ${JSON.stringify(event)} is not pull_request` };
+	const head = env.GITHUB_HEAD_REF ?? '';
+	const base = env.GITHUB_BASE_REF ?? '';
+	const branches = `head ${JSON.stringify(head)} into base ${JSON.stringify(base)}`;
+	if (head.startsWith('train/') && base === 'main') return { full: true, reason: `${branches} is a train's pull request into main` };
+	return { full: false, reason: `${branches} is not a train's pull request into main` };
+}
+
+/**
  * The log lines and the `name=value` output lines for one run. Only a
  * pull_request event lists the changed files; every other event turns on
  * every output.
- * @param {Record<string, string | undefined>} env the environment, for GITHUB_EVENT_NAME
+ * @param {Record<string, string | undefined>} env the environment, for
+ *   GITHUB_EVENT_NAME, GITHUB_HEAD_REF and GITHUB_BASE_REF
  * @param {() => string[]} listFiles the changed paths of a pull request
  * @returns {{log: string[], outputs: string[]}}
  */
@@ -218,7 +252,9 @@ export function detect(env, listFiles) {
 	/** @type {string[]} */
 	let log = [`event ${JSON.stringify(event)} is not pull_request: every job`];
 	if (event === 'pull_request') ({ jobs, log } = decide(listFiles()));
-	return { log, outputs: OUTPUTS.map((output) => `${output}=${jobs.has(output)}`) };
+	const legs = full(env);
+	log = [...log, `full=${legs.full}: ${legs.reason} (fuzz smoke and Windows Go leg, #753)`];
+	return { log, outputs: [...OUTPUTS.map((output) => `${output}=${jobs.has(output)}`), `full=${legs.full}`] };
 }
 
 function runDetect() {
@@ -230,7 +266,7 @@ function runDetect() {
 function check() {
 	const found = verdict(JSON.parse(process.env.NEEDS ?? '{}'));
 	for (const line of found) console.error(line);
-	if (found.length === 0) console.log('every job passed, or was skipped because its inputs did not change');
+	if (found.length === 0) console.log('every job passed, or was skipped because detection said so');
 	process.exit(found.length ? 1 : 0);
 }
 

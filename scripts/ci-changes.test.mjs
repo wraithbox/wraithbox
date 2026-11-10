@@ -3,7 +3,7 @@
 import { describe, expect, test } from 'bun:test';
 import fs from 'node:fs';
 import path from 'node:path';
-import { changedFiles, classify, decide, detect, GATED, globToRegExp, RULES, verdict } from './ci-changes.mjs';
+import { changedFiles, classify, decide, detect, full, GATED, globToRegExp, RULES, verdict } from './ci-changes.mjs';
 
 /** @param {string[]} files */
 const jobsFor = (files) => [...decide(files).jobs].sort();
@@ -93,7 +93,7 @@ describe('verdict', () => {
 	 * A `needs` context where detection ran and every job passed.
 	 * @param {Record<string, string>} outputs
 	 */
-	const passing = (outputs = { go: 'true', swift: 'true', bundle: 'true', docs: 'true' }) =>
+	const passing = (outputs = { go: 'true', swift: 'true', bundle: 'true', docs: 'true', full: 'true' }) =>
 		/** @type {Record<string, {result: string, outputs?: Record<string, string>}>} */ (
 			Object.fromEntries(GATED.map((job) => [job, job === 'changes' ? { result: 'success', outputs } : { result: 'success' }]))
 		);
@@ -111,9 +111,33 @@ describe('verdict', () => {
 	});
 
 	test('the fuzz shards skipped while detection said to run Go fail', () => {
+		const needs = passing({ go: 'true', swift: 'false', bundle: 'true', docs: 'false', full: 'true' });
+		needs.fuzz.result = 'skipped';
+		expect(verdict(needs)).toEqual(['fuzz: skipped']);
+	});
+
+	test('the fuzz shards skipped on a pull request that is not a train into main pass', () => {
+		const needs = passing({ go: 'true', swift: 'false', bundle: 'true', docs: 'false', full: 'false' });
+		needs.fuzz.result = 'skipped';
+		expect(verdict(needs)).toEqual([]);
+	});
+
+	test('the fuzz shards skipped while full is missing fail', () => {
 		const needs = passing({ go: 'true', swift: 'false', bundle: 'true', docs: 'false' });
 		needs.fuzz.result = 'skipped';
 		expect(verdict(needs)).toEqual(['fuzz: skipped']);
+	});
+
+	test('a failed fuzz shard fails where full is false too', () => {
+		const needs = passing({ go: 'true', swift: 'true', bundle: 'true', docs: 'true', full: 'false' });
+		needs.fuzz.result = 'failure';
+		expect(verdict(needs)).toEqual(['fuzz: failure']);
+	});
+
+	test('full false does not let the Go job be skipped', () => {
+		const needs = passing({ go: 'true', swift: 'true', bundle: 'true', docs: 'true', full: 'false' });
+		needs.go.result = 'skipped';
+		expect(verdict(needs)).toEqual(['go: skipped']);
 	});
 
 	test('a failed fuzz shard fails', () => {
@@ -183,22 +207,31 @@ describe('detect', () => {
 	const prFiles = () => ['packages/wraithbox-go/a.go'];
 
 	test('a pull request turns on the jobs its files need', () => {
-		const { log, outputs } = detect({ GITHUB_EVENT_NAME: 'pull_request' }, prFiles);
-		expect(outputs).toEqual(['go=true', 'swift=false', 'bundle=true', 'docs=false']);
-		expect(log).toEqual(['packages/wraithbox-go/a.go: go bundle (packages/wraithbox-go/**)']);
+		const { log, outputs } = detect({ GITHUB_EVENT_NAME: 'pull_request', GITHUB_HEAD_REF: 'feat/1-x', GITHUB_BASE_REF: 'main' }, prFiles);
+		expect(outputs).toEqual(['go=true', 'swift=false', 'bundle=true', 'docs=false', 'full=false']);
+		expect(log).toEqual([
+			'packages/wraithbox-go/a.go: go bundle (packages/wraithbox-go/**)',
+			'full=false: head "feat/1-x" into base "main" is not a train\'s pull request into main (fuzz smoke and Windows Go leg, #753)',
+		]);
 	});
 
 	test('a pull request that changes only a daemon package turns on the bundle steps', () => {
 		const { outputs } = detect({ GITHUB_EVENT_NAME: 'pull_request' }, () => ['packages/wraithbox-go/internal/hostd/session.go']);
-		expect(outputs).toEqual(['go=true', 'swift=false', 'bundle=true', 'docs=false']);
+		expect(outputs).toEqual(['go=true', 'swift=false', 'bundle=true', 'docs=false', 'full=false']);
+	});
+
+	test("a train's pull request into main turns on full, and lists its files", () => {
+		const { outputs } = detect({ GITHUB_EVENT_NAME: 'pull_request', GITHUB_HEAD_REF: 'train/720', GITHUB_BASE_REF: 'main' }, () => ['docs/a.md']);
+		expect(outputs).toEqual(['go=false', 'swift=false', 'bundle=false', 'docs=true', 'full=true']);
 	});
 
 	test.each(['push', 'workflow_dispatch', undefined])('event %p runs every job without listing files', (event) => {
 		const { log, outputs } = detect({ GITHUB_EVENT_NAME: event }, () => {
 			throw new Error('listed files for an event other than pull_request');
 		});
-		expect(outputs).toEqual(['go=true', 'swift=true', 'bundle=true', 'docs=true']);
+		expect(outputs).toEqual(['go=true', 'swift=true', 'bundle=true', 'docs=true', 'full=true']);
 		expect(log[0]).toEndWith('is not pull_request: every job');
+		expect(log[1]).toStartWith('full=true: event ');
 	});
 
 	test('an error listing the files fails the run', () => {
@@ -206,6 +239,22 @@ describe('detect', () => {
 			throw new Error('no merge commit');
 		};
 		expect(() => detect({ GITHUB_EVENT_NAME: 'pull_request' }, failing)).toThrow('no merge commit');
+	});
+});
+
+describe('full', () => {
+	test.each([
+		['a push to main', { GITHUB_EVENT_NAME: 'push' }, true],
+		['workflow_dispatch', { GITHUB_EVENT_NAME: 'workflow_dispatch' }, true],
+		['no event', {}, true],
+		["a train's pull request into main", { GITHUB_EVENT_NAME: 'pull_request', GITHUB_HEAD_REF: 'train/720', GITHUB_BASE_REF: 'main' }, true],
+		['a pull request into main', { GITHUB_EVENT_NAME: 'pull_request', GITHUB_HEAD_REF: 'ci/753-main-only-legs', GITHUB_BASE_REF: 'main' }, false],
+		["a builder's pull request into a train", { GITHUB_EVENT_NAME: 'pull_request', GITHUB_HEAD_REF: 'feat/1-x', GITHUB_BASE_REF: 'train/720' }, false],
+		['a train into another train', { GITHUB_EVENT_NAME: 'pull_request', GITHUB_HEAD_REF: 'train/721', GITHUB_BASE_REF: 'train/720' }, false],
+		['a branch that only contains train/', { GITHUB_EVENT_NAME: 'pull_request', GITHUB_HEAD_REF: 'fix/train/1', GITHUB_BASE_REF: 'main' }, false],
+		['a pull request without refs', { GITHUB_EVENT_NAME: 'pull_request' }, false],
+	])('%s: %p', (_name, env, want) => {
+		expect(full(env).full).toBe(want);
 	});
 });
 
@@ -247,10 +296,22 @@ describe('ci.yml', () => {
 		expect(Object.keys(workflow.jobs).sort()).toEqual([...GATED, 'vuln', 'result'].sort());
 	});
 
-	test('the fuzz shards run under the Go job\'s condition, on Linux', () => {
-		expect(workflow.jobs.fuzz.if).toBe(workflow.jobs.go.if);
+	test('the fuzz shards run under the Go job\'s condition and full, on Linux', () => {
+		expect(workflow.jobs.go.if).toBe("${{ !cancelled() && !(needs.changes.result == 'success' && needs.changes.outputs.go == 'false') }}");
+		expect(workflow.jobs.fuzz.if).toBe(
+			"${{ !cancelled() && !(needs.changes.result == 'success' && (needs.changes.outputs.go == 'false' || needs.changes.outputs.full == 'false')) }}",
+		);
 		// Any Ubuntu image: Renovate bumps the version in ci.yml, not here.
 		expect(workflow.jobs.fuzz['runs-on']).toMatch(/^ubuntu-\d+\.\d+$/);
+	});
+
+	test('the Go job drops only its Windows leg, and only when detection succeeded and full is false', () => {
+		const { matrix } = workflow.jobs.go.strategy;
+		expect(matrix.os).toContain('windows-2025');
+		expect(matrix.exclude).toEqual([
+			{ os: "${{ (needs.changes.result == 'success' && needs.changes.outputs.full == 'false') && 'windows-2025' || '' }}" },
+		]);
+		expect(workflow.jobs.changes.outputs.full).toBe('${{ steps.detect.outputs.full }}');
 	});
 
 	test('CI result needs exactly the gated jobs and always runs', () => {

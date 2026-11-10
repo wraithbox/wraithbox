@@ -148,7 +148,9 @@ ai-tells rules flag them:
 - `mise run ci` and the CI workflow must run the same checks. Put shared
   environment on the mise task, not the workflow. On a pull request the
   workflow skips a check whose inputs did not change
-  (`scripts/ci-changes.mjs`). `mise run ci` always runs every check.
+  (`scripts/ci-changes.mjs`), and runs the fuzz smoke and Windows Go
+  leg only on the way into `main` (S02-toolchain, "CI"). `mise run ci` always runs
+  every check.
 - **No `.editorconfig`**, deliberately: formatters own formatting.
 
 **Supply chain:**
