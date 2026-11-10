@@ -60,11 +60,11 @@ func setLog() {
 //     the groups from the kernel's copy of its entitlements, and takes
 //     nothing from its arguments, environment or descriptors. The
 //     store-only profile blocks the signature read, so Open comes before
-//     the profile (S04-03-self-sandboxing, "Store programs before they
-//     confine themselves"). Each item call then names the fixed account
-//     (S15-02-secret-store). An open that
-//     fails, such as keychain-needs-team in an ad-hoc build, is logged,
-//     and the store then refuses every call with that rule;
+//     the profile (S04-03-self-sandboxing, "`wb-proxyd` and the secret
+//     store on macOS"; S15-06-binding-commands, "`wb-credset`"). Each
+//     item call then names the fixed account (S15-02-secret-store). An
+//     open that fails, such as keychain-needs-team in an ad-hoc build,
+//     is logged, and the store then refuses every call with that rule;
 //  3. it confines itself with the store-only profile
 //     (SEC12-least-privilege), and exits 1 when that fails, before it
 //     reads its arguments or its standard input;
