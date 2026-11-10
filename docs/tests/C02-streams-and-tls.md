@@ -370,6 +370,30 @@ Spec: S09-06-ca-keys, "Valid CA".
     ends (`TestC02StoreLockedCancel`). See an ad-hoc signed build fail
     with `keychain-needs-team` (`TestC02AdHocStore`).
   - See a new CA with exactly the CA profile (`TestC02IssueProfile`).
+- On the maintainer's Mac, with the real store and Secure Enclave, in
+  the bundles of `mise run store:host-test` (C05-credentials-and-store,
+  "Host tests"). The run skips them on a Mac without a Secure Enclave,
+  and the maintainer watches for a dialog or a Touch ID prompt, which
+  fails them.
+  - In `internal/platform/hwkey`, generate a key, sign and verify with
+    Go, and restore it from its wrapped form in the same process and in
+    a second one, whose signature verifies with the first public key
+    (`TestC02HostKeyRoundTrip`). Read back a new and a restored key and
+    see each in the Secure Enclave, not permanent, in no keychain, and
+    with `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` and nothing
+    required for any operation (`TestC02HostKeyAttributes`). Restore
+    random bytes and another key's wrapped form, and see neither give
+    the first key (`TestC02HostKeyRestoreWrong`).
+  - In `internal/proxyd/ca`, in a bundle named `wb-proxyd`, issue a CA,
+    read back its item's attributes, and restore it in a second process
+    that signs a leaf the CA verifies (`TestC02HostIssueRoundTrip`).
+    Overwrite the item with random bytes and with another CA's wrapped
+    form, and see each CA set fail with `ca-key-restore`
+    (`TestC02HostRestoreWrong`). Issue, restore and sign under
+    `wb-proxyd`'s profile as X23-sandboxed-daemons ran it
+    (`TestC02HostConfined`). The bench step prints the leaf's
+    signature with the Secure Enclave key beside the fake key's
+    (`BenchmarkC02HostLeaf`, `BenchmarkLeaf`).
 - In `internal/hostd/carecord`, see a restore failure refuse the start
   with `ca-key-restore` and issue nothing, and after `wb vm reset-ca`
   the next boot issue a new CA and remove the old one's item

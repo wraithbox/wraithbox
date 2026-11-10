@@ -1,6 +1,7 @@
 #!/bin/sh
 # Runs the host tests of the secret store (C05-credentials-and-store,
-# "Host tests"): Go test binaries signed with the team's Apple
+# "Host tests") and of the Secure Enclave CA key (C02-streams-and-tls,
+# "CA key"): Go test binaries signed with the team's Apple
 # Development identity into bundles of their own, which reach the data
 # protection keychain as the app's helpers do. `mise run store:host-test`
 # runs it from the repository root. It is needs-host and attended
@@ -24,9 +25,12 @@
 # keychain-access-groups with the groups of its roles and nothing else.
 # Each run starts the binary with an empty environment but for
 # WB_STORE_HOST_TEST=1, WB_STORE_HOST_STEP and WB_STORE_HOST_G2_OUT
-# (decision 8 on I505). The tests and the read-back of an item's
-# attributes they use are behind the wbstorehost build tag, so no
-# program's build holds that read-back. A test package for another
+# (decision 8 on I505). The tests and the read-backs of an item's and a
+# key's attributes they use are behind the wbstorehost build tag, so no
+# program's build holds them. The CA bundle is named wb-proxyd, because
+# the store's check compares the bundle's executable with the program's.
+# The bench step prints the leaf benchmark with the Secure Enclave key
+# beside the one with the fake key (I509). A test package for another
 # backend call is one more line in each table below.
 set -eu
 
@@ -107,8 +111,20 @@ run() {
 	fi
 }
 
+# bench <bundle> <benchmarks>: the bundle's binary with the bench step,
+# running the benchmarks that match <benchmarks> and no test.
+bench() {
+	echo "store:host-test: $1, step 'bench'"
+	if ! env -i WB_STORE_HOST_TEST=1 WB_STORE_HOST_STEP=bench "$work/$1.app/Contents/MacOS/$1" \
+		-test.v -test.count=3 -test.timeout=15m -test.run '^$' -test.bench "$2"; then
+		failed="$failed $1/bench"
+	fi
+}
+
 build wb-store-test ./internal/platform/secretstore binding,ca
 build wb-store-test-binding ./internal/platform/secretstore binding
+build wb-hwkey-test ./internal/platform/hwkey ca
+build wb-proxyd ./internal/proxyd/ca binding,ca
 
 case $only in
 lock) run wb-store-test lock '^TestC05HostLocked$' ;;
@@ -122,6 +138,10 @@ g2)
 	run wb-store-test-binding binding-only '^TestC05HostGroupMismatch$'
 	run wb-store-test confine-after '^TestC05HostConfineAfterOpen$'
 	run wb-store-test confine-first '^TestC05HostConfineFirst$'
+	run wb-hwkey-test '' '^TestC02Host'
+	run wb-proxyd '' '^TestC02Host'
+	run wb-proxyd confine-proxyd '^TestC02HostConfined$'
+	bench wb-proxyd '^(BenchmarkLeaf|BenchmarkC02HostLeaf)$'
 	;;
 esac
 

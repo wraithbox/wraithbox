@@ -225,7 +225,10 @@ variables each one skips. Each test
 item is `wraithbox/binding/wbtest-<random>` or
 `wraithbox/ca/wbtest-<random>/wbtest-<random>`, removed when its test
 ends, and the run fails when a `wbtest-` item is left. The maintainer
-sees no dialog at any step.
+sees no dialog at any step. The same task runs the CA key's host tests
+of C02-streams-and-tls, "CA key", in the bundles `wb-hwkey-test.app`,
+with the `ca` group, and `wb-proxyd.app`, with both groups. Their CA
+items are `wraithbox/ca/wbtest-<random>/<CA id>`, under the same check.
 
 - `TestC05HostEnvironment`: the environment holds only the two
   variables, the bundle holds its two groups, and dialogs are off after

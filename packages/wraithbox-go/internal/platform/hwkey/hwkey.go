@@ -23,8 +23,6 @@ package hwkey
 import (
 	"context"
 	"crypto"
-	"errors"
-	"fmt"
 )
 
 // Key is one hardware key. The caller closes it when it no longer signs
@@ -53,20 +51,4 @@ type Provider interface {
 	// caller compares its public key with the one it expects before it
 	// signs.
 	Restore(ctx context.Context, wrapped []byte) (Key, error)
-}
-
-// unsupported is the Provider of a platform without a backend. what
-// names the backend that isn't built.
-type unsupported struct{ what string }
-
-func (u unsupported) Generate(context.Context) (Key, error) {
-	return nil, u.err()
-}
-
-func (u unsupported) Restore(context.Context, []byte) (Key, error) {
-	return nil, u.err()
-}
-
-func (u unsupported) err() error {
-	return fmt.Errorf("hwkey: %s isn't built: %w", u.what, errors.ErrUnsupported)
 }

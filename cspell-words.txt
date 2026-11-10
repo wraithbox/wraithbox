@@ -634,3 +634,4 @@ storetype
 ECID
 ramdisk
 undercounts
+ECSEC

@@ -189,7 +189,7 @@ func TestC02HostKeyRestoreChild(t *testing.T) {
 		t.Fatal(err)
 	}
 	sig := signTimed(t, k, childDigest[:])
-	fmt.Printf("%spublic=%x signature=%x\n", childLine, point, sig)
+	fmt.Println(childLine + fmt.Sprintf("public=%x signature=%x", point, sig))
 }
 
 // TestC02HostKeyAttributes reads back the attributes of a new key and of
