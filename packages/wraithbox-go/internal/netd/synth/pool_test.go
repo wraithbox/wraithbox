@@ -281,6 +281,58 @@ func TestReleaseRetried(t *testing.T) {
 	}
 }
 
+// TestReleaseSlow checks that a release write or report that succeeds
+// only after SendTimeout fails the sweep with its rule and keeps the
+// address off the free list until it is sent again
+// (S07-06-name-mapping, "Releases"). As in TestAnswerFails, the fake
+// clock of a synctest bubble fires the pool's timeout before the fake's
+// Delay ends on every run.
+func TestReleaseSlow(t *testing.T) {
+	cases := []struct {
+		name string
+		kind nt.CallKind
+		rule netd.Rule
+		// retried are the calls the next answer sends again: a release
+		// whose write was recorded only sends its report.
+		retried func(a netip.Addr) []nt.Call
+	}{
+		{"release slow", nt.CallRelease, netd.RuleAccountingWriteFailed, releaseCalls},
+		{"report-release slow", nt.CallReportRelease, netd.RuleHandoffSendFailed, func(a netip.Addr) []nt.Call {
+			return []nt.Call{{Kind: nt.CallReportRelease, Addr: a}}
+		}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				f := newFixture(t, "198.18.0.0/31")
+				a := f.answer("a.example.com")
+				f.answer("b.example.com")
+				f.clock.advance(expire)
+				f.answer("b.example.com")
+				f.calls.Reset()
+
+				f.calls.Fail(c.kind, nt.Fault{Delay: SendTimeout + 50*time.Millisecond})
+				if rule := f.p.Sweep(context.Background()); rule != c.rule {
+					t.Fatalf("sweep %q, want %q", rule, c.rule)
+				}
+				f.p.mu.Lock()
+				free := slices.Clone(f.p.free)
+				f.p.mu.Unlock()
+				if slices.Contains(free, a) {
+					t.Fatalf("the slow release put %v on the free list", a)
+				}
+
+				f.calls.Fail(c.kind, nt.Fault{})
+				f.calls.Reset()
+				if got := f.answer("c.example.com"); got != a {
+					t.Fatalf("c got %v, want the released %v", got, a)
+				}
+				f.wantCalls(append(c.retried(a), entryCalls("c.example.com", a)...)...)
+			})
+		})
+	}
+}
+
 // TestPoolFull checks synthetic-pool-full, and that a full pool first
 // frees the entries that expired.
 func TestPoolFull(t *testing.T) {
