@@ -35,12 +35,12 @@ func TestConfigRefused(t *testing.T) {
 		"build without the password pipe": func(c *Config) { c.Slot = "build" },
 		"password pipe in the work slot":  func(c *Config) { c.ProvisioningPipe = pipeRead },
 		"password pipe in the layer slot": func(c *Config) { c.Slot, c.ProvisioningPipe = "layer", pipeRead },
-		"relative program": func(c *Config) { c.Program = "wb-vmd" },
-		"empty slot":       func(c *Config) { c.Slot = "" },
-		"slot with a path": func(c *Config) { c.Slot = "../work" },
-		"slot with a '='":  func(c *Config) { c.Slot = "work=x" },
-		"no version":       func(c *Config) { c.Version = "" },
-		"no log":           func(c *Config) { c.Log = nil },
+		"relative program":                func(c *Config) { c.Program = "wb-vmd" },
+		"empty slot":                      func(c *Config) { c.Slot = "" },
+		"slot with a path":                func(c *Config) { c.Slot = "../work" },
+		"slot with a '='":                 func(c *Config) { c.Slot = "work=x" },
+		"no version":                      func(c *Config) { c.Version = "" },
+		"no log":                          func(c *Config) { c.Log = nil },
 	} {
 		c := good
 		change(&c)

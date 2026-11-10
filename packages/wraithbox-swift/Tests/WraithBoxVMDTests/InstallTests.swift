@@ -1,7 +1,7 @@
 // C11-host-daemons, "VMService": Install and the provisioning start, with
 // a fake engine. Only the build slot installs, and every refusal before
 // the restore image is read leaves the bundle as it was
-// (S04-04-vm-processes, "`wb-vmd-install`", "The build bundle").
+// (S04-10-vmd-install, "`wb-vmd-install`", "The build bundle").
 import Foundation
 import GRPCCore
 import Synchronization

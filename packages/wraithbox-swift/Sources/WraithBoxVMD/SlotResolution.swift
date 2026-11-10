@@ -28,7 +28,7 @@ public enum StartupRule: String, Sendable, Equatable, CaseIterable {
     case slotBundleMismatch = "vmd-slot-bundle-mismatch"
     /// In the build slot, the restore image isn't a regular file whose real
     /// path is `images/macos-restore.ipsw` under the real path of `<data>`
-    /// (S04-04-vm-processes, "The restore image").
+    /// (S04-10-vmd-install, "The restore image").
     case restoreImageMismatch = "vmd-restore-image-mismatch"
     /// The user database gave an empty or relative home directory.
     case homeInvalid = "paths-home-invalid"
@@ -70,9 +70,9 @@ public enum HostPaths {
     }
 
     /// A slot's bundle, relative to `<data>` (S04-04-vm-processes, "One
-    /// `wb-vmd` per VM", "The build bundle"). The build and layer slots
-    /// share the build bundle, and wb-hostd never runs both at once
-    /// (S04-04-vm-processes, "`wb-vmd-layer`").
+    /// `wb-vmd` per VM"; S04-10-vmd-install, "The build bundle"). The build
+    /// and layer slots share the build bundle, and wb-hostd never runs both
+    /// at once (S04-04-vm-processes, "`wb-vmd-layer`").
     public static func bundle(of slot: VMSlot) -> String {
         switch slot {
         case .work: "vms/macos-work.noindex"
@@ -82,7 +82,7 @@ public enum HostPaths {
     }
 
     /// The restore image the build slot installs from, relative to
-    /// `<data>` (S04-04-vm-processes, "The restore image").
+    /// `<data>` (S04-10-vmd-install, "The restore image").
     public static let restoreImage = "images/macos-restore.ipsw"
 }
 
@@ -136,7 +136,7 @@ public enum SlotResolution {
             realRestoreImage: realRestoreImage)
     }
 
-    /// The restore image check of S04-04-vm-processes, "The restore
+    /// The restore image check of S04-10-vmd-install, "The restore
     /// image": `lstat` shows a regular file, so not a symbolic link, and
     /// its real path is the fixed one under the real path of `<data>`. The
     /// profile then reads that one file (SEC12-least-privilege).

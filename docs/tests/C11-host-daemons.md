@@ -48,7 +48,7 @@ S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-0
   `vmd-slot-missing`, `vmd-slot-unknown`, `vmd-slot-layer-unsupported`,
   `vmd-slot-bundle-mismatch` and `vmd-bundle-missing` logged before
   `sandbox_init`.
-- **Build slot** (S04-04-vm-processes, "`wb-vmd-install`", "The
+- **Build slot** (S04-10-vmd-install, "`wb-vmd-install`", "The
   restore image"; `BuildSlotTests`). The `build` slot resolves to the
   build bundle and the real path of the restore image. The `work`
   slot resolves without one. A restore image that is missing, a
@@ -79,7 +79,7 @@ S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-0
   pipe within the deadline, and a second read are each refused with
   `vmd-provisioning-password-invalid`, and no refusal holds the
   password's bytes. The pipe is closed after the read.
-- **Install** (S04-04-vm-processes, "The install call";
+- **Install** (S04-10-vmd-install, "The install call";
   `InstallTests`, with a fake engine). In the `work`, `isolated` and
   `layer` slots `Install` is refused with `vmd-install-refused`, with
   no file created and the restore image not read. A build bundle that

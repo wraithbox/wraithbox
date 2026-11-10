@@ -13,7 +13,7 @@ public enum VMSlot: String, Sendable, Equatable, CaseIterable {
     case layer
 
     /// Whether an instance in this slot accepts provisioning options.
-    /// Only `wb-vmd-install`'s slot does (S04-04-vm-processes, "The build
+    /// Only `wb-vmd-install`'s slot does (S04-10-vmd-install, "The build
     /// bundle"; S15-04-guest-admin, "Refused outside the path").
     public var acceptsProvisioning: Bool {
         self == .build

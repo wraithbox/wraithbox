@@ -69,7 +69,7 @@ No options to choose from: the installer is Apple's, and the spike measured what
 
 - It amends the I49 decision, "Only `wb-download` fetches" (S17-03-downloads). Apple's installation service asks Apple's signing server for a ticket on every install, over the host's network. Wraith Box neither audits nor bounds that traffic (S04-08-records-and-bounds, S12-01-platform-interfaces). No `SEC*` control is weakened: `wb-vmd-install` itself still has no network, so SEC12-least-privilege holds.
 - S17-04-restore-and-release, "The trust base", names the two checks, as measured for the kernel cache and one byte of the system volume. It marks a failed install when the server can't be reached as assumed, not tested. It says an older build that the server still signs passes, with the follow-up I618.
-- S04-04-vm-processes, "`wb-vmd-install`", says the installation service rule reaches a service that calls Apple.
+- S04-10-vmd-install, "`wb-vmd-install`", says the installation service rule reaches a service that calls Apple.
 
 <Badge text="SEC12-least-privilege" variant="success" /> kept: `wb-vmd-install`'s profile is unchanged, and the spike's probe confirmed it had no network. The network use belongs to Apple's service. <Badge text="SEC08-proj-isolation" variant="caution" /> kept with a condition: a changed image doesn't install. The guest OS is Apple's, but it can be an older Apple build (I618).
 

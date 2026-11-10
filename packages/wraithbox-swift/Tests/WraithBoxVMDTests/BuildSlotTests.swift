@@ -1,7 +1,7 @@
 // C11-host-daemons, "Slot" and "Start interface": the build slot of
 // wb-vmd-install. Its bundle and restore image checks run before
 // confinement, its profile alone has the install rules, and only it may
-// hold descriptor 5, the build password pipe (S04-04-vm-processes,
+// hold descriptor 5, the build password pipe (S04-10-vmd-install,
 // "`wb-vmd-install`", "The restore image"; S04-03-self-sandboxing).
 import Darwin
 import Foundation

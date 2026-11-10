@@ -1,4 +1,4 @@
-// The build slot's install (S04-04-vm-processes, "`wb-vmd-install`", "The
+// The build slot's install (S04-10-vmd-install, "`wb-vmd-install`", "The
 // build bundle"): macOS from the fixed restore image into the fixed build
 // bundle. The request names no path and no image. The install creates
 // the identity files and the system disk in the bundle, never over a file
