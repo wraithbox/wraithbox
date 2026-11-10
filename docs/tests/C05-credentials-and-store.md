@@ -157,6 +157,28 @@ cover the core file limit and the prompt's line limit, and
 `TestC05CredHostLater` and `TestC05CredWindowsLater` a host later in
 the platform matrix.
 
+On 2026-11-10 the maintainer ran `wb cred` on the head of PR744
+(9b3f461a) with a team build installed in `~/Applications`. Each step
+passed, with no Keychain dialog:
+
+- `wb setup` exited 0 and printed the note on team-wide groups;
+- `wb cred set` from a pipe and from the prompt, which showed no
+  characters, each ended with `credset-done`;
+- `wb cred list` printed both names, and the team note on standard
+  error;
+- `wb cred rm` removed both. A second `rm` printed only the note on
+  standard error, with `store-item-not-found`, and exited 0. A list
+  after it printed no names;
+- with an ad-hoc build, `wb setup` refused with `keychain-needs-team`
+  and exited 1, and `wb cred set` exited 255 with the same rule;
+- no output file held a value.
+
+A first try of `wb cred set`, run through a remote session while the
+console screen was locked, got `store-locked` (-25308). The system log
+showed the Keychain locked, and Xcode got the same error. The fix `wb`
+prints names the Mac's own screen for that reason
+(`TestC05CredLockedFix`).
+
 ### Signing profile
 
 Spec: S12-03-host-prerequisites, "Development builds on macOS".

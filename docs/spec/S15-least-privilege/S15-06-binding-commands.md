@@ -61,8 +61,11 @@ call. It zeroes its buffer when the call returns.
 
 A failed store call is refused with the store's rule (S15-02-secret-store, "Failed
 store calls"). For a locked store that refusal comes at once, without a
-wait for the unlock, and `wb` tells the user to unlock the Keychain and
-run the command again. A
+wait for the unlock. `wb` tells the user to unlock the Mac's own screen
+and run the command again, since a remote or SSH session doesn't unlock
+the Keychain. On 2026-11-10 a `wb cred set` with the console screen
+locked, run through a remote session, got -25308 (C05-credentials-and-store,
+"wb-credset"). A
 *delete* of a binding that isn't in the store succeeds, and its
 decision has the rule `store-item-not-found`.
 

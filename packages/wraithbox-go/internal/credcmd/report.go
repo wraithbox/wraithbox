@@ -17,7 +17,7 @@ import (
 // "Failed store calls").
 const (
 	setupFix  = `Run "wb setup" to check the build's signing and its Keychain groups, then run the command again.`
-	lockedFix = "Unlock the Keychain, which unlocks when you log in to the Mac, then run the command again. wb-credset doesn't wait for the unlock."
+	lockedFix = "Unlock the Mac's own screen, which unlocks the Keychain, then run the command again. A remote or SSH session doesn't unlock it, and wb-credset doesn't wait for the unlock."
 	// refusedFix is the fix of credset-refused. wb starts wb-credset only
 	// with what it takes, so a refusal means the two come from different
 	// builds.
