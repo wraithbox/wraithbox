@@ -47,6 +47,7 @@ filed, and `mise run doc:index` adds its row. The workflow is in `docs/agents/sp
 | X30-installer-trust | Installer refusal of a changed restore image | Answered 2026-11-08: yes, with conditions. The signing server and the restore OS refuse a changed image, and the install contacts Apple from a service the profile doesn't confine |
 | X31-admin-channel | A root shell from a second guest daemon | Answered 2026-11-08: yes, with conditions |
 | X32-project-metrics | Measuring V1 progress, effort and quality | Answered 2026-11-02: yes, with conditions. Repeat it at each milestone close through I544, using `cost-state` for cost and a time log to calibrate the human model |
+| X33-restore-downgrade | Restore image downgrade | Open |
 
 ## Spikes
 
@@ -369,3 +370,12 @@ assumption that v1 work would otherwise build on. They block v1.
   they say now? Asked by the maintainer. The report is
   R09-v1-progress-and-quality, and I544 makes it repeatable. Tracked
   in I543.
+- **X33-restore-downgrade: Restore image downgrade.**
+  Can a compromised `wb-download` install an older macOS build that
+  Apple's signing server still signs for a VM, by reporting a newer
+  version in its catalog entry? The floor and rollback checks of
+  S17-04-restore-and-release compare values that `wb-download`
+  reports, so they don't stop it. The spike finds which older builds
+  still install, and whether `wb-vmd-install` can read the build
+  version from the image itself and check it against the entry before
+  it installs. Found in X30-installer-trust. Tracked in I618.
