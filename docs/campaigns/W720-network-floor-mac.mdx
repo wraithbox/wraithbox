@@ -7,30 +7,41 @@ description: "A campaign of waves on the dedicated Mac, lane mac with two VM slo
 
 ## Summary
 
-The campaign has started. No wave has run yet.
+Wave 1 picked four issues and merged all four pull requests into the train, at 27 dollars. `wb-netd` now records a refusal before the guest can see the reset (PR722, I569), and `wb-hostd` keeps a passed hand-off socket open until `wb-proxyd` holds it (PR727, I637). Two flaky tests were fixed (PR725, I580, and PR726, I547). The reviews led to three follow-ups on the hand-off socket and its audit records (I728, I729, I730), and two of them propose a change to the `control.proto` contract that needs a decision.
 
 ## Budget
 
 | Limit | Spent | Of |
 |---|---|---|
-| Hours | 0.0 | 12 |
-| Dollars | $0.00 | $240.00 |
-| Issues | 0 | 50 |
-| Pull requests | 0 | 50 |
+| Hours | 1.3 | 12 |
+| Dollars | $27.04 | $240.00 |
+| Issues | 4 | 50 |
+| Pull requests | 4 | 50 |
 
 ## Pull requests
 
-No pull requests yet.
+| Pull request | Closes | Title | Where | Rounds | Specs and contracts | Files |
+|---|---|---|---|---|---|---|
+| PR722 | I569 | fix(netd): record a refusal before the guest can see it | on the train | 2 | none | 6 |
+| PR725 | I580 | test(swift): wait for wb-hostd's close before the hand-off send fails | on the train | 1 | none | 3 |
+| PR726 | I547 | test(guestlink): wait through CONNECTING before the drop in TestDialerRefusesSecondCall | on the train | 1 | none | 1 |
+| PR727 | I637 | fix(hostd): keep a passed hand-off socket until wb-proxyd holds it | on the train | 1 | S04-02, S07-05, `control.proto` | 14 |
 
 ## Choices to veto
 
 To veto a pull request on the train, comment `veto #<pr>` on PR721.
 
-None.
+- PR727: S07-05 states the keep-until-held rule as a property (an ack, or the first record or byte), so I647 can pick keep-until-first-byte or an accept record for the stream path.
+- PR727: an early `HandoffSocketClosed` fails the waiting hand-off and the start (a new `Proxyd.Confirm`, not called in production until I490) instead of ending `wb-proxyd`.
+- PR727: a notice for an awaited generation is taken as the new socket's (the strict reading), until I728 adds a per-socket number.
+- PR722: the reset that accept sends after stop begins stays unrecorded, as a shutdown and not a policy refusal.
+- PR722: the DNS resolver keeps recording a held refusal after the hold is added, not before.
+- PR726: only `TestDialerRefusesSecondCall` is fixed on the train. The module cache (I723) and the fuzz deadline (I724) are issues, because they touch `.github/` or need a decision.
 
 ## Waiting for you
 
-Nothing.
+- I728 and I729: each proposes a `control.proto` change (a per-socket number for hand-off socket notices, and an ack from `wb-netd` that it holds its end). One decision is needed before I480 or I490 and I512.
+- Triage is due for I723, I724, I728, I729, I730 and I731.
 
 ## Attended queue
 
@@ -38,10 +49,12 @@ Nothing.
 
 ## Health
 
-- First code review approved: 0 of 0 pull requests.
-- Code review rounds per reviewed pull request: none.
-- Follow-ups filed: 0.
-- Flaky tests filed: none.
+- First code review approved: 3 of 4 pull requests.
+- Code review rounds per reviewed pull request: 1.3.
+- Follow-ups filed: 3.
+- Flaky tests filed: I731, I723, I724.
 - The campaign manager's own session isn't metered. The 5 percent reserve of the dollar limit pays for it.
 
-No waves yet.
+| Wave | Length | Cost | Issues | Pull requests | Session ended |
+|---|---|---|---|---|---|
+| 1 | 76 min | $27.04 | 4 | 4 | success |
