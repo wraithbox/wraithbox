@@ -63,7 +63,10 @@ xcodebuild -downloadPlatform iOS -exportPath "<data>/xcode-runtimes"
 The command downloads every runtime Apple lists for the platform, and
 writes each as an *exported runtime*, which is a directory
 (X06-guest-xcode, "Follow-up (I624)"). For iOS 27.2 it wrote two
-of about 8.3 GB each, one general runtime and one for a newer device:
+of about 8.3 GB each, one general runtime and one for a newer device.
+The same run also installed both runtimes on the host itself, 15.5 GB,
+and Wraith Box neither uses nor removes them.
+The exported runtime looks like this:
 
 ```text
 iphonesimulator_27.2_24B8117.exportedBundle/
@@ -107,19 +110,22 @@ and refuses with the rule:
   against this code requirement:
 
   ```text
-  anchor apple generic and identifier "com.apple.dt.Xcode" and
-  (certificate leaf[field.1.2.840.113635.100.6.1.9] or
-   (certificate 1[field.1.2.840.113635.100.6.2.6] and
-    certificate leaf[field.1.2.840.113635.100.6.1.13] and
-    certificate leaf[subject.OU] = "59GAB85EFG"))
+  (anchor apple generic and identifier "com.apple.dt.Xcode" and
+   (certificate leaf[field.1.2.840.113635.100.6.1.9] or
+    (certificate 1[field.1.2.840.113635.100.6.2.6] and
+     certificate leaf[field.1.2.840.113635.100.6.1.13] and
+     certificate leaf[subject.OU] = "59GAB85EFG")))
+  or (identifier "com.apple.dt.Xcode" and anchor apple)
   ```
 
   The first branch is Apple's App Store signature, and the second its
-  Developer ID with Apple's own team. `anchor apple generic` without
-  the leaf or team clause is never accepted, because every certificate
-  Apple issues, any developer's Developer ID included, meets it;
-- that the host's user accepted Xcode's license for this Xcode build,
-  from the host's own record of it (`xcode-license-not-accepted`);
+  Developer ID with Apple's own team. The third is the `.xip` from
+  Apple's developer site, signed with Apple's own Software Signing
+  certificate. `anchor apple generic` without the leaf or team clause is
+  never accepted, because every certificate Apple issues, any
+  developer's Developer ID included, meets it;
+- that the host's user accepted the license this Xcode names, from the
+  host's own record of it (`xcode-license-not-accepted`);
 - that Xcode's minimum macOS version is at most the parent image's
   macOS version (`xcode-too-new-for-guest`);
 - that Apple signed each exported runtime's disk image and that it is
@@ -138,15 +144,14 @@ and refuses with the rule:
 - that `<data>` has room for the disk and the image
   (SEC13-bounded-resources, `xcode-disk-no-space`).
 
-On the host's App Store Xcode, the code requirement above holds, and
-plain `anchor apple` doesn't (`codesign` exits 3). A copy with one
-byte changed in a framework fails, as does a runtime disk image with
-one byte changed (X06-guest-xcode, "Follow-up (I624)"). An install
-from Apple's developer site wasn't measured. The second branch is
-written for it. If that install is signed with Apple's own Software
-Signing certificate instead, it fails with `xcode-signature-invalid`
-until the requirement gets `anchor apple` with the identifier as a
-third branch.
+On the host's App Store Xcode and on Xcode 27.2 expanded from the
+developer site's `.xip`, the code requirement above holds. The `.xip`
+install's designated requirement is `identifier "com.apple.dt.Xcode"
+and anchor apple`, and the first and second branches alone fail on it
+(`codesign` exits 3). Plain `anchor apple` fails on the App Store
+Xcode. A copy with one byte changed in a framework fails, as does a
+runtime disk image with one byte changed (X06-guest-xcode, "Follow-up
+(I624)").
 
 The license record is `/Library/Preferences/com.apple.dt.Xcode.plist`,
 which `xcodebuild -license accept` writes as root, and which is the
@@ -155,17 +160,14 @@ license type, `IDELastGMLicenseAgreedTo` for a release, and the Xcode
 version that accepted it, `IDEXcodeVersionForAgreedToGMLicense`. It
 doesn't name a build. The app names the license it needs in
 `Contents/Resources/LicenseInfo.plist` (`licenseID`, `licenseType`).
-The shim parses both plists itself. It refuses unless the ID recorded
-for the app's license type equals the app's `licenseID`, and the
-recorded version equals the app's `CFBundleShortVersionString`.
 
-That is as close as the record comes to "this Xcode build". On the
-reference machine the record says `27.0` while Xcode 27.2 is
-installed, and the check refuses it until the user runs
-`sudo xcodebuild -license accept` again, which the refusal names.
-Whether Xcode itself counts a record from an older version as accepted
-wasn't measured (X06-guest-xcode, "Follow-up (I624)"). If it does,
-dropping the version from the check is the maintainer's decision.
+The shim parses both plists itself. It refuses unless the ID recorded
+for the app's license type equals the app's `licenseID`. It doesn't
+compare the recorded version, because Xcode doesn't either: on the
+reference machine the record says `27.0`, Xcode 27.2 is installed,
+and `xcodebuild -license check` exits 0 (X06-guest-xcode, "Follow-up
+(I624)"). A new license ID still needs a new acceptance, which the
+refusal names: `sudo xcodebuild -license accept`.
 
 ### The Xcode disk
 
