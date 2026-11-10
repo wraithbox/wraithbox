@@ -28,7 +28,7 @@ Needs a token with `repo` scope and admin rights on the repository.
 | Dependabot alerts | on | Supply-chain policy (S10-tech-stack). Renovate reads them and opens the fixes |
 | Dependabot security updates | off | Renovate opens version and security updates ([Renovate](#renovate)) |
 | Secret scanning and push protection | on | A pushed credential raises an alert, and push protection rejects a push that contains a known token format |
-| Code scanning | default setup | CodeQL for Go, Swift, JavaScript/TypeScript and Actions, on pull requests, pushes to `main` and weekly. GitHub picks the languages and runners. Swift runs on a macOS runner |
+| Code scanning | advanced setup | CodeQL for Go, Swift, JavaScript/TypeScript and Actions, from `.github/workflows/codeql.yml` and `codeql-swift.yml`. They run on a push to `main`, weekly and by hand, never on a pull request, because the Swift scan of each pull request held a macOS runner for 12 to 17 minutes (I752). Swift runs on a push only when it changes a Swift input (the workflow's `paths`), and every week |
 | Private vulnerability reporting | on | `SECURITY.md` sends reporters here, because a vulnerability is never a public issue |
 | Actions allowed | GitHub-owned plus `jdx/mise-action@*`, `zizmorcore/zizmor-action@*` | Only actions the workflows use; a new third-party action needs an explicit entry here |
 | Actions SHA pinning required | on | Enforces the "pin to full-length commit SHA" rule from `AGENTS.md` |
@@ -52,7 +52,8 @@ gh api -X PATCH "$R" --input - <<'JSON'
 {"security_and_analysis": {"secret_scanning": {"status": "enabled"},
  "secret_scanning_push_protection": {"status": "enabled"}}}
 JSON
-gh api -X PATCH "$R/code-scanning/default-setup" -f state=configured
+# Advanced setup: the workflows upload the results, so default setup is off.
+gh api -X PATCH "$R/code-scanning/default-setup" -f state=not-configured
 gh api -X PUT "$R/private-vulnerability-reporting"
 gh api -X PATCH "$R" -F has_wiki=false -F has_projects=false \
   -F allow_squash_merge=false -F allow_merge_commit=true -F allow_rebase_merge=true \

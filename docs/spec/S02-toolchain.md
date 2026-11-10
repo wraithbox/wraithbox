@@ -131,8 +131,8 @@ repository only (`docs/github-settings.md`, "Renovate").
 - Linux jobs run on an explicit Ubuntu image (`ubuntu-26.04`), never
   `ubuntu-latest`, which lags behind the newest stable image. Renovate
   proposes the next stable image, but doesn't merge it: PR CI runs only
-  `ci.yml`. The maintainer runs `fuzz.yml`, `deploy.yml` and
-  `renovate.yml` by hand first. Until actionlint knows a new image's
+  `ci.yml`. The maintainer runs `fuzz.yml`, `deploy.yml`, `codeql.yml`
+  and `renovate.yml` by hand first. Until actionlint knows a new image's
   label, `.github/actionlint.yaml` lists it. The macOS runner stays on the oldest v1
   host ("Swift comes from Xcode, not mise"), and Renovate leaves it
   alone.
