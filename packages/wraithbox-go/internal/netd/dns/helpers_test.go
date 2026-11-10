@@ -52,6 +52,30 @@ type host struct{ rule netd.Rule }
 
 func (h *host) Refusal() netd.Rule { return h.rule }
 
+// event is one decision passed to netd.Events.
+type event struct {
+	decision netd.Decision
+	rule     netd.Rule
+}
+
+// events is a fake netd.Events that keeps the decisions.
+type events struct {
+	mu  sync.Mutex
+	got []event
+}
+
+func (e *events) Event(d netd.Decision, rule netd.Rule, _ uint64, _ []slog.Attr) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.got = append(e.got, event{d, rule})
+}
+
+func (e *events) list() []event {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return append([]event(nil), e.got...)
+}
+
 // approvals is a fake netd.Approvals that keeps the names.
 type approvals struct {
 	mu    sync.Mutex

@@ -159,7 +159,9 @@ const (
 	// RuleDNSNameForm: a name that fails the name form rule
 	// (internal/dnsname).
 	RuleDNSNameForm Rule = dnsname.RuleForm
-	// RuleDNSQueryRate: a query over the VM's query rate.
+	// RuleDNSQueryRate: a query over the VM's query rate. It is dropped
+	// without an answer and isn't held (S07-04-dns-refusals, "Over the
+	// rate").
 	RuleDNSQueryRate Rule = "dns-query-rate"
 	// RuleDNSHoldFull: a refused query over Caps.HeldQueries. It is
 	// dropped without an answer.
