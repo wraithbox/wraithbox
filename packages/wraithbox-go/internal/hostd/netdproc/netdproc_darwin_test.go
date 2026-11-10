@@ -418,6 +418,18 @@ func TestStopBoundsASenderThatIgnoresIt(t *testing.T) {
 		t.Fatalf("start: %v\n%s\n%s", err, s.log, s.netdLog)
 	}
 	waitFor(t, s.netdLog, "flood-netd blocked")
+	pid := s.pid(t)
+	// A failed wait leaves the stand-in running until the backstop, so
+	// the cleanup kills it. Once it has exited it is reaped and its pid
+	// may belong to another process, so the cleanup leaves it alone, and
+	// a kill that finds it dead is ignored.
+	t.Cleanup(func() {
+		select {
+		case <-run.Exited():
+		default:
+			_ = syscall.Kill(pid, syscall.SIGKILL)
+		}
+	})
 	if n := len(rec.Records()); n > slack {
 		t.Fatalf("%d records read before the stop, more than the slack of %d", n, slack)
 	}
@@ -429,7 +441,7 @@ func TestStopBoundsASenderThatIgnoresIt(t *testing.T) {
 	// What it wrote and the receiver didn't read stays in the socket
 	// after the kill, so the drain finds a record past the allowance.
 	waitWithin(t, s.netdLog, "flood-netd wrote past the allowance", waitSender)
-	if err := syscall.Kill(s.pid(t), syscall.SIGKILL); err != nil {
+	if err := syscall.Kill(pid, syscall.SIGKILL); err != nil {
 		t.Fatal(err)
 	}
 	select {

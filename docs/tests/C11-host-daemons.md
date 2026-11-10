@@ -412,9 +412,10 @@ Spec: S04-architecture.
   allowance read (S09-11-audit, "Telling the senders").
   `TestStopBoundsASenderThatIgnoresIt` in `internal/hostd/netdproc`
   starts the stand-in built to keep sending after its control channel
-  closes. It sees the stop kill it at `StopTimeout` and return, the
-  records past the allowance logged with `event-stop-allowance`, and
-  no more than the allowance read. `TestRoomCountsUnsynced` and
+  closes. The test kills the stand-in once it has written past the
+  allowance plus the slack, and the stop returns and logs the drop
+  with `event-stop-allowance`, while `TestNetdStopTimeoutKills` covers
+  the kill at `StopTimeout`. `TestRoomCountsUnsynced` and
   `TestRoomAfterFailedSyncAtCap` in `internal/hostd/audit` see the
   records written but not synced count against the writer's cap, and
   `Room` open again once a failed sync at the cap is retried.
