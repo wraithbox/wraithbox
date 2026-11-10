@@ -52,14 +52,22 @@ final class ServiceFixture {
         }
     }
 
-    /// Closes wb-hostd's end, as when wb-hostd is gone.
-    nonisolated func closeHostEnd() {
+    /// Closes wb-hostd's end, as when wb-hostd is gone, and waits until
+    /// wb-vmd's end sees the close: a send on it fails because its peer
+    /// is gone (peerIsClosed). Returns false when that takes over two
+    /// seconds. Until the close shows, a send can still succeed: a test
+    /// running in parallel that spawns a process gives the new process a
+    /// copy of wb-hostd's end until posix_spawn closes it (closeShows),
+    /// and the record lands in that copy's buffer.
+    func closeHostEnd() async throws -> Bool {
         hostClosed.withLock { closed in
             if !closed {
                 close(handoff.host)
                 closed = true
             }
         }
+        let vmd = handoff.vmd
+        return try await closeShows { peerIsClosed(vmd) }
     }
 
     /// Runs `body` with a client of the service.

@@ -173,8 +173,11 @@ struct ConnectGuestTests {
     @Test("a send that fails is refused with handoff-send-failed, and the connection is closed")
     func sendFailed() async throws {
         let (fixture, machine) = try await runningFixture()
-        // wb-hostd's end is gone.
-        fixture.closeHostEnd()
+        // wb-hostd's end is gone, and wb-vmd's end sees it before the
+        // connect, so the send fails whatever else the test process runs.
+        try #require(
+            await fixture.closeHostEnd(),
+            "wb-vmd's end did not see wb-hostd's close within 2 s")
         await #expect {
             try await fixture.connector.connect(generation: 1, requestID: 7, port: 1023)
         } throws: { error in
