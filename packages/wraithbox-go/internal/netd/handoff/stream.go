@@ -66,7 +66,8 @@ func (s *Sender) HandOffStream(conn netd.StreamConn, f netd.NamedFlow) {
 	defer func() { _ = conn.Close() }()
 	sock, st, err := s.sendStream(conn, f)
 	if err != nil {
-		// Record before the guest sees the reset (SEC10-audit).
+		// Record before the guest sees the reset. The Sender's recorder
+		// logs and counts it, and doesn't raise an audit event yet (I730).
 		s.rec.Record(netd.Reset, netd.RuleHandoffSendFailed,
 			append(f.LogAttrs(), slog.String("name", f.Name.String()), slog.String("error", err.Error()))...)
 		conn.Reset()
@@ -209,8 +210,9 @@ func (st *stream) end(sock *socket) {
 			append(st.flow.LogAttrs(), slog.Uint64("stream_id", st.id))...)
 		st.reset()
 	case sock.isEnded():
-		// The socket's end reset the stream and logged
-		// handoff-socket-ended. reset runs once.
+		// isEnded returned after the socket's end noted
+		// handoff-socket-ended, so this reset comes after the note. The
+		// end resets the stream too, and reset runs once.
 		st.reset()
 	default:
 		_ = st.guest.CloseWrite()

@@ -77,7 +77,9 @@ func (k *socket) end(why error) {
 		drains := k.drains
 		k.drains = nil
 		k.mu.Unlock()
-		// Noted before any stream's reset reaches the guest (SEC10-audit).
+		// Noted before any stream's reset reaches the guest: the resets
+		// below come after it, and a stream that asks isEnded waits for
+		// done, closed after it (SEC10-audit).
 		k.s.rec.Note(netd.RuleHandoffSocketEnded,
 			slog.Uint64("generation", k.generation), slog.Int("streams_reset", len(streams)),
 			slog.String("reason", why.Error()))
@@ -92,11 +94,19 @@ func (k *socket) end(why error) {
 	})
 }
 
-// isEnded reports whether the socket ended.
+// isEnded reports whether the socket ended. When it did, it first waits
+// for done, which end closes after it noted handoff-socket-ended, so a
+// stream that resets its guest on the answer does so after the note
+// (SEC10-audit). end never waits on a stream, so the wait can't
+// deadlock.
 func (k *socket) isEnded() bool {
 	k.mu.Lock()
-	defer k.mu.Unlock()
-	return k.ended
+	ended := k.ended
+	k.mu.Unlock()
+	if ended {
+		<-k.done
+	}
+	return ended
 }
 
 // isReady reports whether wb-proxyd's version record passed.
