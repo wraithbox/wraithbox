@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/eventchan"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit/audittest"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/egress"
@@ -85,25 +86,34 @@ var makeBuildDir = sync.OnceValues(func() (string, error) {
 	return dir, err
 })
 
-// build builds the command in pkg as name, stamped with nt.Own.
-func build(pkg, name string) (string, error) {
+// build builds the command in pkg as name, stamped with nt.Own, and with
+// each of set as a -X flag of the linker.
+func build(pkg, name string, set ...string) (string, error) {
 	dir, err := makeBuildDir()
 	if err != nil {
 		return "", err
 	}
 	out := filepath.Join(dir, name)
-	cmd := exec.CommandContext(context.Background(), "go", "build", "-ldflags=-X "+version.StampVar+"="+nt.Own, "-o", out, pkg)
+	ldflags := "-X " + version.StampVar + "=" + nt.Own
+	for _, v := range set {
+		ldflags += " -X " + v
+	}
+	cmd := exec.CommandContext(context.Background(), "go", "build", "-ldflags="+ldflags, "-o", out, pkg)
 	if b, err := cmd.CombinedOutput(); err != nil {
 		return "", errors.New(string(b))
 	}
 	return out, nil
 }
 
-// buildNetd builds wb-netd, and buildFlood testdata/flood-netd, once per
+// buildNetd builds wb-netd, buildFlood testdata/flood-netd, and
+// buildIgnoreStop flood-netd in the mode that ignores the stop, once per
 // test binary.
 var (
-	buildNetd  = sync.OnceValues(func() (string, error) { return build("../../../cmd/wb-netd", "wb-netd") })
-	buildFlood = sync.OnceValues(func() (string, error) { return build("./testdata/flood-netd", "flood-netd") })
+	buildNetd       = sync.OnceValues(func() (string, error) { return build("../../../cmd/wb-netd", "wb-netd") })
+	buildFlood      = sync.OnceValues(func() (string, error) { return build("./testdata/flood-netd", "flood-netd") })
+	buildIgnoreStop = sync.OnceValues(func() (string, error) {
+		return build("./testdata/flood-netd", "flood-netd-ignore-stop", "main.mode=ignore-stop")
+	})
 )
 
 type setup struct {
@@ -364,5 +374,53 @@ func TestStopReadsPastAFullQueue(t *testing.T) {
 	}
 	if strings.Contains(s.netdLog.String(), "event records not written at close") {
 		t.Errorf("flood-netd dropped records\n%s", s.netdLog)
+	}
+}
+
+// TestStopBoundsASenderThatIgnoresIt is S09-11-audit, "Telling the
+// senders": a wb-netd that keeps sending after its control channel
+// closed gets no more than the stop allowance read past the hold. The
+// stop kills it at StopTimeout, the receiver logs the records past the
+// allowance with event-stop-allowance, and the stop returns.
+func TestStopBoundsASenderThatIgnoresIt(t *testing.T) {
+	const stopTimeout = time.Second
+	// The allowance is events.stopAllowance. The slack is the records
+	// read before the hold began.
+	const allowance, slack = 2 * eventchan.DefaultQueueCap, 2
+	program, err := buildIgnoreStop()
+	if err != nil {
+		t.Fatalf("build flood-netd: %v", err)
+	}
+	rec := &audittest.Recorder{}
+	s := newSetup(t, program, func(c *netdproc.Config) {
+		c.Events = events.NewHub(fullLog{rec}, c.Log)
+		c.StopTimeout = stopTimeout
+	})
+	run, err := s.start(t.Context(), vm.SlotWork, 1, guestMAC, s.t)
+	if err != nil {
+		t.Fatalf("start: %v\n%s\n%s", err, s.log, s.netdLog)
+	}
+	waitFor(t, s.netdLog, "flood-netd blocked")
+	stopped := make(chan struct{})
+	go func() {
+		defer close(stopped)
+		run.Stop()
+	}()
+	select {
+	case <-stopped:
+	case <-time.After(stopTimeout + 10*time.Second):
+		t.Fatalf("the stop didn't return\n%s", s.log)
+	}
+	logged := s.log.String()
+	for _, want := range []string{
+		`"rule":"netd-stop-timeout","decision":"kill"`,
+		`"rule":"event-stop-allowance","decision":"drop"`,
+	} {
+		if !strings.Contains(logged, want) {
+			t.Errorf("no %s in the log\n%s", want, logged)
+		}
+	}
+	if n := len(rec.Records()); n > allowance+slack {
+		t.Errorf("%d records read, more than the allowance of %d", n, allowance)
 	}
 }

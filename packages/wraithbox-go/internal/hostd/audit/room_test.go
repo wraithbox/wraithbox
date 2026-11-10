@@ -84,6 +84,33 @@ func TestRoomCountsUnsynced(t *testing.T) {
 	}
 }
 
+// TestRoomAfterFailedSyncAtCap: a sync at the cap that fails puts the
+// records back in the queue, so Room stays closed, and once a retry
+// writes and syncs them Room is open again with every record written.
+func TestRoomAfterFailedSyncAtCap(t *testing.T) {
+	h := newHarness(t, func(c *Config) { c.QueueCap = 2 })
+	h.fault(func(f *faults) { f.sync = []error{syscall.EIO} })
+	h.w.Record(VMRunning("work", 1, "vm-start"))
+	h.w.Record(VMRunning("work", 1, "vm-start"))
+	h.flush()
+	if closedNow(h.w.Room()) || h.w.Queued() < 2 {
+		t.Fatalf("room after a failed sync at the cap, %d queued", h.w.Queued())
+	}
+	h.advance(time.Second)
+	if !closedNow(h.w.Room()) {
+		t.Fatalf("no room once the retry synced, %d queued", h.w.Queued())
+	}
+	running := 0
+	for _, r := range h.records(start) {
+		if r.Message == "vm running" {
+			running++
+		}
+	}
+	if running != 2 {
+		t.Fatalf("%d of the 2 records written once the retry synced", running)
+	}
+}
+
 // TestRoomOnClose: a closed writer releases Room's callers, so a
 // receiver never waits on a writer that is gone.
 func TestRoomOnClose(t *testing.T) {
