@@ -177,7 +177,13 @@ looked like, and reaches the audit hook.
 - Reset a stream from the hand-off's side while its first bytes are
   read, during its dial, and as its dial opens. See no refusal and no
   allowed record logged by the handler, and nothing reach the
-  upstream server (`TestC02EndedByHandoff`).
+  upstream server (`TestC02EndedByHandoff`). Reset a pass stream after
+  its dial opened and passed its end check, before its ClientHello is
+  sent, and see the same (`TestC02ResetBeforeHelloSend`).
+- Stall a pass relay's ClientHello write upstream. See the write end
+  at its deadline, the relay end with `first-send-timeout`, and a
+  hand-off reset during the write wait no longer than that
+  (`TestC02FirstSendTimeout`).
 - `tlsparse` refuses each malformed record and ClientHello with its
   check (`TestReadClientHelloRefuses`), and reads a server's records
   only to its ServerHello (`TestServerFlight`).

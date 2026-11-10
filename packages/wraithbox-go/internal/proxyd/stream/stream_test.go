@@ -2,10 +2,12 @@ package stream
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"log/slog"
 	"net"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -411,6 +413,78 @@ func TestC02ResetBeforeHelloSend(t *testing.T) {
 	if n := x.dialer.dials.Load(); n != 1 {
 		t.Errorf("%d upstream dials, want 1", n)
 	}
+}
+
+// stallDialer opens one end of a net.Pipe whose other end nobody
+// reads, so a write to it blocks until its deadline. writing is closed
+// as the first write starts.
+type stallDialer struct {
+	writing chan struct{}
+	once    sync.Once
+}
+
+func (d *stallDialer) Dial(context.Context, string, uint16) (net.Conn, error) {
+	a, _ := net.Pipe()
+	return &signalConn{Conn: a, d: d}, nil
+}
+
+// signalConn closes its dialer's writing channel as a write starts.
+type signalConn struct {
+	net.Conn
+	d *stallDialer
+}
+
+func (c *signalConn) Write(b []byte) (int, error) {
+	c.d.once.Do(func() { close(c.d.writing) })
+	return c.Conn.Write(b)
+}
+
+// TestC02FirstSendTimeout stalls a pass relay's ClientHello write
+// upstream. The write ends at firstSendTimeout: the relay resets the
+// stream and logs its end as first-send-timeout. A hand-off reset that
+// comes during the stalled write waits for it, and no longer
+// (SEC13-bounded-resources, I598).
+func TestC02FirstSendTimeout(t *testing.T) {
+	const timeout = 200 * time.Millisecond
+	hello := tlstest.Hello{ServerName: passHost}.Records()
+	start := func(t *testing.T) (*harness, *stallDialer) {
+		t.Helper()
+		x := newHarness(t, "")
+		x.h.firstSendTimeout = timeout
+		d := &stallDialer{writing: make(chan struct{})}
+		x.dialer.inner = d
+		x.start(testPolicy(t), passHost, 443)
+		x.send(hello)
+		return x, d
+	}
+	t.Run("deadline", func(t *testing.T) {
+		x, _ := start(t)
+		if how := x.ended(); how != "reset" {
+			t.Errorf("stream ended with %q, want a reset", how)
+		}
+		<-x.done
+		x.wantRecords(1, 0)
+		if !strings.Contains(x.logs.String(), "end="+endFirstSendTimeout) {
+			t.Errorf("the relay's end isn't %s:\n%s", endFirstSendTimeout, x.logs.String())
+		}
+	})
+	t.Run("hand-off reset waits", func(t *testing.T) {
+		x, d := start(t)
+		<-d.writing
+		began := time.Now()
+		reset := make(chan struct{})
+		go func() { x.ctl.handoffReset(); close(reset) }()
+		select {
+		case <-reset:
+		case <-time.After(waitLong):
+			t.Fatalf("the hand-off reset still waits after %v; log:\n%s", waitLong, x.logs.String())
+		}
+		if waited := time.Since(began); waited > timeout+2*time.Second {
+			t.Errorf("the hand-off reset waited %v, want about %v", waited, timeout)
+		}
+		x.ended()
+		<-x.done
+	})
 }
 
 // wantHandoffEnd checks the hand-off ended the stream, and the handler

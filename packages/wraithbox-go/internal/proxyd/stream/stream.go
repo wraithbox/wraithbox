@@ -132,7 +132,9 @@ const (
 	ServerFlightCap = 64 << 10
 	// FirstSendTimeout bounds the write of a pass relay's ClientHello
 	// upstream. The stream's end waits for that write
-	// (Control.SendWhileOpen), so it waits at most this long.
+	// (Control.SendWhileOpen), so it waits at most this long per
+	// stream. A recompute that resets several streams in turn can wait
+	// this long for each whose write is stalled.
 	FirstSendTimeout = 5 * time.Second
 )
 
