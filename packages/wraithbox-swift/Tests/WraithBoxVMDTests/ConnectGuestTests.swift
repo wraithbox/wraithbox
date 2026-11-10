@@ -1,7 +1,8 @@
 // C11-host-daemons, "ConnectGuest": with a fake socket device and a real
 // hand-off socketpair, each refusal has its rule and sends nothing, a
 // connection is sent once with the right fields and wb-vmd's copy is
-// closed after, and the connects in flight are capped.
+// closed once wb-hostd acknowledges it, and the connects in flight are
+// capped.
 import Darwin
 import Foundation
 import GRPCCore
@@ -31,24 +32,35 @@ func runningFixture(connectTimeout: Duration = GuestConnector.defaultTimeout) as
         generation: 1, cpuCount: 2, memoryMiB: 1024, macAddress: testMAC, provisioning: false)
     let machine = try #require(fixture.engine.machines.first)
     // The start's network record comes first. The tests here read only
-    // the connection records after it.
+    // the connection records after it, so it is acknowledged here.
     let network = try #require(receiveHandoff(fixture.handoff.host))
     closeAll(network.descriptors)
+    try sendAck(fixture.handoff.host, for: network)
+    try #require(
+        await closeShows { fixture.keeper.keptCount == 0 },
+        "the network record's acknowledgment did not arrive within 2 s")
     return (fixture, machine)
 }
 
 @Suite("ConnectGuest")
 @MainActor
 struct ConnectGuestTests {
-    @Test("a connection is sent once, with the request's fields, and wb-vmd's copy is closed")
+    @Test(
+        "a connection is sent once, with the request's fields, and wb-vmd's copy is closed at the acknowledgment"
+    )
     func passed() async throws {
         let (fixture, machine) = try await runningFixture()
         try await fixture.connector.connect(generation: 1, requestID: 7, port: 1023)
         let connection = try #require(machine.connections.first)
-        #expect(connection.closes == 1)
-        #expect(fixture.connector.inFlight == 0)
+        #expect(connection.closes == 0)
+        #expect(fixture.connector.inFlight == 1)
 
         let received = try #require(receiveHandoff(fixture.handoff.host))
+        try sendAck(fixture.handoff.host, for: received)
+        #expect(
+            try await closeShows { connection.closes == 1 },
+            "the acknowledgment did not close wb-vmd's copy within 2 s")
+        #expect(fixture.connector.inFlight == 0)
         var unclosed = received.descriptors
         defer { closeAll(unclosed) }
         let message = try Wraithbox_Vmd_V1_HandoffMessage(serializedBytes: received.record)
@@ -145,13 +157,18 @@ struct ConnectGuestTests {
         for task in tasks {
             try await task.value
         }
-        #expect(connector.inFlight == 0)
+        // Each passed connection keeps its slot until its acknowledgment.
+        #expect(connector.inFlight == GuestConnector.maxInFlight)
         var records = 0
         while let received = receiveHandoff(fixture.handoff.host) {
             closeAll(received.descriptors)
+            try sendAck(fixture.handoff.host, for: received)
             records += 1
         }
         #expect(records == GuestConnector.maxInFlight)
+        #expect(
+            try await closeShows { connector.inFlight == 0 },
+            "the acknowledgments did not free the slots within 2 s")
     }
 
     @Test("a connect that times out is refused, holds its slot until it completes, and is closed")

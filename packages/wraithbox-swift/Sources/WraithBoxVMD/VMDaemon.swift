@@ -69,7 +69,8 @@ public enum VMDaemon {
                 "pid": .int(Int64(getpid())),
             ])
         let (supervisor, service) = MainActor.assumeIsolated {
-            let handoff = HandoffChannel(fd: InheritedDescriptor.handoff.rawValue)
+            let handoff = HandoffKeeper(
+                channel: HandoffChannel(fd: InheritedDescriptor.handoff.rawValue), log: log)
             let supervisor = VMSupervisor(
                 engine: VirtualizationEngine(), slot: resolved.slot,
                 bundlePath: resolved.realBundle, restoreImagePath: resolved.realRestoreImage,

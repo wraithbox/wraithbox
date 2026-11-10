@@ -22,6 +22,9 @@ final class ServiceFixture {
     nonisolated let recorded = RecordedLog()
     nonisolated let supervisor: VMSupervisor
     nonisolated let connector: GuestConnector
+    /// Keeps each descriptor wb-vmd sends until the test acknowledges it
+    /// (acknowledge), or until its deadline.
+    let keeper: HandoffKeeper
     nonisolated let bundlePath: String
     nonisolated let homePath: String
     /// wb-vmd's end of the hand-off channel, and wb-hostd's, which the
@@ -33,20 +36,22 @@ final class ServiceFixture {
     /// engine never opens.
     init(
         slot: VMSlot = .work, files: [BundleFile] = BundleFile.allCases,
-        connectTimeout: Duration = GuestConnector.defaultTimeout
+        connectTimeout: Duration = GuestConnector.defaultTimeout,
+        handoffDeadline: Duration = HandoffKeeper.defaultDeadline
     ) throws {
         bundle = try BundleFixture(slot: slot, files: files)
         bundlePath = bundle.path
         homePath = bundle.home.path
         let pair = try makeSocketPair(SOCK_DGRAM)
         handoff = (pair.0, pair.1)
+        keeper = HandoffKeeper(
+            channel: HandoffChannel(fd: pair.0), log: recorded.log, deadline: handoffDeadline)
         supervisor = VMSupervisor(
             engine: engine, slot: slot, bundlePath: bundle.path,
             restoreImagePath: slot == .build ? bundle.restoreImagePath : nil,
-            handoff: HandoffChannel(fd: pair.0), log: recorded.log)
+            handoff: keeper, log: recorded.log)
         connector = GuestConnector(
-            supervisor: supervisor, handoff: HandoffChannel(fd: pair.0), log: recorded.log,
-            timeout: connectTimeout)
+            supervisor: supervisor, handoff: keeper, log: recorded.log, timeout: connectTimeout)
     }
 
     /// Whether the test closed wb-hostd's end already.

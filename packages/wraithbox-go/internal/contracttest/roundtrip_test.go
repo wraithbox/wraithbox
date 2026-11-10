@@ -156,6 +156,12 @@ func messages() []proto.Message {
 			SourcePort:      1_000_000,
 			DestinationPort: 700,
 		},
+		&vmdv1.HandoffAck{
+			Kind:       vmdv1.Kind_KIND_CONNECTION,
+			RequestId:  41,
+			Generation: 3,
+			Accepted:   true,
+		},
 		&guestv1.HelloRequest{},
 		&guestv1.HelloResponse{
 			GuestdVersion:  "1.2.3-rc.1+build.5",

@@ -57,8 +57,8 @@ public struct MACAddress: Sendable, Equatable, CustomStringConvertible {
 
 /// One VM's packet transport: a datagram socketpair. wb-vmd keeps neither
 /// end: the engine takes a copy of `vmEnd` for the attachment, and
-/// `hostEnd` goes to wb-hostd. Both of wb-vmd's descriptors are closed
-/// when the value is closed.
+/// `hostEnd` goes to wb-hostd. The descriptors the value still holds are
+/// closed when it is closed.
 public final class PacketTransport {
     /// SO_SNDBUF of both ends. A frame is at most MTU + 14 bytes, and a
     /// datagram socket's send buffer bounds the largest datagram it
@@ -108,8 +108,15 @@ public final class PacketTransport {
         }
     }
 
-    /// Closes wb-vmd's copy of the host end, once it is sent
-    /// (X18-vsock-handoff, condition 4).
+    /// Gives up the host end to the caller, which closes it: HandoffKeeper
+    /// keeps it until wb-hostd holds it (S07-05-stream-hand-off,
+    /// "Transport"). The value no longer closes it.
+    public func takeHostEnd() -> Int32 {
+        defer { hostEnd = -1 }
+        return hostEnd
+    }
+
+    /// Closes wb-vmd's copy of the host end.
     public func closeHostEnd() {
         if hostEnd >= 0 {
             Darwin.close(hostEnd)
