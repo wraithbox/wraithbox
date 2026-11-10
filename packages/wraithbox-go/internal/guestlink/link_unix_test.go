@@ -231,9 +231,13 @@ func TestDialerRefusesSecondCall(t *testing.T) {
 	srv.Stop()
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
-	for s := cc.GetState(); s == connectivity.Ready; s = cc.GetState() {
+	// grpc-go can answer Hello while the state still says CONNECTING
+	// (Link.watch), so CONNECTING here is the state before READY, not the
+	// drop. Leaving the loop on it let the call below fail on the old
+	// transport, before any redial (#547).
+	for s := cc.GetState(); s == connectivity.Ready || s == connectivity.Connecting; s = cc.GetState() {
 		if !cc.WaitForStateChange(ctx, s) {
-			t.Fatal("the connection stayed READY")
+			t.Fatalf("the connection stayed %v", s)
 		}
 	}
 	callCtx, callCancel := context.WithTimeout(t.Context(), time.Second)
