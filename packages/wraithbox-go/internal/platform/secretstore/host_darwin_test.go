@@ -462,7 +462,7 @@ func TestC05HostConfineAfterOpen(t *testing.T) {
 // profile, then opens the store, and sees the open refused with
 // keychain-needs-team: the profile blocks the read of the process's own
 // signature (OSStatus 100001), so a program opens the store before it
-// confines itself (decision 7 on I505; S15-02-secret-store,
+// confines itself (decision 7 on I505; S15-06-binding-commands,
 // "`wb-credset`"). If this starts to pass, the order can change.
 func TestC05HostConfineFirst(t *testing.T) {
 	hostStep(t, "confine-first")

@@ -101,7 +101,7 @@ fetches them when proxying needs them (S09-policy-credentials-audit).
 - `wb` itself doesn't have store access.
 - Each command runs `wb-credset` for one operation.
 - `set` passes the value on `wb-credset`'s standard input
-  (S15-02-secret-store, "`wb cred`").
+  (S15-06-binding-commands, "`wb cred`").
 
 ### `wb gate reset go-clock`
 

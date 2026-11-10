@@ -110,6 +110,7 @@ Wraith Box works and why.
 | S15-03-access-rules | Access Rules | Draft |
 | S15-04-guest-admin | The Guest Admin User | Draft |
 | S15-05-admin-path | The Admin Path | Draft |
+| S15-06-binding-commands | The Binding Commands | Draft |
 | S16-terminal-stream | Terminal Stream | Draft |
 | S16-01-filter | Filter | Draft |
 | S16-02-drops-and-links | Drops and Links | Draft |

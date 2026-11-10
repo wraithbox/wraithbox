@@ -10,7 +10,7 @@ import (
 
 // DecisionMsg is the message of wb-credset's one decision line, the JSON
 // log line on its standard error that wb reads for the outcome
-// (S15-02-secret-store, "`wb-credset`").
+// (S15-06-binding-commands, "`wb-credset`").
 const DecisionMsg = "wb-credset decision"
 
 // The decisions.

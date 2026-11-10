@@ -3,7 +3,7 @@
 // binding secrets in the secret store. It is the main executable of a
 // helper bundle of its own, which holds the `binding` access group in a
 // build that a team signs. See
-// docs/spec/S15-least-privilege/S15-02-secret-store.md and
+// docs/spec/S15-least-privilege/S15-06-binding-commands.md and
 // docs/spec/S10-tech-stack/S10-02-packaging-and-signing.md.
 //
 // Its start interface: two arguments, the operation (write, delete or
@@ -55,11 +55,14 @@ func setLog() {
 //     (S13-01-process-hardening, "Limits and environment"), and exits 1
 //     when that fails;
 //  2. it opens the store with its own compiled-in identity. Open turns
-//     the Keychain's dialogs off and reads the team and the groups of
-//     the process's own signature, and takes nothing from its arguments,
-//     environment or descriptors. The store-only profile doesn't allow
-//     that read, so Open comes before the profile (S04-03-self-sandboxing,
-//     "Store programs before they confine themselves"). An open that
+//     the Keychain's dialogs off, checks that its signature on disk
+//     matches the running code, reads the team from that signature and
+//     the groups from the kernel's copy of its entitlements, and takes
+//     nothing from its arguments, environment or descriptors. The
+//     store-only profile blocks the signature read, so Open comes before
+//     the profile (S04-03-self-sandboxing, "Store programs before they
+//     confine themselves"). Each item call then names the fixed account
+//     (S15-02-secret-store). An open that
 //     fails, such as keychain-needs-team in an ad-hoc build, is logged,
 //     and the store then refuses every call with that rule;
 //  3. it confines itself with the store-only profile

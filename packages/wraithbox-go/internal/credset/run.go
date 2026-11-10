@@ -48,7 +48,7 @@ type Process struct {
 }
 
 // Run is wb-credset after the store is open and the process is confined
-// (S15-02-secret-store, "`wb-credset`"). It checks p's arguments and
+// (S15-06-binding-commands, "`wb-credset`"). It checks p's arguments and
 // environment, then makes one store call: write the value on stdin,
 // delete the item, or print the binding names to stdout. It logs one
 // decision line on stderr, with the rule, the operation, the binding and
@@ -70,7 +70,7 @@ func Run(ctx context.Context, p Process, store Store) int {
 	}
 }
 
-// check runs the checks of S15-02-secret-store, "`wb-credset`", before any
+// check runs the checks of S15-06-binding-commands, "`wb-credset`", before any
 // store call, and returns the request, or the reason of the
 // credset-refused refusal. It enforces SEC12-least-privilege for
 // wb-credset, and SEC04-no-guest-secrets: the value only comes on
@@ -163,7 +163,7 @@ func list(ctx context.Context, log *slog.Logger, req request, stdout io.Writer, 
 //     `wb cred rm` can run twice.
 //   - A locked store is store-locked. wb-credset doesn't wait for the
 //     unlock: it has no work to resume, and the user runs the command
-//     again (S15-02-secret-store, "`wb-credset`").
+//     again (S15-06-binding-commands, "`wb-credset`").
 //   - Any other failure is the store's rule. An error that names none,
 //     as on a platform without a backend, is store-write-failed for a
 //     write or a delete and store-read-failed for a list.

@@ -103,7 +103,7 @@ func fakeHelper() int {
 func realHelper(c control, stdin []byte) int {
 	ctx := context.Background()
 	group := storeitem.Group(team, storeitem.RoleBinding)
-	fake := storetest.New(team, group)
+	fake := storetest.New(storeitem.ProgramCredset, team, group)
 	for _, b := range c.Seed {
 		n, _ := credset.BindingItem(b)
 		fake.Write(ctx, group, n.String(), []byte("seeded"))
