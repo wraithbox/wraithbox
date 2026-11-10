@@ -220,7 +220,7 @@ its limits before it merges.
 | Recovery pushes | `wb-hostd`, `wb-git` | one per lost session, to its own branch only, under the same limits as other pushes | S06-11-reconnect-and-recovery, "Recovery" |
 | Approval requests | `wb-netd`, `wb-hostd`, `wb-prover` | 16 pending requests and 10 new requests a minute per VM, one open request per name, prover runs at once | S09-10-approval-flow, and S09-09-approvals |
 | Native notifications | `wb-hostd` and the notification helper | one per pending approval request, one per daemon outage | S04-07-supervision, "Restarting a daemon", and S09-09-approvals |
-| Audit events | `wb-hostd` | a budget per class and per VM, refusals of new work instead of lost records, a byte budget per VM per day | S09-11-audit |
+| Audit events | `wb-hostd` | a budget per class and per VM, refusals of new work instead of lost records, a byte budget per VM per day, a cap on the audit writer's queue, and no read of an event channel while the queue is at its cap or the last record's VM is past a budget by a margin | S09-11-audit, "Telling the senders" |
 | Accounting and event records | `wb-hostd` | 4 KiB per record, fixed format, a malformed record ends the sender | "Accounting and event channels" |
 | Daemon log lines | `wb-hostd` | 100 lines per second per process, 4 KiB per line | "Logs and health" |
 

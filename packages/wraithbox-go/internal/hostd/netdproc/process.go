@@ -314,6 +314,10 @@ func (p *proc) Stop() []audit.OpenRun {
 		_ = p.cmd.Process.Kill()
 		<-p.exited
 	}
+	// A receiver held back by a full audit queue or a budget reads what
+	// wb-netd left now, so the stop doesn't wait for it
+	// (S04-08-records-and-bounds, "Host work the guest can cause").
+	p.receiver.SenderGone()
 	<-p.receiver.Done()
 	<-p.reader.Done()
 	runs := p.s.cfg.Events.End(p.vm)

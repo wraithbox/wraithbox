@@ -47,6 +47,20 @@ const spaceEvery = time.Minute
 // retentionEvery is how often the writer deletes old files.
 const retentionEvery = time.Hour
 
+// DefaultQueueCap is the records the writer's queue holds before Room
+// tells the event channel's receivers to stop reading
+// (S04-08-records-and-bounds, "Host work the guest can cause";
+// SEC13-bounded-resources). It matches the queue of one sender
+// (eventchan.DefaultQueueCap), so a burst that one sender holds fits.
+const DefaultQueueCap = 4096
+
+// roomNow is the channel Room returns while the queue has room.
+var roomNow = func() chan struct{} {
+	c := make(chan struct{})
+	close(c)
+	return c
+}()
+
 var errClosed = errors.New("the audit writer is closed")
 
 // Stopper stops a VM at once, for a failed write and for a data disk
@@ -86,6 +100,9 @@ type Config struct {
 	Volume Volume
 	// Open opens a day file for appending. nil means the host's.
 	Open func(path string) (File, int64, error)
+	// QueueCap is the queue length from which Room makes its callers
+	// wait. Zero means DefaultQueueCap.
+	QueueCap int
 }
 
 // Writer is the audit writer. Its methods are safe for concurrent use.
@@ -105,6 +122,9 @@ type Writer struct {
 	closed  bool
 	// usage is each VM's count against its budgets, by slot.
 	usage map[string]*usage
+	// room is closed once the queue is below its cap again, nil while
+	// nobody waits for it.
+	room chan struct{}
 
 	wake  chan struct{}
 	calls chan func()
@@ -158,6 +178,9 @@ func New(cfg Config) (*Writer, error) {
 		cfg.Open = openFile
 	}
 	budgetDefaults(&cfg)
+	if cfg.QueueCap <= 0 {
+		cfg.QueueCap = DefaultQueueCap
+	}
 	w := &Writer{
 		cfg: cfg, log: cfg.Logger, floor: cfg.FloorMiB << 20, diskCap: uint64(cfg.DataDiskGiB) << 30,
 		metadata: Metadata{
@@ -234,6 +257,7 @@ func (w *Writer) Close() error {
 		return nil
 	}
 	w.closed = true
+	w.roomLocked()
 	w.mu.Unlock()
 	close(w.quit)
 	<-w.done
@@ -275,6 +299,42 @@ func (w *Writer) enqueue(r Record, done chan error) *item {
 	return it
 }
 
+// Room returns a channel that is closed while the queue holds fewer than
+// Config.QueueCap records, or once the writer is closed. The event
+// channel's receivers wait for it before each read, so a sender that
+// ignores its budget fills its own socket, not wb-hostd's memory
+// (S04-08-records-and-bounds, "Host work the guest can cause";
+// SEC13-bounded-resources). Record and Write never wait for it, and the
+// writer drops no record it accepted.
+func (w *Writer) Room() <-chan struct{} {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.closed || len(w.queue) < w.cfg.QueueCap {
+		return roomNow
+	}
+	if w.room == nil {
+		w.room = make(chan struct{})
+	}
+	return w.room
+}
+
+// Queued is the number of records the writer accepted and hasn't
+// written yet.
+func (w *Writer) Queued() int {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return len(w.queue)
+}
+
+// roomLocked closes the channel of Room's waiters once the queue is
+// below its cap or the writer is closed. Callers hold w.mu.
+func (w *Writer) roomLocked() {
+	if w.room != nil && (w.closed || len(w.queue) < w.cfg.QueueCap) {
+		close(w.room)
+		w.room = nil
+	}
+}
+
 // withdraw takes it out of the queue unless the loop has begun to write
 // it or already answered it. It reports whether it did.
 func (w *Writer) withdraw(it *item) bool {
@@ -288,6 +348,7 @@ func (w *Writer) withdraw(it *item) bool {
 		return false
 	}
 	w.queue = slices.Delete(w.queue, i, i+1)
+	w.roomLocked()
 	return true
 }
 
@@ -365,6 +426,7 @@ func (w *Writer) pop() {
 	defer w.mu.Unlock()
 	w.queue[0] = nil
 	w.queue = w.queue[1:]
+	w.roomLocked()
 }
 
 // logUnwritten logs the records a failing writer still held when it
@@ -395,4 +457,5 @@ func (w *Writer) dropWaiters(err error) {
 	}
 	clear(w.queue[len(kept):])
 	w.queue = kept
+	w.roomLocked()
 }

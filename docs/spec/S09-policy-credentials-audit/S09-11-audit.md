@@ -108,6 +108,17 @@ over a budget, `wb-hostd` sends each sender of that VM a budget notice
 with the rule and when it ends. The senders refuse new work until then.
 A notice that doesn't arrive is sent again with the next record.
 
+A sender that ignores the notice is held back, and none of its records
+is dropped. `wb-hostd` stops reading a sender's channel while the audit
+writer's queue is at its cap, or while the VM of the last record is
+past a budget by a margin, which leaves room for the records of work
+admitted before the notice. The sender's writes then fail, and it
+refuses new work with `event-channel-blocked`. `wb-proxyd` serves every
+VM, so a hold for one VM holds it for every VM. Once a sender exits,
+`wb-hostd` reads what it left without a hold, so a VM stop doesn't wait
+for the queue or the budget (S04-08-records-and-bounds, "Host work the
+guest can cause").
+
 Each sender queues its records until a write succeeds, and drops none.
 The queue holds at most 4096 records of up to 4 KiB each, so 16 MiB. At
 that cap the sender stops reading guest input, and refuses new work
