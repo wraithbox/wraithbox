@@ -250,7 +250,11 @@ final class SpawnedDaemon: Sendable {
         // Copies above every target first, so that a dup2 onto 0 to 5
         // never overwrites a source that a later dup2 still reads.
         let sources = descriptors.map { fcntl($0, F_DUPFD_CLOEXEC, 64) }
-        defer { sources.forEach { close($0) } }
+        defer {
+            for fd in sources where fd >= 0 {
+                close(fd)
+            }
+        }
         try #require(!sources.contains(-1), "fcntl F_DUPFD: \(errno)")
         for (fd, target) in zip(sources, InheritedDescriptor.allCases.map(\.rawValue)) {
             posix_spawn_file_actions_adddup2(&actions, fd, target)
