@@ -31,6 +31,29 @@ static char *wb_item_cstring(CFStringRef s) {
 	return buf;
 }
 
+// WB_ACCOUNT is the account attribute of every item. A generic password
+// is one item per account, service, group and synchronizable value, and
+// a query without an account matches every account. With one fixed
+// account, an item name is exactly one item, and no call matches an
+// item another program of the team wrote under another account in the
+// same group (S15-02-secret-store, "Keychain").
+#define WB_ACCOUNT "wraithbox"
+
+// wb_bad_chars returns 1 when s holds a newline, which separates the
+// names handed to Go, or a NUL, which would cut a C string short. Each
+// cgo preamble is its own C file, so this is a copy of the one in
+// keychain_darwin.go.
+static int wb_bad_chars(CFStringRef s) {
+	CFIndex n = CFStringGetLength(s);
+	for (CFIndex i = 0; i < n; i++) {
+		UniChar c = CFStringGetCharacterAtIndex(s, i);
+		if (c == 0 || c == '\n') {
+			return 1;
+		}
+	}
+	return 0;
+}
+
 // wb_dict returns a new mutable dictionary of CF types, or NULL.
 static CFMutableDictionaryRef wb_dict(void) {
 	return CFDictionaryCreateMutable(NULL, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
@@ -50,7 +73,7 @@ static int wb_set_string(CFMutableDictionaryRef d, CFStringRef key, const char *
 
 // wb_query returns a new query for the generic password item in group,
 // or for every item of the group when item is NULL, or NULL when it
-// can't be made. Every query names the data protection keychain, so
+// can't be made. It names the one account of every item, WB_ACCOUNT. Every query names the data protection keychain, so
 // SecKeychainSetUserInteractionAllowed, which covers only the file-based
 // keychains, isn't what keeps a call from asking (S15-03-access-rules,
 // "No Keychain dialogs"). It names the group, which the checks chose
@@ -65,6 +88,7 @@ static CFMutableDictionaryRef wb_query(const char *group, const char *item) {
 	CFDictionarySetValue(q, kSecClass, kSecClassGenericPassword);
 	CFDictionarySetValue(q, kSecUseDataProtectionKeychain, kCFBooleanTrue);
 	CFDictionarySetValue(q, kSecAttrSynchronizable, kCFBooleanFalse);
+	CFDictionarySetValue(q, kSecAttrAccount, CFSTR(WB_ACCOUNT));
 	if (wb_set_string(q, kSecAttrAccessGroup, group) != 0 ||
 			(item != NULL && wb_set_string(q, kSecAttrService, item) != 0)) {
 		CFRelease(q);
@@ -94,6 +118,11 @@ static CFMutableDictionaryRef wb_value_attrs(CFDataRef value) {
 	return a;
 }
 
+// wb_set_in sets key to value in the mutable dictionary ctx.
+static void wb_set_in(const void *key, const void *value, void *ctx) {
+	CFDictionarySetValue((CFMutableDictionaryRef)ctx, key, value);
+}
+
 // wb_add_or_update adds the item of q with the attributes a, or updates
 // them in place when it exists, so there is no moment without the item.
 static OSStatus wb_add_or_update(CFDictionaryRef q, CFDictionaryRef a) {
@@ -101,13 +130,7 @@ static OSStatus wb_add_or_update(CFDictionaryRef q, CFDictionaryRef a) {
 	if (add == NULL) {
 		return errSecAllocate;
 	}
-	CFIndex n = CFDictionaryGetCount(a);
-	const void *keys[2];
-	const void *values[2];
-	CFDictionaryGetKeysAndValues(a, keys, values);
-	for (CFIndex i = 0; i < n && i < 2; i++) {
-		CFDictionarySetValue(add, keys[i], values[i]);
-	}
+	CFDictionaryApplyFunction(a, wb_set_in, add);
 	OSStatus st = SecItemAdd(add, NULL);
 	CFRelease(add);
 	if (st == errSecDuplicateItem) {
@@ -199,14 +222,13 @@ typedef struct {
 
 // wb_append_name appends the service attribute of the item attributes a
 // to joined. It returns 1 when the item has no service, or one that
-// isn't a string or holds a newline.
+// isn't a string or holds a newline or a NUL.
 static int wb_append_name(CFMutableStringRef joined, CFTypeRef a, CFIndex i) {
 	if (a == NULL || CFGetTypeID(a) != CFDictionaryGetTypeID()) {
 		return 1;
 	}
 	CFTypeRef s = CFDictionaryGetValue((CFDictionaryRef)a, kSecAttrService);
-	if (s == NULL || CFGetTypeID(s) != CFStringGetTypeID() ||
-			CFStringFind((CFStringRef)s, CFSTR("\n"), 0).location != kCFNotFound) {
+	if (s == NULL || CFGetTypeID(s) != CFStringGetTypeID() || wb_bad_chars((CFStringRef)s)) {
 		return 1;
 	}
 	if (i > 0) {
@@ -275,77 +297,6 @@ static wb_listed wb_list(const char *group) {
 	return out;
 }
 
-// What wb_item_attributes found for the host test: how many items of the
-// name the process reaches in any of its groups, and for the first one
-// its group, whether its protection class is the one of wb_value_attrs,
-// and its synchronizable attribute: 0 false, 1 true, -1 absent.
-typedef struct {
-	int status;
-	long count;
-	char *group;
-	char *accessible;
-	int when_unlocked_this_device_only;
-	int synchronizable;
-} wb_attrs;
-
-// wb_read_attrs fills out from the attribute dictionary a.
-static void wb_read_attrs(CFDictionaryRef a, wb_attrs *out) {
-	CFTypeRef g = CFDictionaryGetValue(a, kSecAttrAccessGroup);
-	if (g != NULL && CFGetTypeID(g) == CFStringGetTypeID()) {
-		out->group = wb_item_cstring((CFStringRef)g);
-	}
-	CFTypeRef c = CFDictionaryGetValue(a, kSecAttrAccessible);
-	if (c != NULL && CFGetTypeID(c) == CFStringGetTypeID()) {
-		out->accessible = wb_item_cstring((CFStringRef)c);
-		out->when_unlocked_this_device_only = CFEqual(c, kSecAttrAccessibleWhenUnlockedThisDeviceOnly) ? 1 : 0;
-	}
-	CFTypeRef s = CFDictionaryGetValue(a, kSecAttrSynchronizable);
-	out->synchronizable = -1;
-	if (s != NULL && CFGetTypeID(s) == CFBooleanGetTypeID()) {
-		out->synchronizable = CFBooleanGetValue((CFBooleanRef)s) ? 1 : 0;
-	} else if (s != NULL && CFGetTypeID(s) == CFNumberGetTypeID()) {
-		int v = 0;
-		CFNumberGetValue((CFNumberRef)s, kCFNumberIntType, &v);
-		out->synchronizable = v != 0 ? 1 : 0;
-	}
-}
-
-// wb_item_attributes reads back the attributes of item, in whatever group
-// and whether it synchronizes or not, for the host test that checks what
-// a write set (I505). It asks for attributes only, never data.
-static wb_attrs wb_item_attributes(const char *item) {
-	wb_attrs out = {0, 0, NULL, NULL, 0, -1};
-	CFMutableDictionaryRef q = wb_dict();
-	if (q == NULL || wb_set_string(q, kSecAttrService, item) != 0) {
-		if (q != NULL) {
-			CFRelease(q);
-		}
-		out.status = errSecParam;
-		return out;
-	}
-	CFDictionarySetValue(q, kSecClass, kSecClassGenericPassword);
-	CFDictionarySetValue(q, kSecUseDataProtectionKeychain, kCFBooleanTrue);
-	CFDictionarySetValue(q, kSecAttrSynchronizable, kSecAttrSynchronizableAny);
-	CFDictionarySetValue(q, kSecReturnAttributes, kCFBooleanTrue);
-	CFDictionarySetValue(q, kSecMatchLimit, kSecMatchLimitAll);
-	CFTypeRef r = NULL;
-	out.status = (int)SecItemCopyMatching(q, &r);
-	CFRelease(q);
-	if (out.status != errSecSuccess || r == NULL || CFGetTypeID(r) != CFArrayGetTypeID()) {
-		if (r != NULL) {
-			CFRelease(r);
-			out.status = errSecDecode;
-		}
-		return out;
-	}
-	out.count = (long)CFArrayGetCount((CFArrayRef)r);
-	CFTypeRef first = out.count > 0 ? CFArrayGetValueAtIndex((CFArrayRef)r, 0) : NULL;
-	if (first != NULL && CFGetTypeID(first) == CFDictionaryGetTypeID()) {
-		wb_read_attrs((CFDictionaryRef)first, &out);
-	}
-	CFRelease(r);
-	return out;
-}
 */
 import "C"
 
@@ -421,45 +372,4 @@ func (k *keychain) List(_ context.Context, group string) ([]string, Status) {
 		return nil, errSecDecode
 	}
 	return names, StatusOK
-}
-
-// itemAttributes is what the host test reads back about an item.
-type itemAttributes struct {
-	// Count is how many items of the name the process reaches.
-	Count int
-	// Group is the access group of the first one.
-	Group string
-	// Accessible is its protection class, as the Keychain names it, and
-	// WhenUnlockedThisDeviceOnly whether that is
-	// kSecAttrAccessibleWhenUnlockedThisDeviceOnly.
-	Accessible                 string
-	WhenUnlockedThisDeviceOnly bool
-	// Synchronizable is 0 for false, 1 for true, -1 when absent.
-	Synchronizable int
-}
-
-// readItemAttributes reads back the attributes of item, in any of the
-// process's groups, for the host test (C05-credentials-and-store). It
-// never reads a value.
-func readItemAttributes(item string) (itemAttributes, Status) {
-	i := C.CString(item)
-	defer C.free(unsafe.Pointer(i))
-	r := C.wb_item_attributes(i)
-	defer C.free(unsafe.Pointer(r.group))
-	defer C.free(unsafe.Pointer(r.accessible))
-	if r.status != 0 {
-		return itemAttributes{}, Status(r.status)
-	}
-	a := itemAttributes{
-		Count:                      int(r.count),
-		WhenUnlockedThisDeviceOnly: r.when_unlocked_this_device_only != 0,
-		Synchronizable:             int(r.synchronizable),
-	}
-	if r.group != nil {
-		a.Group = C.GoString(r.group)
-	}
-	if r.accessible != nil {
-		a.Accessible = C.GoString(r.accessible)
-	}
-	return a, StatusOK
 }

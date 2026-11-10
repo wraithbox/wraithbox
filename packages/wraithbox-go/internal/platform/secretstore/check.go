@@ -34,8 +34,8 @@ type checked struct {
 //
 // New always returns a Store. When dialogs stay on, the signature has
 // no team, or its executable isn't program's, it also returns an *Error
-// with the rule, and every call on the Store is refused with that rule. The caller logs the error and
-// exits. Open calls New with the platform's backend, and tests call it
+// with the rule, and every call on the Store is refused with that rule.
+// The caller logs the error and exits. Open calls New with the platform's backend, and tests call it
 // with the fake of secretstore/storetest.
 func New(program storeitem.Program, backend Backend, log *slog.Logger) (Store, error) {
 	s := &checked{program: program, backend: backend, log: log}

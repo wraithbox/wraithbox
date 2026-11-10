@@ -55,6 +55,11 @@ Spec: S15-02-secret-store, "Keychain".
   names another program's executable, or none, or can't be read, and
   see every call refused with `store-program-mismatch`
   (`TestC05StoreProgramMismatch`, over the fake).
+- Start a copy of the test binary from a bundle signed ad hoc, sign the
+  bundle again under another identifier while it runs, and see the
+  copy read its identifier and executable before, and after it see the
+  signature refused (OSStatus -67034), no group read, and the open
+  refused with `keychain-needs-team` (`TestC05AdhocSwap`, on macOS CI).
 - `TestC05AccessGroups` in `internal/storeitem` is the table test.
   `TestC05AccessGroupsMismatch` and `TestC05AccessGroupsUnreadable` in
   `internal/platform/secretstore` are the refusals, over the fake.
@@ -151,8 +156,12 @@ test binary of `internal/platform/secretstore` with the team's
 identity into `.scratch/store-test/wb-store-test.app`, with the
 `binding` and `ca` groups, and into `wb-store-test-binding.app`, with
 `binding` alone. Each bundle gets a copy of the app's profile. It runs
-them with an empty environment but for `WB_STORE_HOST_TEST=1` and
-`WB_STORE_HOST_STEP`. Elsewhere, CI included, the tests skip. Each test
+them with an empty environment but for `WB_STORE_HOST_TEST=1`,
+`WB_STORE_HOST_STEP` and `WB_STORE_HOST_G2_OUT`. The tests, and the
+read-back of an item's attributes that only they use, build only with
+the `wbstorehost` tag, which the task sets and no program's build does.
+CI lints them with the tag and doesn't run them, and without the
+variables each one skips. Each test
 item is `wraithbox/binding/wbtest-<random>` or
 `wraithbox/ca/wbtest-<random>/wbtest-<random>`, removed when its test
 ends, and the run fails when a `wbtest-` item is left. The maintainer
@@ -169,7 +178,8 @@ sees no dialog at any step.
   `wb-proxyd`, with the value read back equal and the list holding
   names only. `TestC05HostCARoundTrip` does the same for a `ca/` item.
   Both read the item's attributes back: one item, in the group of its
-  role, with `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`, and not
+  role, with the account `wraithbox`, with
+  `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`, and not
   synchronizable.
 - `TestC05HostNotFound`: a fetch of a missing item gives `ErrNotFound`.
 - `TestC05HostGroupMismatch`, in the `binding`-only bundle: a fetch of
@@ -181,8 +191,14 @@ sees no dialog at any step.
   (-25308), then waits for the unlock and sees the same fetch succeed.
 - `TestC05HostConfineAfterOpen` opens the store, confines the process
   with the store-only profile of S04-03-self-sandboxing, and makes a
-  round trip. `TestC05HostConfineFirst` confines first, then opens and
-  makes a round trip, and records what worked.
+  round trip. `TestC05HostConfineFirst` confines first, then opens,
+  and sees the open refused with `keychain-needs-team`: the profile
+  blocks the read of the process's own signature (OSStatus 100001).
+- `TestC05HostG2`, with `-- --g2` alone: the test holds a `binding/`
+  item and prints a `security find-generic-password -s <item>` command,
+  which names no group. The maintainer runs it in another terminal, and
+  the test sees it not find the item, and the item still there after
+  (G2 of S15-02-secret-store).
 
 ## Fuzzing
 

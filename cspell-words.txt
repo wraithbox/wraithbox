@@ -206,6 +206,7 @@ realpath
 nlink
 wbdisk
 wbstore
+wbstorehost
 VZNAT
 VZUSB
 VZMAC

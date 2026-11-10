@@ -63,9 +63,22 @@ static char *wb_cstring(CFStringRef s) {
 	return buf;
 }
 
+// wb_bad_chars returns 1 when s holds a newline, which separates the
+// strings handed to Go, or a NUL, which would cut a C string short.
+static int wb_bad_chars(CFStringRef s) {
+	CFIndex n = CFStringGetLength(s);
+	for (CFIndex i = 0; i < n; i++) {
+		UniChar c = CFStringGetCharacterAtIndex(s, i);
+		if (c == 0 || c == '\n') {
+			return 1;
+		}
+	}
+	return 0;
+}
+
 // wb_join_groups sets out->groups to the strings of the array, one per
 // line, or sets out->groups_bad when one isn't a string or holds a
-// newline.
+// newline or a NUL.
 static void wb_join_groups(CFArrayRef groups, wb_self *out) {
 	CFMutableStringRef joined = CFStringCreateMutable(NULL, 0);
 	if (joined == NULL) {
@@ -75,8 +88,7 @@ static void wb_join_groups(CFArrayRef groups, wb_self *out) {
 	CFIndex n = CFArrayGetCount(groups);
 	for (CFIndex i = 0; i < n; i++) {
 		CFTypeRef v = CFArrayGetValueAtIndex(groups, i);
-		if (v == NULL || CFGetTypeID(v) != CFStringGetTypeID() ||
-				CFStringFind((CFStringRef)v, CFSTR("\n"), 0).location != kCFNotFound) {
+		if (v == NULL || CFGetTypeID(v) != CFStringGetTypeID() || wb_bad_chars((CFStringRef)v)) {
 			out->groups_bad = 1;
 			CFRelease(joined);
 			return;
@@ -96,26 +108,34 @@ static void wb_join_groups(CFArrayRef groups, wb_self *out) {
 }
 
 // wb_read_groups reads the keychain-access-groups entitlement from the
-// signing information. No entitlements, or no such entitlement, is no
-// group.
-static void wb_read_groups(CFDictionaryRef info, wb_self *out) {
-	CFTypeRef entitlements = CFDictionaryGetValue(info, kSecCodeInfoEntitlementsDict);
-	if (entitlements == NULL) {
-		return;
-	}
-	if (CFGetTypeID(entitlements) != CFDictionaryGetTypeID()) {
+// kernel's copy of the process's entitlements, the one the Keychain
+// checks, never from the files on disk. No such entitlement is no group.
+static void wb_read_groups(wb_self *out) {
+	SecTaskRef task = SecTaskCreateFromSelf(NULL);
+	if (task == NULL) {
 		out->groups_bad = 1;
 		return;
 	}
-	CFTypeRef groups = CFDictionaryGetValue((CFDictionaryRef)entitlements, CFSTR("keychain-access-groups"));
+	CFErrorRef err = NULL;
+	CFTypeRef groups = SecTaskCopyValueForEntitlement(task, CFSTR("keychain-access-groups"), &err);
+	CFRelease(task);
+	if (err != NULL) {
+		CFRelease(err);
+		if (groups != NULL) {
+			CFRelease(groups);
+		}
+		out->groups_bad = 1;
+		return;
+	}
 	if (groups == NULL) {
 		return;
 	}
 	if (CFGetTypeID(groups) != CFArrayGetTypeID()) {
 		out->groups_bad = 1;
-		return;
+	} else {
+		wb_join_groups((CFArrayRef)groups, out);
 	}
-	wb_join_groups((CFArrayRef)groups, out);
+	CFRelease(groups);
 }
 
 // wb_copy_string sets *out to a malloc'd copy of v and returns 0, or
@@ -153,8 +173,9 @@ static void wb_read_code(CFDictionaryRef info, wb_self *out) {
 	}
 }
 
-// wb_fill_self reads the team, the access groups, the signing identifier
-// and the executable of the process's own code signature into out
+// wb_fill_self reads the team, the signing identifier and the executable
+// of the process's own code signature, after it checks that signature,
+// and the access groups of the process's entitlements into out
 // (S15-02-secret-store, "The group of each call").
 static void wb_fill_self(wb_self *out) {
 	memset(out, 0, sizeof *out);
@@ -164,9 +185,22 @@ static void wb_fill_self(wb_self *out) {
 		out->status = (int)st;
 		return;
 	}
+	// The signing information below comes from the files on disk, which
+	// can change after the process started: a bundle signed again by
+	// another team would name that team. The check sees the files still
+	// match the running code, the Info.plist and the other sealed files
+	// included, before anything is read from them (S15-02-secret-store,
+	// "The group of each call"). A failure is an unreadable signature,
+	// which every check refuses.
+	st = SecCodeCheckValidity(self, kSecCSDefaultFlags, NULL);
+	if (st != errSecSuccess) {
+		CFRelease(self);
+		out->status = (int)st;
+		return;
+	}
 	CFDictionaryRef info = NULL;
 	st = SecCodeCopySigningInformation((SecStaticCodeRef)self,
-			kSecCSSigningInformation | kSecCSRequirementInformation, &info);
+			kSecCSSigningInformation, &info);
 	CFRelease(self);
 	if (st != errSecSuccess) {
 		out->status = (int)st;
@@ -181,8 +215,8 @@ static void wb_fill_self(wb_self *out) {
 			out->team_bad = 1;
 		}
 	}
-	wb_read_groups(info, out);
 	wb_read_code(info, out);
+	wb_read_groups(out);
 	CFRelease(info);
 }
 

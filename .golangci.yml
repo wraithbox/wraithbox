@@ -5,8 +5,12 @@ run:
   # The in-guest conformance checks in packages/wraithbox-go/conformance/
   # are behind this tag (S11-verification-and-spikes, "Conformance
   # suite"). Lint them with the rest of the code.
+  # The host tests of the secret store, and the attribute read-back
+  # only they use, are behind wbstorehost (C05-credentials-and-store,
+  # "Host tests").
   build-tags:
     - conformance
+    - wbstorehost
 
 linters:
   default: standard
