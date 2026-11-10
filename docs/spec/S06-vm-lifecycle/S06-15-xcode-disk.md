@@ -157,10 +157,10 @@ disk entries, and `wb-hostd`'s wait covers the sum of its deadlines.
 
 `diskutil eraseDisk` mounts a new volume in `/Volumes` at once
 (X06-guest-xcode, "Follow-up (I624)"), where another local account
-may be able to write to it until it is unmounted. So the shim doesn't
-use `eraseDisk`. It creates the volume unmounted, or with an explicit mount point, with `diskutil
-apfs createContainer` and `diskutil apfs addVolume` with `-nomount` or
-`-mountpoint`. Which invocation does that is I681's to measure. If none
+may be able to write to it until the unmount. So the shim doesn't
+use `eraseDisk`. It creates the volume unmounted, or with an explicit
+mount point, with `diskutil apfs createContainer` and `diskutil apfs
+addVolume` with `-nomount` or `-mountpoint`. Which invocation does that is I681's to measure. If none
 avoids the automatic mount in `/Volumes`, I681 stops and reports it,
 and doesn't accept the window.
 
