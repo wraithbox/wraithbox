@@ -63,8 +63,7 @@ name in the bundle. For each one it:
 3. requires that `fstat` on the descriptor gives the same `st_dev` and
    `st_ino`, as `wb-diskfmt` checks its file (S06-13-data-disk-format);
 4. clones it into `<data>/images/` from that checked descriptor, with
-   `fclonefileat` and `CLONE_NOFOLLOW`, and never acts on the path
-   again.
+   `fclonefileat` and `CLONE_NOFOLLOW`, and never acts on the path again.
 
 It then deletes the build bundle, without following symbolic links.
 Any other result fails the build, and `wb-hostd` logs the rule
@@ -242,10 +241,11 @@ project code has run. The host parses no guest filesystem
   doesn't ship, and SSH host keys left in `/etc/ssh`;
 - files outside `/Users` owned by a non-system user ID, other than the
   temporary folders of `wbadmin`;
-- launchd jobs outside an allowlist: what macOS ships (`com.apple.*`
-  and `amsdstat.plist` in `/Library/LaunchDaemons`), `wb-guestd`'s and
+- launchd jobs outside an allowlist: what macOS ships (`com.apple.*` and
+  `amsdstat.plist` in `/Library/LaunchDaemons`), `wb-guestd`'s and
   `wb-guestroot`'s (S15-05-admin-path), and, in an image with the Xcode
-  step only, the three jobs S06-14-xcode-image names, by label and path.
+  step only, the three jobs S06-14-xcode-image names, by label, with
+  the program rule S06-14-xcode-image gives.
 
 So every admin account the build creates is disabled or removed at sealing.
 
