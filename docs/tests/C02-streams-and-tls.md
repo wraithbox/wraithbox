@@ -396,6 +396,9 @@ Spec: S09-06-ca-keys, "Valid CA".
     (`TestC02HostConfined`). The bench step prints the leaf's
     signature with the Secure Enclave key beside the fake key's
     (`BenchmarkC02HostLeaf`, `BenchmarkLeaf`).
+  - The run of 2026-11-10 passed every step with no dialog. A wrapped
+    form was 324 bytes, and a leaf took about 4.7 ms with the Secure
+    Enclave key and 0.10 ms with the fake (I509).
 - In `internal/hostd/carecord`, see a restore failure refuse the start
   with `ca-key-restore` and issue nothing, and after `wb vm reset-ca`
   the next boot issue a new CA and remove the old one's item

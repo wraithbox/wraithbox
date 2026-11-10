@@ -57,7 +57,8 @@ The key has:
 `kSecAttrIsPermanent` is what the call asks for. A Secure Enclave key
 made with it false reads it back as true, so a check of the attribute
 can't tell. The check is a search of the keychain for the key, which
-finds nothing (I509).
+finds nothing. The maintainer's run of 2026-11-10 measured both on a
+Secure Enclave key (I509).
 A restored key has the same access control as the new one, with
 no flag passed at the restore.
 
