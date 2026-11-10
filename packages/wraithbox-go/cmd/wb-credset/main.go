@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	_ "embed"
+	"errors"
 	"log/slog"
 	"os"
 
@@ -40,8 +41,12 @@ func main() {
 	os.Exit(run(context.Background(), credset.Process{Args: os.Args[1:], Environ: os.Environ(), Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr}))
 }
 
-// confine is selfsandbox.Confine. A test makes it refuse.
-var confine = selfsandbox.Confine
+// noCore and confine are sessionproc.NoCore and selfsandbox.Confine. A
+// test makes them refuse.
+var (
+	noCore  = sessionproc.NoCore
+	confine = selfsandbox.Confine
+)
 
 // setLog makes the JSON log on standard error the default, which the
 // store and the sandbox log to, before anything logs.
@@ -52,8 +57,9 @@ func setLog() {
 // run is wb-credset's main:
 //
 //  1. it sets its core file limit to 0, so no core file holds the value
-//     (S13-01-process-hardening, "Limits and environment"), and exits 1
-//     when that fails;
+//     (S13-01-process-hardening, "Limits and environment"). When that
+//     fails it logs a refusal with credset-no-core as its decision, and
+//     exits 1;
 //  2. it opens the store with its own compiled-in identity. Open turns
 //     the Keychain's dialogs off, checks that its signature on disk
 //     matches the running code, reads the team from that signature and
@@ -66,14 +72,14 @@ func setLog() {
 //     open that fails, such as keychain-needs-team in an ad-hoc build,
 //     is logged, and the store then refuses every call with that rule;
 //  3. it confines itself with the store-only profile
-//     (SEC12-least-privilege), and exits 1 when that fails, before it
-//     reads its arguments or its standard input;
+//     (SEC12-least-privilege). When that fails it logs a refusal with
+//     the sandbox's rule, or credset-not-confined, as its decision, and
+//     exits 1, before it reads its arguments or its standard input;
 //  4. credset.Run checks the arguments and the environment, and makes
 //     one store call.
 func run(ctx context.Context, p credset.Process) int {
-	if err := sessionproc.NoCore(); err != nil {
-		slog.Default().LogAttrs(ctx, slog.LevelError, "wb-credset: the core file limit can't be set to 0", slog.String("error", err.Error()))
-		return 1
+	if err := noCore(); err != nil {
+		return credset.RefuseStart(ctx, p.Stderr, credset.RuleNoCore, "the core file limit can't be set to 0: "+err.Error())
 	}
 	store, err := secretstore.Open(storeitem.ProgramCredset)
 	if err != nil {
@@ -82,7 +88,11 @@ func run(ctx context.Context, p credset.Process) int {
 		slog.Default().LogAttrs(ctx, slog.LevelWarn, "wb-credset: the store didn't open, so its calls are refused", slog.String("error", err.Error()))
 	}
 	if err := confine(profile, nil); err != nil {
-		return 1
+		rule := credset.RuleNotConfined
+		if refusal, ok := errors.AsType[*selfsandbox.Refusal](err); ok {
+			rule = string(refusal.Rule)
+		}
+		return credset.RefuseStart(ctx, p.Stderr, rule, "wb-credset can't confine itself: "+err.Error())
 	}
 	return credset.Run(ctx, p, store)
 }

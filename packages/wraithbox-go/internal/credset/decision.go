@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"log/slog"
 	"regexp"
 )
@@ -43,6 +44,16 @@ func logDecision(ctx context.Context, log *slog.Logger, d Decision) {
 		slog.String("binding", d.Binding),
 		slog.Int("status", int(d.Status)),
 		slog.String("reason", d.Reason))
+}
+
+// RefuseStart logs the decision line of a refusal before wb-credset
+// reads its arguments, such as when it can't confine itself, so wb
+// prints rule instead of a run without a decision. The line names no
+// operation and no binding. It writes the line to stderr, as Run does,
+// and returns 1, wb-credset's exit status.
+func RefuseStart(ctx context.Context, stderr io.Writer, rule, reason string) int {
+	logDecision(ctx, slog.New(slog.NewJSONHandler(stderr, nil)), Decision{Decision: DecisionRefuse, Rule: rule, Reason: reason})
+	return 1
 }
 
 // ruleForm is the form of a rule wb accepts from the decision line.

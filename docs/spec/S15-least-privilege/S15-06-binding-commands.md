@@ -25,6 +25,11 @@ cred list` run as the user.
   allows the secret store service and its standard streams. It denies
   files, the network and starting programs (S04-03-self-sandboxing,
   "Each host daemon is self-sandboxed").
+- When it can't set the core file limit, it refuses with
+  `credset-no-core`. When it can't confine itself, it refuses with the
+  sandbox's rule, or `credset-not-confined` when the sandbox names
+  none. Either way it exits 1 before it reads its arguments or
+  standard input, and `wb` prints the rule.
 - The open comes first because the profile blocks the read of the
   process's own signature, which the open needs (S15-02-secret-store,
   "The group of each call"). On the maintainer's Mac on 2026-11-10, an open after the
