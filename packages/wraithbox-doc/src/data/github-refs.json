@@ -3459,7 +3459,7 @@
 	},
 	"566": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S07-04-dns-refusals: decide whether rate refusals are held",
 		"summary": "Raised in round 1 of #563 (#486)."
 	},
@@ -3651,7 +3651,7 @@
 	},
 	"598": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-proxyd: a reset between the post-dial check and the ClientHello send still lets the ClientHello out",
 		"summary": "S07-15 says a connection opened after a stream reset is closed before any byte goes upstream."
 	},
@@ -4491,5 +4491,53 @@
 		"state": "open",
 		"title": "httppolicy: repoKey trims request-derived repository paths like policy input",
 		"summary": "repoKey (packages/wraithbox-go/internal/proxyd/httppolicy/hosts.go:170 and :174) trims a trailing / and .git."
+	},
+	"738": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "fix(proxyd): check a pass stream's end in one step with its ClientHello send",
+		"summary": "A pass stream that the policy reset just after its upstream connection opened could still send its ClientHello upstream, because the check that the stream was still open and the write were two separate steps."
+	},
+	"739": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(netd): drop DNS queries over the rate at once, not held",
+		"summary": "A DNS query over the VM's query rate is now dropped at once, with no answer, instead of being held for 4 seconds like the other refusals."
+	},
+	"740": {
+		"kind": "pr",
+		"state": "open",
+		"title": "feat(hostd): hold back an event sender that ignores its budget",
+		"summary": "A compromised network daemon could send well-formed audit records as fast as it liked and ignore every budget notice, and the host daemon would queue them all in memory."
+	},
+	"741": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Audit event holds: one VM's budget can hold the shared wb-proxyd channel for every VM",
+		"summary": "Follow-up from the reviews of #740 (#541): code review F3, security review F1."
+	},
+	"742": {
+		"kind": "issue",
+		"state": "open",
+		"title": "datadisk: TestProcessShimKilled can fail under load with child.pid holds \"\"",
+		"summary": "Seen in the round 2 code review of #740 (#541)."
+	},
+	"743": {
+		"kind": "pr",
+		"state": "open",
+		"title": "feat(go): Keychain item calls in the secret store's cgo shim",
+		"summary": "The macOS secret store can now really write, read, update, delete and list items in the Keychain, where until now every call stopped before it reached it."
+	},
+	"744": {
+		"kind": "pr",
+		"state": "open",
+		"title": "feat(wb): wb cred set, list and rm through wb-credset",
+		"summary": "wb cred set, wb cred list and wb cred rm now manage the binding secrets in the store."
+	},
+	"745": {
+		"kind": "pr",
+		"state": "open",
+		"title": "feat(vmd): serve the build slot with the install rules, Install and the build password pipe",
+		"summary": "wb-vmd can now run in the build slot and install macOS from the restore image into the build bundle."
 	}
 }
