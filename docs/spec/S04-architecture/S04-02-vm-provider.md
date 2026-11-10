@@ -57,14 +57,14 @@ Records go both ways on the channel. The receiver answers each record
 that decodes, accepted or refused, with a `HandoffAck` once `recvmsg`
 has returned. `wb-vmd` keeps its copy of each descriptor it sent until
 that acknowledgment, or for the connect timeout of 5 s at most, as
-S07-05-stream-hand-off ("Transport") asks. It checks each
-acknowledgment as input and refuses one of the wrong form
-(`handoff-ack-malformed`) or for a descriptor it doesn't keep
-(`handoff-ack-unexpected`). It logs a deadline that passes
-(`handoff-ack-timeout`), and a channel it can't read any more
-(`handoff-ack-channel-ended`), after which each kept copy closes at its
-deadline. `wb-hostd` logs an acknowledgment it can't send
-(`handoff-ack-send-failed`). `HandoffAck`'s comments list these rules.
+S04-12-descriptor-passing asks. It checks each acknowledgment as input,
+refuses one of the wrong form (`handoff-ack-malformed`) or for a
+descriptor it doesn't keep (`handoff-ack-unexpected`), and reads on. It
+logs a deadline that passes (`handoff-ack-timeout`). Its reader ends,
+logged `handoff-ack-channel-ended`, only as S04-12-descriptor-passing
+("Acknowledgments are input") says. `wb-hostd` logs an acknowledgment
+it can't send (`handoff-ack-send-failed`). `HandoffAck`'s comments list
+these rules.
 
 ### The host opens every connection
 

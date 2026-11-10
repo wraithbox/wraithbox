@@ -215,24 +215,24 @@ it creates the VM's hand-off socket.
 
 ### New hand-off sockets
 
-- When a VM's `wb-netd` restarts within a VM generation, `wb-hostd`
-  creates a new hand-off socket between it and `wb-proxyd`, for the
-  same VM and generation. It closes the old one.
-- `wb-proxyd` serves every VM. So when it restarts, `wb-hostd` creates
-  a new hand-off socket for every running VM, each for that VM and its
-  current generation.
+A `wb-netd` restart gives its VM a new hand-off socket, for the same
+generation. A `wb-proxyd` restart gives one to every running VM.
+S07-20-handoff-sockets ("Generations and restarts") has the order and
+the socket numbers.
 
-Every `wb-netd` gets its end on its control channel after its start message (S04-09-netd-start), in a message with exactly one descriptor and
-the VM and generation it is for. It refuses the message when the socket type is wrong, or the VM or generation isn't its own. It then
-closes the descriptor and logs the refusal, as for the hand-off channel of `wb-vmd` (S04-02-vm-provider, "The VM provider passes descriptors,
-not bytes"), and the control channel goes on. A message with another descriptor count than one is of the wrong form: every descriptor in
-it is closed, and the control channel ends.
+Every `wb-netd` gets its end on its control channel after its start
+message (S04-09-netd-start), in a message with exactly one descriptor
+and the VM, generation and socket number. It refuses the message, with
+`handoff-socket-refused`, when the socket type is wrong, the VM or
+generation isn't its own, or the number isn't above the one it holds.
+It then closes the descriptor and logs the refusal, as for the
+hand-off channel of `wb-vmd` (S04-02-vm-provider, "The VM provider
+passes descriptors, not bytes"), and the control channel goes on. A
+message with another descriptor count than one is of the wrong form:
+every descriptor in it is closed, and the control channel ends.
 
 On each new socket, `wb-netd` first replays the VM's live mapping, so
-that `wb-proxyd` has it again (S07-egress-gateway). The replay is the
-same set either way. It is the entries `wb-hostd` kept, which a new
-`wb-netd` got at start, and a running one sent `wb-hostd` entry by
-entry, with every release.
+that `wb-proxyd` has it again (S07-06-name-mapping, "Replay").
 
 ### `wb-vmd` and `wb-vmd-install`
 

@@ -43,11 +43,9 @@ the name of a report with the answer every refusal gets
 (S07-04-dns-refusals), or resets a stream's TCP connection. Both are
 logged with the rule `handoff-send-failed`.
 
-A process that passes a socket in a message keeps its copy until an
-acknowledgment or the receiver's first record or byte on the socket
-shows the receiver holds it (I647, I648). On macOS 27 the kernel can collect
-a socket in flight with no other reference, and it arrives dead (I637).
-Pipes and descriptors inherited at spawn are exempt. `wb-netd` keeps a
+A process that passes a socket keeps its copy until the receiver
+holds it (S04-12-descriptor-passing). For a stream, the proof is
+`wb-proxyd`'s first byte on it or a `StreamReset` for it. `wb-netd` keeps a
 stream's copy no longer than a deadline (SEC13-bounded-resources),
 then closes it without a reset, logged `stream-hold-expired`. Until
 then it doesn't read end of file there. So a stream that `wb-proxyd`
@@ -136,28 +134,21 @@ reset. Only the path that resets a stream first logs it.
 
 When a `StreamReset` send fails (`ENOBUFS` or its deadline), `wb-proxyd`
 closes the VM's hand-off socket before the stream's socket, and
-`wb-netd` resets every stream of a VM whose hand-off socket closed.
+`wb-netd` resets every stream of a VM whose hand-off socket closed
+(`stream-reset-unsent`, S07-20-handoff-sockets, "Closing a socket").
 
 ### One hand-off socket per VM
 
 `wb-hostd` creates a hand-off socketpair for a VM at each start and
-restore, and at the restarts of S04-07-supervision, "Restarting a daemon".
-
-1. It passes one end to `wb-proxyd`.
-2. It waits 10 s for `wb-proxyd` to acknowledge it, holding its copy
-   ("Transport"). Otherwise it closes both ends and refuses the start
-   with `proxyd-setup-failed`.
-3. Only then does it give the other end to `wb-netd`: at start to a new
-   `wb-netd`, and on its control channel to a running one.
-4. It starts or resumes the VM only after `wb-netd` holds its end. A
-   `HandoffSocketClosed` for the socket before then fails the start.
+restore, and at the restarts of S04-07-supervision, "Restarting a
+daemon". It passes one end to `wb-proxyd`, and the other to the VM's
+`wb-netd` once `wb-proxyd` acknowledges its end. It starts or resumes
+the VM only once `wb-netd` acknowledges its end too.
+S07-20-handoff-sockets has the socket's states, its number, how it
+closes, and what each restart does to it.
 
 The build VM gets no hand-off socket, and its `wb-netd` hands no
 stream (S07-18-build-network).
-
-`wb-proxyd` holds its end under the VM and generation `wb-hostd`
-named. A newer end for the VM replaces the old one. `wb-proxyd` then
-closes the old socket, and every stream that came on it.
 
 ### From `wb-hostd`
 
@@ -166,9 +157,9 @@ spawn, its control channel (S04-architecture, "Control channels").
 `wb-netd` never holds an end of it.
 
 Each message (`HandoffSocket`) holds exactly one descriptor, and the
-fields VM and generation. `wb-proxyd` answers with a `HandoffSocketAck`
-that names both, before it reads the socket. `wb-hostd` keeps each VM's generation in `state.db`,
-and only increases it. S07-06-name-mapping ("Lifetime") has the `fresh` field.
+fields VM, generation and socket number. `wb-hostd` keeps each VM's
+generation in `state.db`, and only increases it. S07-06-name-mapping
+("Lifetime") has the `fresh` field.
 
 `wb-proxyd` refuses the message when:
 
@@ -177,20 +168,19 @@ and only increases it. S07-06-name-mapping ("Lifetime") has the `fresh` field.
   type;
 - the VM isn't a VM slot of S06-04-vms-and-placement. The build VM of
   an image build has no hand-off socket (S07-18-build-network);
-- the generation is older than the one it holds for the VM.
+- the generation is older than the one it holds for the VM;
+- the socket number isn't above the one it holds for the VM.
 
 It then closes the message's descriptors and the control channel, as
 `control.proto` says. It logs the refusal with the rule
 `handoff-socket-refused` and the check that failed. A datagram whose
 descriptors the channel refuses gets `control-message-refused`.
 
-A message with the generation it holds is a replacement. That is the
-new socket for the same VM and generation that `wb-hostd` sends at a
-`wb-netd` restart (S04-07-supervision, "Restarting a daemon"). It
-replaces the old socket as above.
-
-After a `wb-proxyd` restart, `wb-proxyd` holds no socket. Each VM's
-first message sets its generation.
+A message it accepts replaces the VM's old socket, and every stream
+that came on it closes. With the generation it holds, that is the new
+socket of a daemon restart (S04-07-supervision, "Restarting a daemon").
+After a `wb-proxyd` restart, `wb-proxyd` holds no socket, and each
+VM's first message sets its generation and number.
 
 ### Streams
 

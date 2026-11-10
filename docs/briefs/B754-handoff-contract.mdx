@@ -1,0 +1,154 @@
+---
+title: What happens to one VM's hand-off socket, from its creation to its end?
+description: S04-12-descriptor-passing and S07-20-handoff-sockets settle the hand-off contract in one place. Recommended is that a failure on one VM's socket closes that socket only, is reported to wb-hostd, and ends that VM's wb-netd, so no VM is left without egress and without a record.
+---
+
+import { Aside, Badge } from '@astrojs/starlight/components';
+
+**Awaiting decision.** Source: I754. Adds S04-12-descriptor-passing and S07-20-handoff-sockets, and changes S07-05-stream-hand-off, S07-06-name-mapping, S04-07-supervision and S04-02-vm-provider. It builds on the decisions of I728 and I729 (2026-11-10), I571's triage (2026-11-10), I576 (2026-11-07) and I512, decision 4.
+
+<Aside type="tip" title="You are deciding">
+Whether the two new pages are the contract that the hand-off code is reviewed against. The one choice they make that you haven't made yet is what a failure on one VM's socket does after setup. Recommended: close that socket only, tell `wb-hostd`, and end that VM's `wb-netd`. Accepting it rewrites I728, I571, I536, I730 and I751 to build named sections, which unblocks I512 and with it I513.
+</Aside>
+
+<figure class="wb-figure">
+<svg viewBox="0 0 760 330" role="img" aria-label="wb-hostd sends one end of a VM's hand-off socket to wb-proxyd, which acknowledges it with the socket number. Then it sends the other end to the VM's wb-netd, which acknowledges it too. Only then does the VM start. When wb-proxyd closes a socket, it reports it with a rule, and wb-hostd ends that VM's wb-netd. The other VM's socket goes on.">
+  <defs>
+    <marker id="f1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+    <marker id="f1-arrow-bad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-bad" d="M0,0 L10,5 L0,10 z" /></marker>
+  </defs>
+
+  <rect class="box host" x="290" y="20" width="180" height="56" rx="10" />
+  <text class="label" x="380" y="44" text-anchor="middle">wb-hostd</text>
+  <text class="note" x="380" y="64" text-anchor="middle">numbers each socket</text>
+
+  <rect class="box host" x="40" y="150" width="170" height="56" rx="10" />
+  <text class="label" x="125" y="174" text-anchor="middle">wb-netd A</text>
+  <text class="note" x="125" y="194" text-anchor="middle">answers when held (new)</text>
+
+  <rect class="box host" x="40" y="250" width="170" height="50" rx="10" />
+  <text class="label" x="125" y="280" text-anchor="middle">wb-netd B</text>
+
+  <rect class="box host" x="550" y="170" width="180" height="110" rx="10" />
+  <text class="label" x="640" y="198" text-anchor="middle">wb-proxyd</text>
+  <text class="note" x="640" y="220" text-anchor="middle">answers each socket</text>
+  <text class="note" x="640" y="238" text-anchor="middle">reports a closed one</text>
+  <text class="note" x="640" y="256" text-anchor="middle">answers a VM stop</text>
+
+  <line class="edge" x1="440" y1="78" x2="600" y2="168" marker-end="url(#f1-arrow)" />
+  <text class="note" x="530" y="110">1. end, socket n</text>
+  <line class="edge" x1="320" y1="78" x2="170" y2="148" marker-end="url(#f1-arrow)" />
+  <text class="note" x="150" y="105">2. after the ack: the other end</text>
+  <line class="edge" x1="212" y1="178" x2="548" y2="210" marker-end="url(#f1-arrow)" />
+  <text class="note" x="300" y="182">streams on socket A</text>
+  <line class="edge" x1="212" y1="275" x2="548" y2="255" marker-end="url(#f1-arrow)" />
+  <text class="note" x="300" y="285">socket B goes on</text>
+  <path class="edge-bad" d="M600,168 C560,120 480,100 420,80" marker-end="url(#f1-arrow-bad)" />
+  <text class="boundary-label" x="470" y="150">closed n, with a rule</text>
+</svg>
+<figcaption>
+Figure 1. One VM's hand-off socket, with the new number and acknowledgments. The red arrow is the report the recommendation adds: today `wb-proxyd` closes a socket for an unsent reset or a peer that closed its end without telling `wb-hostd`. S07-20-handoff-sockets has the full sequence.
+</figcaption>
+</figure>
+
+## Options
+
+These are what a failure on a VM's hand-off socket does once `wb-proxyd` has accepted it: `wb-netd` closed its end, a receive failed, the version record couldn't be sent, or a `StreamReset` couldn't be sent. A fault in `wb-hostd`'s own message still ends the control channel in each option, as you decided in I576.
+
+<div class="wb-options">
+<div class="wb-option" data-recommended>
+
+### A. Close that socket, report it, end that wb-netd
+
+`wb-proxyd` closes the socket and its streams and sends one `HandoffSocketClosed` with the rule. `wb-hostd` ends that VM's `wb-netd` and counts the exit toward its restart limit. Before V1-M6, that stops the VM.
+
+- **Cost:** two rules added to `HandoffSocketClosed`. A guest that stalls its streams can stop its own VM.
+- **Gives:** every lost socket has a record and an end. The other VM keeps its network.
+- **Keeps:** <Badge text="SEC10-audit" variant="success" /> <Badge text="SEC13-bounded-resources" variant="success" />
+
+</div>
+<div class="wb-option">
+
+### B. End wb-proxyd's control channel
+
+Treat any socket failure as I576 treats a refused `HandoffSocket`: `wb-proxyd` ends, and every VM's egress with it.
+
+- **Cost:** least code. Today's code already does this for a version record it can't send.
+- **Gap:** a guest that can make its socket fail takes the other VM's network down too (T14-shared-proxyd).
+- **Keeps:** <Badge text="SEC10-audit" variant="success" /> <Badge text="SEC13-bounded-resources" variant="caution" />
+
+</div>
+<div class="wb-option">
+
+### C. Close that socket only, tell no one
+
+What the code does today for an unsent reset and a closed peer. The VM keeps running, but its traffic doesn't reach `wb-proxyd`.
+
+- **Cost:** none.
+- **Gap:** `wb-hostd` doesn't know the VM has no egress, so it neither restarts `wb-netd` nor shows the outage. No audit record says why.
+- **Keeps:** <Badge text="SEC10-audit" variant="danger" />
+
+</div>
+</div>
+
+**The case for B.** It is the smallest rule: any trouble on the control side ends `wb-proxyd`, and the supervisor restarts it. Each VM then gets a new socket, so no state is kept past a fault, and there is nothing to number or match. Until V1-M6 there are no restarts, so A and B both stop VMs. A only stops fewer of them.
+
+**Confidence:** high. A would be wrong if a socket failure could come from `wb-proxyd` itself in a way that wrongly charges a `wb-netd`. The only such path found is a `StreamReset` that `wb-netd` refuses, and that is a bug in `wb-proxyd`.
+
+## Impact
+
+<table class="wb-impact">
+<thead>
+<tr><th>Requirement</th><th>A. Report, end wb-netd</th><th>B. End wb-proxyd</th><th>C. Close silently</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>SEC08-proj-isolation</strong> one project can't reach another's grants</td><td class="yes">VM from the socket</td><td class="yes">VM from the socket</td><td class="yes">VM from the socket</td></tr>
+<tr><td><strong>SEC10-audit</strong> every egress decision recorded on the host</td><td class="yes">rule in the record</td><td class="yes">exit recorded</td><td class="no">no record</td></tr>
+<tr><td><strong>SEC13-bounded-resources</strong> limits per VM</td><td class="yes">one VM pays</td><td class="partial">both VMs pay</td><td class="yes">one VM pays</td></tr>
+<tr><td><strong>T14-shared-proxyd</strong> one VM's fault in the shared proxy</td><td class="yes">contained</td><td class="no">spreads</td><td class="yes">contained</td></tr>
+</tbody>
+</table>
+
+## Evidence
+
+- <Badge text="verified" variant="success" /> `wb-proxyd` closes a VM's socket when a `StreamReset` can't be sent, and logs only `stream-reset-failed`. Source: `internal/proxyd/handoff/socket.go:439-453`.
+- <Badge text="verified" variant="success" /> `HandoffSocketClosed` takes only the rule `name-report-malformed`. Source: `internal/egressmsg/control.go:10`, `control.proto`.
+- <Badge text="verified" variant="success" /> A version record that `wb-proxyd` can't send on a new socket ends its control channel for every VM. Source: `internal/proxyd/handoff/receiver.go:303`.
+- <Badge text="verified" variant="success" /> `wb-netd` already resets a stream whose guest takes no bytes for 60 s (`guest-write-timeout`), so I536's zero-window guest is bounded on that side. What's left is a bound in `wb-proxyd` for a `wb-netd` that stops reading. Source: `internal/netd/handoff/stream.go:21-25`, since I647.
+- <Badge text="verified" variant="success" /> `wb-netd`'s hand-off sender records with no event channel, so its refusals miss the audit log. Source: `internal/netd/handoff/sender.go:107`, I730.
+- <Badge text="verified" variant="success" /> `wb-vmd`'s acknowledgment reader stops at the first `recvmsg` error or cut control data. Source: `Sources/WraithBoxVMD/HandoffKeeper.swift:199`, I751.
+- <Badge text="inferred" variant="note" /> The flaky test of I731 closes the end it passed to `wb-netd` at once, which the keep-until-held rule forbids. Source: `cmd/wb-netd/child_darwin_test.go:229-237`.
+- <Badge text="assumed" variant="caution" /> An honest `wb-proxyd` answers `HandoffSocketEnd` within the acknowledgment deadline, because its event writes are bounded. If not, a slow audit path ends `wb-proxyd`. I512's tests measure it.
+
+## Also in the spec change
+
+Approving the brief approves these too.
+
+- **The rule for passing a socket, in one place** (S04-12-descriptor-passing). A sender keeps its copy until the receiver shows it holds it, for every leg, with the proof and the bound per leg. Pipes and descriptors inherited at spawn are exempt.
+- **A bad acknowledgment is skipped.** A lost one runs to its bound. A wrong, duplicate or late one is refused and the reader goes on. A reader of acknowledgments only ends when its peer closes, or after a run of failed receives (I751).
+- **States of a socket** (S07-20-handoff-sockets): offered, acknowledged, serving, and four final states. `wb-hostd` holds its copies to each deadline.
+- **The socket number and `HandoffSocketHeld`**, as you decided in I728 and I729. `HandoffSocketHeld` doesn't name the VM, because `wb-netd`'s channel is its VM's.
+- **A VM's end is acknowledged.** New `HandoffSocketEnd` and `HandoffSocketEnded`, so the stop record has every count (I512, decision 4). No answer by the deadline ends `wb-proxyd` (`handoff-end-timeout`).
+- **Stream bounds.** `wb-proxyd` gets a write deadline longer than `wb-netd`'s guest bound (`stream-write-timeout`). A stream where neither side sends is bounded by the caps, not by time.
+- **Audit.** A table of which rule each process sends on the event channel, and which stay in the daemon log.
+
+## What this unblocks
+
+- I728 (the contract change, with I571 folded in), then I512 and I513, the exit of V1-M3-network-floor.
+- I536, I730 and I751, rewritten to build named sections.
+
+<details>
+<summary>Details and glossary</summary>
+
+**Why the number.** A `wb-netd` restart gives a VM a new socket in the same generation. Without a number, a late notice about the old socket can end the new `wb-netd`, or fail its start with a false cause (I728).
+
+**Why the strict side for an unsent reset.** A guest that stops reading while `wb-netd` lags can fill the socket, so it can cause one. Counting the restart keeps a guest from looping it for free (I571's triage).
+
+**Glossary**
+
+- **Hand-off socket:** the socketpair that carries one VM's streams and name reports from its `wb-netd` to `wb-proxyd`.
+- **`SCM_RIGHTS`:** the way one process sends an open socket to another over a Unix socket.
+- **Generation:** a number for one run of a VM. Each start or restore raises it.
+- **Acknowledgment:** a message from the receiver that says it holds what it was sent.
+
+</details>
