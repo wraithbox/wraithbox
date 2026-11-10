@@ -66,9 +66,10 @@ func (s *Sender) HandOffStream(conn netd.StreamConn, f netd.NamedFlow) {
 	defer func() { _ = conn.Close() }()
 	sock, st, err := s.sendStream(conn, f)
 	if err != nil {
-		conn.Reset()
+		// Record before the guest sees the reset (SEC10-audit).
 		s.rec.Record(netd.Reset, netd.RuleHandoffSendFailed,
 			append(f.LogAttrs(), slog.String("name", f.Name.String()), slog.String("error", err.Error()))...)
+		conn.Reset()
 		return
 	}
 	defer sock.remove(st.id)
