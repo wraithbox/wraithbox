@@ -231,14 +231,20 @@ func TestC02HostIssueRoundTrip(t *testing.T) {
 
 // TestC02HostRestoreChild is the second process of
 // TestC02HostIssueRoundTrip: it restores the CA of its environment and
-// signs a leaf with it.
+// signs a leaf with it. It fails unless the VM starts with hostPrefix,
+// so this team-signed binary restores no real VM's CA
+// (SEC12-least-privilege).
 func TestC02HostRestoreChild(t *testing.T) {
 	hostStep(t, "restore-child")
+	vm := os.Getenv(vmEnv)
+	if !strings.HasPrefix(vm, hostPrefix) {
+		t.Fatalf("%s is %q, not a host test's VM: it must start with %q", vmEnv, vm, hostPrefix)
+	}
 	der, err := hex.DecodeString(os.Getenv(certEnv))
 	if err != nil {
 		t.Fatalf("%s: %v", certEnv, err)
 	}
-	restoreAndLeaf(t, hostAuthority(t), os.Getenv(vmEnv), os.Getenv(caIDEnv), der)
+	restoreAndLeaf(t, hostAuthority(t), vm, os.Getenv(caIDEnv), der)
 }
 
 // TestC02HostRestoreWrong overwrites a CA's item with random bytes, and

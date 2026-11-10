@@ -8,7 +8,10 @@ package hwkey
 // into a bundle of its own, and starts with an empty environment but
 // for WB_STORE_HOST_TEST=1 and WB_STORE_HOST_STEP. They build only with
 // the wbstorehost tag, which that task sets, and without the variables
-// each one skips. No key is permanent, so none is left behind.
+// each one skips. The only permanent key is the probe of
+// TestC02HostKeyPermanentProbe, with the label
+// wbtest-hwkey-permanent-probe: the probe deletes any key with that
+// label before it makes one, and again after it deleted its own.
 
 import (
 	"crypto"
@@ -224,9 +227,9 @@ func checkKeyAttributes(t *testing.T, what string, k Key) {
 	// TestC02HostKeyPermanentProbe sees the same search find a key that
 	// is stored. kSecAttrIsPermanent isn't the check: a Secure Enclave
 	// key reads it back as true whatever the call asked for, as the run of
-	// 2026-11-10 measured for a new key made with false (#509). A software
+	// 2026-11-10 measured for a new key made with false (I509). A software
 	// key made with false reads it back as false.
-	if a.Keychain != -25300 {
+	if a.Keychain != errSecItemNotFound {
 		t.Errorf("searching the keychain for the %s: OSStatus %d, want -25300", what, a.Keychain)
 	}
 	if !a.SecureEnclave {
@@ -245,20 +248,26 @@ func checkKeyAttributes(t *testing.T, what string, k Key) {
 // search of TestC02HostKeyAttributes. It makes a Secure Enclave key with
 // kSecAttrIsPermanent true, in the bundle's first access group, sees the
 // search find it (OSStatus 0), deletes it, and sees the search find
-// nothing after (-25300). The make, the read and the delete are one call
-// of the shim, so the key isn't left behind.
+// nothing after (-25300). The make, the read and the deletes are one
+// call of the shim. Before the make it deletes by the probe's label, and
+// fails when an earlier run left a probe. After its own delete it
+// deletes by the label again, which finds nothing (-25300) when the
+// first delete worked.
 func TestC02HostKeyPermanentProbe(t *testing.T) {
 	hostStep(t, "")
 	p, err := probePermanent()
+	t.Logf("permanent key: %+v", p)
 	if err != nil {
 		t.Fatalf("the permanent key: %v", err)
 	}
-	t.Logf("permanent key: %+v", p)
 	if p.Attributes.Keychain != 0 {
 		t.Errorf("searching the keychain for the permanent key: OSStatus %d, want 0", p.Attributes.Keychain)
 	}
-	if p.Deleted != 0 || p.After != -25300 {
+	if p.Deleted != 0 || p.After != errSecItemNotFound {
 		t.Errorf("deleting the permanent key: OSStatus %d, then the search %d; want 0, then -25300", p.Deleted, p.After)
+	}
+	if p.Fallback != errSecItemNotFound {
+		t.Errorf("deleting by the probe's label after: OSStatus %d, want -25300", p.Fallback)
 	}
 }
 

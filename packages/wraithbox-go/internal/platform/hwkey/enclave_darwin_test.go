@@ -6,12 +6,15 @@ import (
 	"context"
 	"crypto"
 	"errors"
+	"strings"
+	"syscall"
 	"testing"
 )
 
 // The checks of the Secure Enclave key store that run before any call of
 // Security.framework, so they make and use no key on the machine that
-// runs them. The host tests in host_darwin_test.go make the real calls.
+// runs them. TestNoEnclave is the exception, and calls it only in a VM.
+// The host tests in host_darwin_test.go make the real calls.
 
 // TestRestoreRefusesSize: Restore refuses an empty wrapped form and one
 // longer than maxWrapped, and a canceled context, with no key
@@ -77,4 +80,36 @@ func TestSignRefuses(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestNoEnclave: in a macOS VM, which has no Secure Enclave, Generate
+// and a Restore of 324 bytes return an error and no key (decision 5 on
+// I509; S12-01-platform-interfaces, "Unimplemented platforms fail
+// clearly"). CI's macOS runners are VMs, so it runs there. On a Mac
+// that isn't a VM it skips, and makes no key.
+func TestNoEnclave(t *testing.T) {
+	model, err := syscall.Sysctl("hw.model")
+	if err != nil {
+		t.Fatalf("hw.model: %v", err)
+	}
+	if !strings.HasPrefix(model, "VirtualMac") {
+		t.Skipf("hw.model is %q, not a VM, so it may have a Secure Enclave", model)
+	}
+	t.Logf("hw.model is %q", model)
+	k, err := Open().Generate(t.Context())
+	noKey(t, "Generate", k, err)
+	k, err = Open().Restore(t.Context(), make([]byte, 324))
+	noKey(t, "Restore", k, err)
+}
+
+// noKey fails the test unless call gave an error and no key.
+func noKey(t *testing.T, call string, k Key, err error) {
+	t.Helper()
+	if k != nil {
+		k.Close()
+	}
+	if k != nil || err == nil {
+		t.Fatalf("%s in a VM = %v, %v; want an error and no key", call, k, err)
+	}
+	t.Logf("%s: %v", call, err)
 }

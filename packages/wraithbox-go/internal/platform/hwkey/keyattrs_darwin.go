@@ -90,7 +90,8 @@ static void wb_read_access(SecAccessControlRef ac, wb_key_attrs *out) {
 
 // wb_search_label searches the data protection keychain, in every group
 // of the process, for a key with the application label label. It asks
-// for attributes only.
+// for attributes only. It doesn't search the file-based keychain: a
+// Secure Enclave key can be stored in the data protection keychain only.
 static int wb_search_label(CFTypeRef label) {
 	CFMutableDictionaryRef q = CFDictionaryCreateMutable(NULL, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
 	if (q == NULL) {
@@ -141,8 +142,30 @@ static wb_key_attrs wb_key_attributes(SecKeyRef k) {
 	return out;
 }
 
+// WB_PROBE_LABEL is the kSecAttrLabel of the probe's permanent key.
+#define WB_PROBE_LABEL CFSTR("wbtest-hwkey-permanent-probe")
+
+// wb_delete_probe deletes every key with the probe's label from the
+// data protection keychain, and returns the OSStatus: -25300 when there
+// was none.
+static int wb_delete_probe(void) {
+	CFMutableDictionaryRef q = CFDictionaryCreateMutable(NULL, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+	if (q == NULL) {
+		return errSecAllocate;
+	}
+	CFDictionarySetValue(q, kSecClass, kSecClassKey);
+	CFDictionarySetValue(q, kSecAttrLabel, WB_PROBE_LABEL);
+	CFDictionarySetValue(q, kSecUseDataProtectionKeychain, kCFBooleanTrue);
+	OSStatus st = SecItemDelete(q);
+	CFRelease(q);
+	return (int)st;
+}
+
 // What wb_permanent_probe saw.
 typedef struct {
+	// before is the OSStatus of the delete by label before the probe is
+	// made: -25300 when no earlier run left one.
+	int before;
 	// status is not 0 when the permanent key couldn't be made.
 	int status;
 	// attrs are the permanent key's attributes, read as for any key.
@@ -151,18 +174,59 @@ typedef struct {
 	// the search for it once deleted: -25300 when it is gone.
 	int deleted;
 	int after;
+	// fallback is the OSStatus of the delete by label after the probe:
+	// -25300 when the delete by application label left nothing.
+	int fallback;
 } wb_probe;
 
+// wb_make_probe makes the probe: a Secure Enclave key with
+// kSecAttrIsPermanent true and the probe's label, in the data protection
+// keychain, in the process's first access group. It sets status when
+// it fails.
+static SecKeyRef wb_make_probe(wb_probe *out);
+
 // wb_permanent_probe is the positive control of the keychain search of
-// wb_key_attributes. It makes a Secure Enclave key with
-// kSecAttrIsPermanent true in the data protection keychain, in the
-// process's first access group, reads its attributes, deletes it by its
-// application label, and searches for it again. Nothing is left: the
-// delete runs in this call, right after the read.
+// wb_key_attributes. It deletes any key with the probe's label that an
+// earlier run left, and makes no probe when there was one. Otherwise it
+// makes the probe, reads its attributes, deletes it by its application
+// label, and searches for it again. Last it deletes by the label, which
+// removes the probe when the read or the delete by application label
+// failed.
 static wb_probe wb_permanent_probe(void) {
 	wb_probe out = {0};
 	out.deleted = errSecParam;
 	out.after = errSecParam;
+	out.fallback = errSecParam;
+	out.before = wb_delete_probe();
+	if (out.before != errSecItemNotFound) {
+		return out;
+	}
+	SecKeyRef k = wb_make_probe(&out);
+	if (k != NULL) {
+		out.attrs = wb_key_attributes(k);
+		CFDictionaryRef a = SecKeyCopyAttributes(k);
+		CFTypeRef label = a != NULL ? CFDictionaryGetValue(a, kSecAttrApplicationLabel) : NULL;
+		CFMutableDictionaryRef q = CFDictionaryCreateMutable(NULL, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+		if (label != NULL && q != NULL) {
+			CFDictionarySetValue(q, kSecClass, kSecClassKey);
+			CFDictionarySetValue(q, kSecAttrApplicationLabel, label);
+			CFDictionarySetValue(q, kSecUseDataProtectionKeychain, kCFBooleanTrue);
+			out.deleted = (int)SecItemDelete(q);
+			out.after = wb_search_label(label);
+		}
+		if (q != NULL) {
+			CFRelease(q);
+		}
+		if (a != NULL) {
+			CFRelease(a);
+		}
+		CFRelease(k);
+	}
+	out.fallback = wb_delete_probe();
+	return out;
+}
+
+static SecKeyRef wb_make_probe(wb_probe *out) {
 	CFErrorRef err = NULL;
 	SecAccessControlRef ac = SecAccessControlCreateWithFlags(NULL,
 			kSecAttrAccessibleWhenUnlockedThisDeviceOnly, kSecAccessControlPrivateKeyUsage, &err);
@@ -171,20 +235,20 @@ static wb_probe wb_permanent_probe(void) {
 	int bits = 256;
 	CFNumberRef size = CFNumberCreate(NULL, kCFNumberIntType, &bits);
 	if (ac == NULL || priv == NULL || p == NULL || size == NULL) {
-		out.status = errSecAllocate;
+		out->status = errSecAllocate;
 	} else {
 		CFDictionarySetValue(priv, kSecAttrIsPermanent, kCFBooleanTrue);
 		CFDictionarySetValue(priv, kSecAttrAccessControl, ac);
-		CFDictionarySetValue(priv, kSecAttrLabel, CFSTR("wbtest-hwkey-permanent-probe"));
+		CFDictionarySetValue(priv, kSecAttrLabel, WB_PROBE_LABEL);
 		CFDictionarySetValue(p, kSecAttrKeyType, kSecAttrKeyTypeECSECPrimeRandom);
 		CFDictionarySetValue(p, kSecAttrKeySizeInBits, size);
 		CFDictionarySetValue(p, kSecAttrTokenID, kSecAttrTokenIDSecureEnclave);
 		CFDictionarySetValue(p, kSecUseDataProtectionKeychain, kCFBooleanTrue);
 		CFDictionarySetValue(p, kSecPrivateKeyAttrs, priv);
 	}
-	SecKeyRef k = out.status == 0 ? SecKeyCreateRandomKey(p, &err) : NULL;
-	if (out.status == 0 && k == NULL) {
-		out.status = err != NULL ? (int)CFErrorGetCode(err) : errSecInternalError;
+	SecKeyRef k = out->status == 0 ? SecKeyCreateRandomKey(p, &err) : NULL;
+	if (out->status == 0 && k == NULL) {
+		out->status = err != NULL ? (int)CFErrorGetCode(err) : errSecInternalError;
 	}
 	if (err != NULL) {
 		CFRelease(err);
@@ -195,28 +259,7 @@ static wb_probe wb_permanent_probe(void) {
 			CFRelease(refs[i]);
 		}
 	}
-	if (k == NULL) {
-		return out;
-	}
-	out.attrs = wb_key_attributes(k);
-	CFDictionaryRef a = SecKeyCopyAttributes(k);
-	CFTypeRef label = a != NULL ? CFDictionaryGetValue(a, kSecAttrApplicationLabel) : NULL;
-	CFMutableDictionaryRef q = CFDictionaryCreateMutable(NULL, 0, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
-	if (label != NULL && q != NULL) {
-		CFDictionarySetValue(q, kSecClass, kSecClassKey);
-		CFDictionarySetValue(q, kSecAttrApplicationLabel, label);
-		CFDictionarySetValue(q, kSecUseDataProtectionKeychain, kCFBooleanTrue);
-		out.deleted = (int)SecItemDelete(q);
-		out.after = wb_search_label(label);
-	}
-	if (q != NULL) {
-		CFRelease(q);
-	}
-	if (a != NULL) {
-		CFRelease(a);
-	}
-	CFRelease(k);
-	return out;
+	return k;
 }
 */
 import "C"
@@ -229,7 +272,9 @@ import (
 
 // keyAttributes is what the host test reads back about a key.
 type keyAttributes struct {
-	// Permanent is kSecAttrIsPermanent: 0 false, 1 true, -1 absent.
+	// Permanent is kSecAttrIsPermanent: 0 false, 1 true, -1 absent. It
+	// is logged only: a Secure Enclave key reads it back as true
+	// whatever the call asked for, so Keychain is the check.
 	Permanent int
 	// SecureEnclave is whether kSecAttrTokenID is the Secure Enclave's.
 	SecureEnclave bool
@@ -265,24 +310,46 @@ func readKeyAttributes(k Key) (keyAttributes, error) {
 	return goKeyAttributes(C.wb_key_attributes(ek.ref))
 }
 
-// permanentProbe is what probePermanent saw: the permanent key's
-// attributes, and the OSStatus of its delete and of the search after it.
+// permanentProbe is what probePermanent saw: the OSStatus of the delete
+// by label before the probe, the permanent key's attributes, the
+// OSStatus of its delete and of the search after it, and that of the
+// delete by label after it.
 type permanentProbe struct {
+	Before     int
 	Attributes keyAttributes
 	Deleted    int
 	After      int
+	Fallback   int
 }
+
+// errSecItemNotFound is the OSStatus of a search or a delete that
+// matched nothing.
+const errSecItemNotFound = -25300
 
 // probePermanent makes a permanent Secure Enclave key in the keychain,
 // reads it back, and deletes it, as the positive control of the
 // keychain search of readKeyAttributes (C02-streams-and-tls, "CA key").
+// It fails when an earlier run left a probe, which it deletes first, and
+// when the probe couldn't be made. Either way the delete by label after
+// it has run.
 func probePermanent() (permanentProbe, error) {
 	r := C.wb_permanent_probe()
+	if r.before != errSecItemNotFound {
+		return permanentProbe{Before: int(r.before)},
+			fmt.Errorf("deleting a probe an earlier run left: OSStatus %d, want %d", int(r.before), errSecItemNotFound)
+	}
 	if r.status != 0 {
-		return permanentProbe{}, fmt.Errorf("SecKeyCreateRandomKey of a permanent key: status %d", int(r.status))
+		return permanentProbe{Before: int(r.before), Fallback: int(r.fallback)},
+			fmt.Errorf("SecKeyCreateRandomKey of a permanent key: status %d, then the delete by label %d", int(r.status), int(r.fallback))
 	}
 	a, err := goKeyAttributes(r.attrs)
-	return permanentProbe{Attributes: a, Deleted: int(r.deleted), After: int(r.after)}, err
+	return permanentProbe{
+		Before:     int(r.before),
+		Attributes: a,
+		Deleted:    int(r.deleted),
+		After:      int(r.after),
+		Fallback:   int(r.fallback),
+	}, err
 }
 
 // goKeyAttributes converts r and frees its C string.

@@ -10,7 +10,11 @@ package hwkey
 
 // The Secure Enclave calls of the hardware key store (S09-06-ca-keys,
 // "macOS, every build"; S10-01-libraries, the cgo shim). Nothing here
-// logs: Go builds the error, and the caller logs it with its rule.
+// logs: Go builds the error, and the caller logs it with its rule. A
+// failed call gives its CFError's domain and code, and nothing from
+// CFErrorCopyDescription, whose text is the framework's to choose and
+// would reach the log (SEC12-least-privilege), as the secret store's
+// shim does.
 
 // kSecAttrTokenOID is exported by Security.framework, and the SDK
 // headers don't declare it (S09-06-ca-keys, "`kSecAttrTokenOID` is
@@ -30,8 +34,8 @@ typedef struct {
 	// code is the code of the CFError of the call that failed, or -1
 	// when it gave none.
 	long code;
-	// desc is a malloc'd description of that error, or NULL.
-	char *desc;
+	// domain is a malloc'd copy of that error's domain, or NULL.
+	char *domain;
 } wb_result;
 
 // wb_key_cstring returns a malloc'd UTF-8 copy of s, or NULL. Each cgo
@@ -59,10 +63,9 @@ static void wb_fail(wb_result *r, const char *call, CFErrorRef err) {
 		return;
 	}
 	r->code = (long)CFErrorGetCode(err);
-	CFStringRef d = CFErrorCopyDescription(err);
+	CFStringRef d = CFErrorGetDomain(err);
 	if (d != NULL) {
-		r->desc = wb_key_cstring(d);
-		CFRelease(d);
+		r->domain = wb_key_cstring(d);
 	}
 	CFRelease(err);
 }
@@ -169,12 +172,21 @@ static wb_result wb_restore(const void *oid, long len) {
 }
 
 // wb_token_oid returns the key's token object ID, its wrapped form. A key
-// without one, or with an empty one, is an error.
+// whose kSecAttrTokenID isn't the Secure Enclave's is an error, so no
+// key outside the Secure Enclave is kept (SEC12-least-privilege,
+// S09-06-ca-keys, "macOS, every build"). A key without a token object
+// ID, or with an empty one, is an error too.
 static wb_result wb_token_oid(SecKeyRef k) {
 	wb_result r = {0};
 	CFDictionaryRef a = SecKeyCopyAttributes(k);
 	if (a == NULL) {
 		wb_fail(&r, "SecKeyCopyAttributes", NULL);
+		return r;
+	}
+	CFTypeRef tok = CFDictionaryGetValue(a, kSecAttrTokenID);
+	if (tok == NULL || !CFEqual(tok, kSecAttrTokenIDSecureEnclave)) {
+		wb_fail(&r, "kSecAttrTokenID of the key's attributes isn't the Secure Enclave", NULL);
+		CFRelease(a);
 		return r;
 	}
 	CFTypeRef v = CFDictionaryGetValue(a, kSecAttrTokenOID);
@@ -245,8 +257,10 @@ import (
 	"unsafe"
 )
 
-// maxWrapped bounds the wrapped form Restore takes. A token object ID was
-// 324 bytes in X09-keychain-unsigned.
+// maxWrapped bounds the wrapped form Restore takes, and every result
+// the shim reads back: a token object ID, a public key and a signature.
+// A token object ID was 324 bytes in X09-keychain-unsigned and in the
+// attended run of I509.
 const maxWrapped = 4096
 
 // Open returns the hardware key store of darwin: a Secure Enclave key
@@ -310,25 +324,29 @@ func newKey(what string, r C.wb_result) (Key, error) {
 	return &enclaveKey{ref: r.key, pub: pub, wrapped: wrapped}, nil
 }
 
-// resultErr is the error of a failed shim call, with the code and the
-// description Security.framework gave. It frees the description.
+// resultErr is the error of a failed shim call, with the error domain
+// and code Security.framework gave, and no description. It frees the
+// domain.
 func resultErr(what string, r C.wb_result) error {
-	defer C.free(unsafe.Pointer(r.desc))
-	desc := ""
-	if r.desc != nil {
-		desc = ": " + C.GoString(r.desc)
+	defer C.free(unsafe.Pointer(r.domain))
+	domain := "no error"
+	if r.domain != nil {
+		domain = C.GoString(r.domain)
 	}
-	return fmt.Errorf("hwkey: %s: %s: error %d%s", what, C.GoString(r.call), int(r.code), desc)
+	return fmt.Errorf("hwkey: %s: %s: %s %d", what, C.GoString(r.call), domain, int(r.code))
 }
 
 // dataBytes copies the bytes of a shim call's result and releases them,
-// or returns the call's error.
+// or returns the call's error. It refuses more than maxWrapped bytes.
 func dataBytes(what string, r C.wb_result) ([]byte, error) {
 	if r.call != nil {
 		return nil, resultErr(what, r)
 	}
 	defer C.CFRelease(C.CFTypeRef(r.data))
 	n := C.CFDataGetLength(r.data)
+	if n > maxWrapped {
+		return nil, fmt.Errorf("hwkey: %s: the framework gave %d bytes, more than %d", what, int64(n), maxWrapped)
+	}
 	return C.GoBytes(unsafe.Pointer(C.CFDataGetBytePtr(r.data)), C.int(n)), nil
 }
 

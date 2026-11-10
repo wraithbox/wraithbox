@@ -234,6 +234,10 @@ deletes its items by name. `wb-proxyd` may not list the `ca` group.
 backend instead, outside any program's checks. The `sweep-before` step
 at the start of the run deletes what an earlier run left. The
 `sweep-after` step at the end fails when the run left a `wbtest-` item.
+The sweep deletes only names of the shapes the tests make, each random
+part 12 hex digits and a CA id 32, and fails on any other `wbtest-`
+name and leaves it: a user's binding may be named `wbtest-prod`
+(`TestC05HostSweepShapes`).
 
 - `TestC05HostEnvironment`: the environment holds only the two
   variables, the bundle holds its two groups, and dialogs are off after
