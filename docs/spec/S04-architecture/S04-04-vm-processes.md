@@ -153,7 +153,7 @@ It finds `<data>` from the home directory in the user database, never
 3. A data disk entry sends the volume UUID back, renames the file when
    `wb-hostd` asks, and exits. The Xcode entry's exchange (its size,
    the check-only request, and the version, build and hashes it
-   reports) is in S06-14-xcode-image, and joins `diskfmt/v1` in IMG.8.
+   reports) is in S06-15-xcode-disk, and joins `diskfmt/v1` in IMG.8.
 
 `wb-hostd` treats each answer as untrusted. It accepts a volume UUID
 only in canonical form, and a name only when it is the fixed one, and
@@ -192,7 +192,7 @@ attach an image without that service (I353).
 These rest on the shim's inputs: it takes no guest input, only
 `wb-hostd`'s request, and it exits after one format and is never
 restarted. It denies the network and every other file, except the
-Xcode entry's reads in S06-14-xcode-image. The service names are in code.
+Xcode entry's reads and programs in S06-15-xcode-disk. The service names are in code.
 They were measured on macOS 27 with the opt-in host test, which runs a
 confined format (I228).
 

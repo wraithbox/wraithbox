@@ -60,24 +60,46 @@ The user exports each runtime on the host, with no Apple ID
 xcodebuild -downloadPlatform iOS -exportPath "<data>/xcode-runtimes"
 ```
 
-The build takes the runtime images in `<data>/xcode-runtimes`. With
+The command downloads every runtime Apple lists for the platform, and
+writes each as an *exported runtime*, which is a directory
+(X06-guest-xcode, "Follow-up (I624)"). For iOS 27.2 it wrote two
+of about 8.3 GB each, one general runtime and one for a newer device:
+
+```text
+iphonesimulator_27.2_24B8117.exportedBundle/
+  ExportedMetadata.plist
+  Restore/141-80522-035.dmg
+  Restore/BuildManifest.plist
+  Restore/Restore.plist
+  Restore/Firmware/141-80522-035.dmg.cryptex_info
+  Restore/Firmware/141-80522-035.dmg.root_hash
+  Restore/Firmware/141-80522-035.dmg.trustcache
+```
+
+The build takes the exported runtimes in `<data>/xcode-runtimes`. With
 none there, the image has Xcode and no simulator runtime, and `wb image
 build` says so. `wb-hostd` never runs `xcodebuild` on the host.
 
-Each entry in the folder is opened with `O_NOFOLLOW`, and the build
-refuses:
+Each entry in the folder, and each entry under it, is opened with
+`O_NOFOLLOW`, and the build refuses:
 
-- an entry that isn't a regular file (`xcode-runtime-not-regular`);
-- a name without the form of an exported runtime image, which I624
-  reports (`xcode-runtime-name`);
-- more runtime images than a count cap (`xcode-runtime-too-many`);
-- runtime images over a total size cap (`xcode-runtime-too-large`).
+- an entry that isn't a directory named
+  `<platform>_<version>_<build>.exportedBundle`, with a lowercase
+  platform such as `iphonesimulator` (`xcode-runtime-name`);
+- an exported runtime with anything but the layout above: the named
+  regular files and directories, and exactly one disk image in
+  `Restore`, whose name the three `Firmware` files repeat
+  (`xcode-runtime-layout`);
+- more exported runtimes than a count cap (`xcode-runtime-too-many`).
+  One export can write more than one;
+- exported runtimes whose files' sizes (`st_size`) add up to more than
+  a size cap (`xcode-runtime-too-large`).
 
 The caps are in code.
 
 ### The checks on the host
 
-Before it copies anything, the shim of "The Xcode disk" below checks,
+Before it copies anything, the shim of S06-15-xcode-disk checks,
 and refuses with the rule:
 
 - that Apple signed the app and that it is unchanged
@@ -100,104 +122,57 @@ and refuses with the rule:
   from the host's own record of it (`xcode-license-not-accepted`);
 - that Xcode's minimum macOS version is at most the parent image's
   macOS version (`xcode-too-new-for-guest`);
-- that Apple signed each runtime image. A runtime image whose signature
-  the shim can't check is refused (`xcode-runtime-signature-invalid`);
+- that Apple signed each exported runtime's disk image and that it is
+  unchanged (`xcode-runtime-signature-invalid`), with
+  `codesign --verify --strict` against this code requirement:
+
+  ```text
+  identifier image and anchor apple
+  ```
+
+  The disk image has its own code signature, made with Apple's "macOS
+  Software Signing" certificate, with one hash over the whole image. The
+  other files of an exported runtime have no signature the host can
+  check. The guest's import reads only the disk image ("In the build
+  VM");
 - that `<data>` has room for the disk and the image
   (SEC13-bounded-resources, `xcode-disk-no-space`).
 
-The shim reads the license record. Its path becomes a read rule of the
-Xcode entry once I624 names it. I624 also measures the code requirement
-on an App Store install and on one from Apple's developer site, and
-which signature check holds for a runtime image. The build refuses
-until each is known.
+On the host's App Store Xcode, the code requirement above holds, and
+plain `anchor apple` doesn't (`codesign` exits 3). A copy with one
+byte changed in a framework fails, as does a runtime disk image with
+one byte changed (X06-guest-xcode, "Follow-up (I624)"). An install
+from Apple's developer site wasn't measured. The second branch is
+written for it. If that install is signed with Apple's own Software
+Signing certificate instead, it fails with `xcode-signature-invalid`
+until the requirement gets `anchor apple` with the identifier as a
+third branch.
+
+The license record is `/Library/Preferences/com.apple.dt.Xcode.plist`,
+which `xcodebuild -license accept` writes as root, and which is the
+Xcode entry's read rule for it. It holds the accepted license's ID per
+license type, `IDELastGMLicenseAgreedTo` for a release, and the Xcode
+version that accepted it, `IDEXcodeVersionForAgreedToGMLicense`. It
+doesn't name a build. The app names the license it needs in
+`Contents/Resources/LicenseInfo.plist` (`licenseID`, `licenseType`).
+The shim parses both plists itself. It refuses unless the ID recorded
+for the app's license type equals the app's `licenseID`, and the
+recorded version equals the app's `CFBundleShortVersionString`.
+
+That is as close as the record comes to "this Xcode build". On the
+reference machine the record says `27.0` while Xcode 27.2 is
+installed, and the check refuses it until the user runs
+`sudo xcodebuild -license accept` again, which the refusal names.
+Whether Xcode itself counts a record from an older version as accepted
+wasn't measured (X06-guest-xcode, "Follow-up (I624)"). If it does,
+dropping the version from the check is the maintainer's decision.
 
 ### The Xcode disk
 
-The Xcode disk is a disk image the host builds. It isn't a shared
-directory (SEC02-no-host-fs-share).
-
-`wb-diskfmt` builds it, started through a third fixed `wb-launcher`
-entry, `wb-diskfmt-xcode`, whose `WB_DISKFMT_SLOT` is `xcode`
-(S04-04-vm-processes, "`wb-diskfmt`"). Only `wb-hostd` starts it,
-during an image build. `wb-hostd` clones the parent into the new,
-empty build bundle, then starts `wb-diskfmt-xcode`, and starts no
-`wb-vmd` in that bundle until `wb-launcher` has reported the shim's
-exit. Then it starts `wb-vmd-layer`. As for the data disk entries, its instance cap
-is one, and its shim is started as the leader of a new process group.
-
-The entry's profile parameters are the build bundle,
-`<data>/images/macos-build.noindex`, the real path of the Xcode app and
-`<data>/xcode-runtimes`. The shim resolves `/Applications/Xcode.app`
-with `realpath` itself before it confines itself, and applies the
-`/Applications/*.app` rule ("Where Xcode comes from"). The shim takes
-none of these paths from the request or the environment. For the
-`xcode` slot, the slot's bundle of `diskfmt-slot-bundle-mismatch` is
-the build bundle.
-
-The profile is `wb-diskfmt`'s (S04-04-vm-processes, "`wb-diskfmt`'s
-profile"), with `xcode.img` and its temporary name in the build bundle
-in place of the data disk's names, plus:
-
-- reading the Xcode app and the runtime images, and the license record
-  ("The checks on the host"), and no other file outside the build
-  bundle;
-- creating the directory `xcode-mnt` in the build bundle, by that
-  literal name, and writing under it;
-- starting `/usr/bin/ditto` and `/usr/bin/codesign`.
-
-As for a data disk (S06-13-data-disk-format, "The shim"), the shim:
-
-1. creates `xcode.img` in the build bundle under a temporary name,
-   with the same identity checks. Its size is that of the checked
-   inputs plus slack, within a bound in code;
-2. attaches it, formats it APFS with the volume name `wb-xcode`, and
-   mounts the new, empty volume once with `diskutil mount -mountPoint`
-   on `xcode-mnt`, a directory it creates new in the build bundle. An
-   existing `xcode-mnt` refuses the build (`xcode-mnt-exists`). Before
-   any write, `statfs` on `xcode-mnt` has to give the device it
-   attached as `f_mntfromname` and that path as `f_mntonname`
-   (`xcode-mount-mismatch`);
-3. copies the app to `Xcode.app` on the volume with
-   `ditto --norsrc --noextattr --noacl --noqtn`, leaving out
-   `Contents/_MASReceipt`, and each runtime image to `Runtimes/` on it.
-   An App Store install's extended attributes and receipt name the
-   host's purchase and device, and the copy leaves them behind. I624
-   checks that Xcode still runs without them;
-4. checks the signature of the copy again, so a change to the source
-   during the copy fails the build;
-5. unmounts and detaches the volume, and renames the file to
-   `xcode.img`.
-
-Each `ditto` and `codesign` run has a deadline in code, as each
-`diskutil` step has. The kill of S06-13-data-disk-format, "When
-`wb-diskfmt` doesn't exit", applies to the shim as to the data disk
-entries, and `wb-hostd`'s wait covers the sum of its deadlines. I624
-measures the copy and check times, and the profile.
-
-The step 2 mount is SEC15-no-guest-disk-mount's one exception, as for a
-data disk (S06-05-disks, "Formatting a data disk"): a blank image the
-host itself created, before any guest has run with it. The shim also
-fills the volume, as the bundle build fills the guest tools disk. The
-host never mounts or opens the file again once a guest had it, and it
-is deleted with the build bundle. That delete doesn't follow links, and
-stops at a directory whose `st_dev` isn't the bundle's. A volume left
-mounted there refuses the build with `xcode-mount-left`, which names
-the mount point.
-
-### What the build records
-
-The shim reports Xcode's version and build and the SHA-256 of each
-runtime image to `wb-hostd`, which treats them as untrusted, as it
-treats every answer of the shim. `state.db` records them for the image.
-
-`wb-hostd` never reads Xcode, the runtimes or the license record
-itself. Before it decides between the layer-only path of
-S06-01-image-layers, "Only the layer", and a full build, it starts the
-shim in a check-only run, which makes the checks above, reports the
-same values, and builds no disk. That run also gets a new, empty build
-bundle. The layer-only path requires them to
-equal the recorded ones. A new Xcode on the host changes nothing until
-the next `wb image build`. That build then builds every layer.
+The host copies Xcode and the exported runtimes onto a disk image,
+`xcode.img`, in the build bundle. The `wb-diskfmt` shim that makes the
+checks above also builds that disk, under its own profile, and reports
+what the build records (S06-15-xcode-disk).
 
 ### In the build VM
 
@@ -219,16 +194,28 @@ A named `wb-guestd` operation, `install-xcode`, then runs as root
    tools disk: APFS, read-only, and mounted by root
    (S06-12-guest-agent, "Update at start").
 2. It copies `Xcode.app` to `/Applications/Xcode.app` with
-   `ditto --norsrc --noextattr --noacl --noqtn`, with owner
-   `root:wheel`, and
-   no write permission for group or others. The sealing scan refuses
-   files outside `/Users` that a non-system user owns
-   (S06-02-image-build, "Sealing").
+   `ditto --norsrc --noextattr --noacl --noqtn --hfsCompression`, then
+   sets owner `root:wheel` with `chown -R` and takes write permission
+   from group and others with `chmod -R go-w`. The files on the volume
+   belong to user 99, and the sealing scan refuses files outside
+   `/Users` that a non-system user owns (S06-02-image-build,
+   "Sealing"). `--hfsCompression` keeps the copy at the 4.0 GB it
+   takes on the host instead of 10 GB;
 3. It checks the copy's signature with the same requirement.
 4. It runs `xcode-select -s`, `xcodebuild -license accept` and
    `xcodebuild -runFirstLaunch`.
-5. It imports each runtime with `xcodebuild -importPlatform`.
+5. It imports each runtime with `xcrun simctl runtime add` on the
+   runtime's disk image, the one `.dmg` in its `Restore/`, and checks
+   that `xcrun simctl runtime list` then shows it as `Ready`.
 6. It unmounts the volume.
+
+These steps worked in a guest with every network interface down, and
+an iOS simulator then booted on the imported runtime (X06-guest-xcode,
+"Follow-up (I624)"). `xcodebuild -importPlatform` didn't work there.
+It first copied its input into root's temporary directory, then
+refused for lack of room with 22 GiB free, and left the copy behind.
+`simctl runtime add` copies the disk image once. The clone of the
+Xcode step needs room on its system disk for Xcode and every runtime.
 
 A failure fails the build. The host bounds and escapes the failure
 text as for terminfo (S06-02-image-build, "Terminfo"). Then the image

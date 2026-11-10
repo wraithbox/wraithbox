@@ -303,4 +303,238 @@ exceptions, and the raw results in `results/`. The spike's bundle `g1`
 and its Xcode disk are spike artifacts, and no product image may
 descend from them.
 
-**Status:** Answered 2026-10-08: yes, with conditions
+## Follow-up (I624): the host export and the Xcode disk
+
+### For review
+
+- **Decides:** nothing new. It measures the steps S06-14-xcode-image
+  specifies, on the host and in a guest, and corrects the spec where a
+  measurement contradicts it.
+- **You are approving:** the corrections to S06-14-xcode-image listed
+  in "What it means for the specs" below. The largest: an exported
+  runtime is a directory with a signed disk image in it, and the
+  runtime rules now check the directory and what it holds.
+- **Controls touched:** none weakened. SEC12-least-privilege: the
+  shim's profile needs more than `wb-diskfmt`'s, and the spec now names
+  each addition. SEC13-bounded-resources: the Xcode disk is sized from
+  file sizes, and the build VM needs room for every runtime.
+  SEC15-no-guest-disk-mount: unchanged. The runtime's disk image has an
+  Apple signature, which the shim now checks with `identifier image and
+  anchor apple`, and a changed byte fails it.
+- **Assumed:** that an install of Xcode from Apple's developer site
+  meets the requirement's second branch or fails closed. It wasn't
+  measured (attended step 3 below).
+- **Open decision:** whether the license check keeps comparing the
+  Xcode version. The record names the version that accepted the
+  license, not a build, and says 27.0 on a Mac with Xcode 27.2. The
+  spec keeps the version check, which refuses that Mac until the user
+  accepts the license again. Attended step 1 shows whether Xcode itself
+  counts the older record as accepted.
+
+### Question
+
+From I624, for S06-14-xcode-image as written:
+
+1. What does `xcodebuild -downloadPlatform iOS -exportPath` write, and
+   in what form?
+2. Do the code requirements hold on the host's Xcode and the exported
+   runtime, and does a changed byte fail them?
+3. Where is the license record, and what does it hold?
+4. Do the guest steps work with the network off and the Xcode volume
+   read-only?
+5. Does the build of the Xcode disk work under a profile like
+   `wb-diskfmt`'s, and how long does each step take?
+
+### Answer
+
+1. **A directory per runtime.** The export wrote two directories, one
+   per runtime, named `<platform>_<version>_<build>.exportedBundle`:
+   `iphonesimulator_27.2_24B8117.exportedBundle` and
+   `iphonesimulator_27.2_24B91016s.exportedBundle` (the second is the
+   iPhone19-4 variant). Each is 8.3 GB. In each, `Restore/` holds one
+   disk image, `BuildManifest.plist` and `Restore.plist`, and
+   `Restore/Firmware/` holds the image's `.cryptex_info`, `.root_hash`
+   and `.trustcache` files. `ExportedMetadata.plist` is at the top. The
+   whole download and export took 542 s. Its log also says
+   "Installing..." and prints a runtime UUID for each, so the export
+   may also have installed both runtimes on the host. That is attended
+   step 2.
+2. **Yes, both.** On the App Store Xcode, S06-14-xcode-image's code
+   requirement holds, and plain `anchor apple` exits 3. The runtime's
+   disk image is signed with identifier `image` by Apple's macOS
+   Software Signing certificate, and `identifier image and anchor
+   apple` holds. One byte changed in a framework of a copy of Xcode
+   fails the check with "invalid signature (code or signature have been
+   modified)", and so does one byte changed in a copy of the disk image.
+   `codesign` doesn't find a signature on the other files of an export.
+3. **`/Library/Preferences/com.apple.dt.Xcode.plist`**, owned by
+   root, mode 0644. It holds the accepted license's ID per type
+   (`IDELastGMLicenseAgreedTo = EA2002`) and the Xcode version that
+   accepted it (`27.0`, while the host runs 27.2). The app names its
+   license in `Contents/Resources/LicenseInfo.plist`: `licenseID`
+   `EA2002`, `licenseType` `GM`. Whether the host's 27.2 counts the
+   record as accepted is attended step 1.
+4. **Yes, with another import command.** With every interface down
+   and the volume mounted read-only, the copy, the signature check,
+   `xcodebuild`, the license, the first launch and the runtime import
+   all worked, and an iOS simulator booted on the runtime in 33 s.
+   `xcodebuild -importPlatform` failed, both on the exported directory
+   and on its disk image. It copied its input into root's temporary
+   directory first. It then refused with "Cannot copy the image because
+   the disk is almost full" at 22 GiB free, and left that copy behind.
+   `xcrun simctl runtime add` on the disk image imported it in 46 s.
+5. **Yes, with more rules.** A throwaway shim, confined by
+   `selfsandbox` with `wb-diskfmt`'s profile plus the rules below, read
+   the license record, checked Xcode and the runtime, made a 24 GiB
+   image, formatted it, mounted it on a directory in the bundle, copied
+   Xcode without `_MASReceipt` and one runtime into it, checked the
+   copy and ejected it. A read outside its parameters was refused.
+
+### Measurements
+
+Host: Apple M2, 16 GB, macOS 27.2 (26B123), Xcode 27.2 (27B52) from
+the App Store, in `/Applications`, 4.0 GB on disk and 10 GB of file
+sizes (APFS compression). Guest: an APFS clone of the dev base bundle,
+macOS 27.2 (26B123), 4 vCPU, 4 GiB, a 64 GiB system disk, and the
+shim's `xcode.img` as its second disk. The guest had a NAT network for
+SSH, and the script turned every interface but `lo0` down before each
+step below. `curl` then failed with "no route".
+
+On the host, unconfined:
+
+| Command | Result | Time |
+|---|---|---|
+| `codesign --verify --deep --strict -R=<S06-14 requirement> Xcode.app` | exit 0 | 14.5 s |
+| the same with `-R='anchor apple'` | exit 3, "code failed to satisfy specified code requirement(s)" | 15.2 s |
+| the same on a `ditto` copy without `_MASReceipt` and extended attributes | exit 0 | 15.0 s |
+| the same on a copy with one byte of `IDEFoundation` changed | exit 1, "invalid signature (code or signature have been modified)" | |
+| `codesign --verify --strict -R='identifier image and anchor apple'` on the runtime disk image | exit 0, `spctl`: accepted, source Apple System | 22 to 24 s |
+| the same on a copy with one byte changed | exit 1, "invalid signature" | 22.6 s |
+
+The shim's steps, confined, over five runs:
+
+| Step | Time |
+|---|---|
+| Deep check of the host's Xcode | 53 to 107 s |
+| Check of one runtime disk image | 22 to 27 s |
+| SHA-256 of one runtime disk image | 4.4 s |
+| `diskutil image attach --noMount`, `eraseDisk`, `unmount`, `mount -mountPoint` | 0.25, 1.2, 0.3, 0.2 s |
+| `ditto` of Xcode | 78 to 81 s |
+| `ditto` of one runtime | 10 to 11 s |
+| Deep check of the copy | 45 to 46 s |
+| `unmount`, `eject` | 0.6, 0.2 s |
+
+The copy on the volume took 10 GB, because `ditto` without
+`--hfsCompression` writes files uncompressed. The 24 GiB image had
+19.1 GB allocated after Xcode and one runtime. With
+`--hfsCompression`, confined, `ditto` failed to write a file, still
+exited 0, and the check of the copy failed with "code object is not
+signed at all".
+
+In the guest, as root:
+
+| Step | Result | Time |
+|---|---|---|
+| `diskutil mount readOnly wb-xcode`, then a write | "Read-only file system" | |
+| `ditto --norsrc --noextattr --noacl --noqtn` to `/Applications` | 167,224 entries owned by UID 99 | 88.9 s |
+| `chown -R root:wheel`, `chmod -R go-w` | | 9.3 s, 4.2 s |
+| Deep check of the copy with the requirement | exit 0 | 59 s |
+| `spctl --assess` | accepted, source Mac App Store | |
+| `xcodebuild -version` (first run) | Xcode 27.2, 27B52 | 43 s |
+| `xcodebuild -license accept` | exit 0, writes the record with version `27.2` | 0.11 s |
+| `xcodebuild -license check` | exit 0 | |
+| `xcodebuild -runFirstLaunch` | "Install Succeeded" | 22.8 s |
+| Check of the runtime disk image | exit 0 | 29.8 s |
+| `xcodebuild -importPlatform` on the directory, 8.4 GiB free | "Cannot copy the image because the disk is almost full", exit 70 | 22 s |
+| `ditto ... --hfsCompression` of Xcode, after removing the first copy | 4.0 GB, check of the copy exit 0 | 139.6 s |
+| `xcodebuild -importPlatform` on the directory, 22 GiB free | the same message, a 7.7 GB copy left in root's temporary directory | 26 s |
+| `xcrun simctl runtime add` on the disk image, 30 GiB free | `iOS 27.2 (24B8117) ... (Ready)`, 7.7 GB | 46 s |
+| `xcrun simctl bootstatus -b` on an iPhone 18 Pro | Finished | 33 s |
+
+`-runFirstLaunch` added three `com.apple.*` system jobs
+(`CoreDevice.CoreDeviceDDIUpdaterService`,
+`CoreSimulator.simdiskimaged`, `PerformanceTrace.PerformanceTraceService`)
+and no file in `/Library/LaunchDaemons` or `/Library/LaunchAgents`.
+Everything it wrote outside `/Users` is owned by root: the frameworks
+in `/Library/Developer/PrivateFrameworks`, the developer disk images in
+`/Library/Developer/DeveloperDiskImages`, and `CoreSimulator`'s
+directories. No new file outside `/Users` was owned by a UID of 500
+or more, so the sealing scan has nothing to refuse.
+
+The import didn't add any file outside `/Users` owned by a UID of 500 or
+more. Its disk image went to
+`/Library/Developer/CoreSimulator/Cryptex/Images/Inbox`, owned by
+root. The failed imports left a copy of their input in root's
+temporary directory and one in that `Inbox`. A later `-importPlatform`
+of the same input then failed with "an item with the same name already
+exists".
+
+### What was not measured
+
+- **A Developer ID install** from Apple's developer site, which needs
+  an Apple ID sign-in (attended step 3).
+- **Whether a later Xcode counts an older record as accepted** on the
+  host (attended step 1), and whether the export installed the
+  runtimes on the host (attended step 2).
+- **A guest with no network device.** The guest had a NAT device with
+  its interfaces turned down. `wb-dev-bundle` attaches a network to
+  every VM it starts, and a start without one is a new option there.
+- **The shim's profile is not minimal.** It is `wb-diskfmt`'s with
+  every rule the runs needed added, and no rule was taken out to see
+  whether it is needed.
+- **Xcode's GUI**, and the iPhone19-4 runtime.
+
+### Attended steps
+
+`.scratch/attended/624-host.sh` on the branch's worktree, run by the
+maintainer, each step writing a file that the builder reads:
+
+```sh
+{ xcodebuild -version; xcodebuild -license check; echo "license check rc=$?"; } 2>&1 | tee .scratch/m/attended-license-check.txt
+xcrun simctl runtime list 2>&1 | tee .scratch/m/attended-host-runtimes.txt
+pkgutil --check-signature .scratch/xip/Xcode_27.2.xip 2>&1 | tee .scratch/m/attended-xip-signature.txt
+(cd .scratch/xip && xip --expand Xcode_27.2.xip)
+codesign -d -r- -vvvv .scratch/xip/Xcode.app 2>&1 | grep -E 'Authority|designated|TeamIdentifier' | tee .scratch/m/attended-xip-codesign.txt
+```
+
+### What it means for the specs
+
+S06-14-xcode-image, changed in this pull request:
+
+- "Where the runtimes come from": the export is a directory per
+  runtime. `xcode-runtime-name` checks the directory's name, the new
+  `xcode-runtime-layout` checks that it holds only the files above,
+  and the size cap counts the sum of the files' sizes. One export can
+  write more than one runtime.
+- "The checks on the host": the runtime's check is `codesign` with
+  `identifier image and anchor apple` on its disk image. The record
+  doesn't name a build. The license check compares the license ID
+  for the app's type and the recorded Xcode version. On this Mac that
+  refuses until `sudo xcodebuild -license accept` runs again. Whether
+  the version check can go waits on attended step 1, and is the
+  maintainer's decision. An install from the developer site that isn't
+  signed as the requirement's second branch expects fails closed.
+- "In the build VM": the guest copies Xcode with `--hfsCompression`
+  and sets the owner itself, imports each runtime with `xcrun simctl
+  runtime add` on its disk image, and needs room for Xcode and every
+  runtime on its system disk.
+
+S06-15-xcode-disk, new in this pull request, takes "The Xcode disk"
+and "What the build records" from S06-14-xcode-image, which had grown
+past a page's length:
+
+- the image is sized from the sum of `st_size`, not from blocks;
+- `eraseDisk` mounts the new volume, and the shim then mounts it on a
+  directory in the bundle;
+- the copy drops `_MASReceipt`;
+- the profile's additions are named, and the timings above set the
+  deadlines;
+- the build records the SHA-256 of each runtime's disk image.
+
+### Spike code
+
+The throwaway shim (`main.go`, `profile.go`) and the guest scripts
+stayed in the builder's worktree under `.scratch/`, and were not
+committed.
+
+**Status:** Answered 2026-10-08: yes, with conditions. Follow-up measured 2026-11-10 (I624): the export is a directory per runtime with a signed disk image, both code requirements hold and fail on a changed byte, the confined shim builds the Xcode disk, and the guest steps work offline with `simctl runtime add`. The license version check and a developer-site install await attended steps

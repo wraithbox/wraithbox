@@ -41,6 +41,7 @@ Wraith Box works and why.
 | S06-12-guest-agent | Guest Agent | Draft |
 | S06-13-data-disk-format | Data Disk Format | Draft |
 | S06-14-xcode-image | The Xcode Image | Draft |
+| S06-15-xcode-disk | The Xcode Disk | Draft |
 | S07-egress-gateway | Egress Gateway | Draft |
 | S07-01-per-vm-policy | Enforced per VM | Draft |
 | S07-02-packet-path | Packet Path | Draft |
