@@ -40,6 +40,13 @@ typedef struct {
 	char *groups;
 	// groups_bad is 1 when the entitlements can't be read.
 	int groups_bad;
+	// identifier is the signing identifier, or NULL when there is none.
+	char *identifier;
+	// executable is the CFBundleExecutable of the Info.plist the
+	// signature seals, or NULL when there is none.
+	char *executable;
+	// code_bad is 1 when either of them isn't a string that converts.
+	int code_bad;
 } wb_self;
 
 // wb_cstring returns a malloc'd UTF-8 copy of s, or NULL.
@@ -111,9 +118,44 @@ static void wb_read_groups(CFDictionaryRef info, wb_self *out) {
 	wb_join_groups((CFArrayRef)groups, out);
 }
 
-// wb_fill_self reads the team and the access groups of the process's own
-// code signature into out (S15-02-secret-store, "The group of each
-// call").
+// wb_copy_string sets *out to a malloc'd copy of v and returns 0, or
+// returns 1 when v isn't a string that converts. A NULL v is no value.
+static int wb_copy_string(CFTypeRef v, char **out) {
+	if (v == NULL) {
+		return 0;
+	}
+	if (CFGetTypeID(v) != CFStringGetTypeID()) {
+		return 1;
+	}
+	*out = wb_cstring((CFStringRef)v);
+	return *out == NULL ? 1 : 0;
+}
+
+// wb_read_code reads the signing identifier and the CFBundleExecutable
+// of the sealed Info.plist from the signing information. A code without
+// an Info.plist has no executable.
+static void wb_read_code(CFDictionaryRef info, wb_self *out) {
+	if (wb_copy_string(CFDictionaryGetValue(info, kSecCodeInfoIdentifier), &out->identifier) != 0) {
+		out->code_bad = 1;
+		return;
+	}
+	CFTypeRef plist = CFDictionaryGetValue(info, kSecCodeInfoPList);
+	if (plist == NULL) {
+		return;
+	}
+	if (CFGetTypeID(plist) != CFDictionaryGetTypeID()) {
+		out->code_bad = 1;
+		return;
+	}
+	CFTypeRef exe = CFDictionaryGetValue((CFDictionaryRef)plist, kCFBundleExecutableKey);
+	if (wb_copy_string(exe, &out->executable) != 0) {
+		out->code_bad = 1;
+	}
+}
+
+// wb_fill_self reads the team, the access groups, the signing identifier
+// and the executable of the process's own code signature into out
+// (S15-02-secret-store, "The group of each call").
 static void wb_fill_self(wb_self *out) {
 	memset(out, 0, sizeof *out);
 	SecCodeRef self = NULL;
@@ -140,6 +182,7 @@ static void wb_fill_self(wb_self *out) {
 		}
 	}
 	wb_read_groups(info, out);
+	wb_read_code(info, out);
 	CFRelease(info);
 }
 
@@ -154,7 +197,6 @@ static wb_self wb_read_self(void) {
 import "C"
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -166,28 +208,27 @@ import (
 )
 
 // Open opens the Keychain for program, the caller's compiled-in
-// identity. It turns dialogs off, then reads the team and the groups of
-// the process's own signature, never from configuration, a flag, the
-// environment or a request (S15-02-secret-store, "The group of each
-// call"). A program calls it before it confines itself, and before it
-// reads any argument, environment variable or input, as wb-diskfmt
-// works out its bundle path before selfsandbox.Confine. See New for what
-// it returns.
+// identity. It turns dialogs off, then reads the team, the groups and
+// the executable of the process's own signature, never from
+// configuration, a flag, the environment or a request
+// (S15-02-secret-store, "The group of each call"). A program calls it
+// before it confines itself, and before it reads any argument,
+// environment variable or input, as wb-diskfmt works out its bundle path
+// before selfsandbox.Confine. See New for what it returns.
 func Open(program storeitem.Program) (Store, error) {
-	log := slog.Default()
-	return New(program, &keychain{log: log}, log)
+	return New(program, &keychain{}, slog.Default())
 }
 
 // keychain is the darwin backend: the data protection keychain, through
-// the cgo shim (S10-01-libraries).
+// the cgo shim (S10-01-libraries). The item calls are in items_darwin.go.
 type keychain struct {
-	log *slog.Logger
-
 	once      sync.Once
 	team      string
 	teamErr   error
 	groups    []string
 	groupsErr error
+	code      Code
+	codeErr   error
 }
 
 func (k *keychain) DialogsOff() error {
@@ -207,15 +248,23 @@ func (k *keychain) Groups() ([]string, error) {
 	return k.groups, k.groupsErr
 }
 
+func (k *keychain) Code() (Code, error) {
+	k.once.Do(k.readSelf)
+	return k.code, k.codeErr
+}
+
 // readSelf reads the process's own signature once. An unreadable
-// signature holds no team and no group (S15-02-secret-store).
+// signature holds no team, no group and no executable
+// (S15-02-secret-store).
 func (k *keychain) readSelf() {
 	self := C.wb_read_self()
 	defer C.free(unsafe.Pointer(self.team))
 	defer C.free(unsafe.Pointer(self.groups))
+	defer C.free(unsafe.Pointer(self.identifier))
+	defer C.free(unsafe.Pointer(self.executable))
 	if self.status != 0 {
 		err := fmt.Errorf("reading the process's own signature: OSStatus %d", int(self.status))
-		k.teamErr, k.groupsErr = err, err
+		k.teamErr, k.groupsErr, k.codeErr = err, err, err
 		return
 	}
 	if self.team_bad != 0 {
@@ -228,33 +277,16 @@ func (k *keychain) readSelf() {
 	} else if self.groups != nil {
 		k.groups = strings.Split(C.GoString(self.groups), "\n")
 	}
-}
-
-// The item calls (SecItemAdd and the rest) need a team-signed bundle on
-// the maintainer's Mac, so they are not built yet. Each returns
-// errSecUnimplemented, which the checks map to store-read-failed or
-// store-write-failed, and logs that. An ad-hoc signed build never
-// reaches them: keychain-needs-team refuses first.
-func (k *keychain) notBuilt(ctx context.Context, call storeitem.Access, group, item string) Status {
-	k.log.LogAttrs(ctx, slog.LevelError, "secret store: the Keychain item calls are not built yet",
-		slog.String("call", string(call)), slog.String("group", group), slog.String("item", item))
-	return StatusUnimplemented
-}
-
-func (k *keychain) Write(ctx context.Context, group, item string, _ []byte) Status {
-	return k.notBuilt(ctx, storeitem.AccessWrite, group, item)
-}
-
-func (k *keychain) Fetch(ctx context.Context, group, item string) ([]byte, Status) {
-	return nil, k.notBuilt(ctx, storeitem.AccessFetch, group, item)
-}
-
-func (k *keychain) Delete(ctx context.Context, group, item string) Status {
-	return k.notBuilt(ctx, storeitem.AccessDelete, group, item)
-}
-
-func (k *keychain) List(ctx context.Context, group string) ([]string, Status) {
-	return nil, k.notBuilt(ctx, storeitem.AccessList, group, "")
+	if self.code_bad != 0 {
+		k.codeErr = errors.New("the signing identifier or the sealed Info.plist's CFBundleExecutable isn't a string")
+		return
+	}
+	if self.identifier != nil {
+		k.code.Identifier = C.GoString(self.identifier)
+	}
+	if self.executable != nil {
+		k.code.Executable = C.GoString(self.executable)
+	}
 }
 
 // dialogsAllowed reports whether the Keychain may show a dialog in this

@@ -116,6 +116,29 @@ func TestLayoutCommandTeam(t *testing.T) {
 	}
 }
 
+// TestEntitlementsCommand: the entitlements of a test bundle hold the
+// groups of its roles, in order, and a bad team or role is refused.
+func TestEntitlementsCommand(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	if code := run(t.Context(), []string{"entitlements", "-team", "ABCDE12345", "-roles", "binding,ca"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("entitlements = %d: %s", code, stderr.String())
+	}
+	if want := appbundle.HelperEntitlements("ABCDE12345", []string{"binding", "ca"}); !bytes.Equal(stdout.Bytes(), want) {
+		t.Errorf("entitlements:\n%s\nwant:\n%s", stdout.Bytes(), want)
+	}
+	for _, args := range [][]string{
+		{"entitlements", "-team", "ABCDE12345"},
+		{"entitlements", "-roles", "binding"},
+		{"entitlements", "-team", "abcde12345", "-roles", "binding"},
+		{"entitlements", "-team", "ABCDE12345", "-roles", "binding,other"},
+		{"entitlements", "-team", "ABCDE12345", "-roles", "binding,"},
+	} {
+		if code := run(t.Context(), args, &stdout, &stderr); code == 0 {
+			t.Errorf("run %v = 0", args)
+		}
+	}
+}
+
 // TestC05BuildMissingProfile: a team build whose app from Xcode has no
 // profile, a profile that isn't a regular file, or one of another team
 // stops with an error that names WB_TEAM_ID and the one-time setup.

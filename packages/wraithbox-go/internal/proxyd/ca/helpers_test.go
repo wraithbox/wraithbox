@@ -83,7 +83,7 @@ func newEnv(t testing.TB, team string) *env {
 	t.Helper()
 	e := &env{
 		t:       t,
-		backend: storetest.New(team, storeitem.Group(team, storeitem.RoleCA)),
+		backend: storetest.New(storeitem.ProgramProxyd, team, storeitem.Group(team, storeitem.RoleCA)),
 		keys:    &hwkeytest.Fake{},
 		logs:    &lockedBuffer{},
 		now:     start,

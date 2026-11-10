@@ -113,7 +113,7 @@ func requireAllRefused(t *testing.T, o *opened, rule storeitem.Rule) {
 // sees every call refused with store-dialogs-on (C05-credentials-and-store,
 // "Store errors").
 func TestC05StoreDialogsOn(t *testing.T) {
-	fake := storetest.New(team, groupBinding)
+	fake := storetest.New(storeitem.ProgramCredset, team, groupBinding)
 	fake.DialogsErr = errors.New("OSStatus -1")
 	o := open(t, storeitem.ProgramCredset, fake)
 	var e *secretstore.Error
@@ -133,9 +133,9 @@ func TestC05StoreNeedsTeam(t *testing.T) {
 		desc string
 		fake *storetest.Fake
 	}{
-		{"no team", storetest.New("")},
+		{"no team", storetest.New(storeitem.ProgramCredset, "")},
 		{"unreadable", &storetest.Fake{TeamErr: errors.New("OSStatus -67062")}},
-		{"not a team ID", storetest.New("abc", groupBinding)},
+		{"not a team ID", storetest.New(storeitem.ProgramCredset, "abc", groupBinding)},
 	} {
 		t.Run(tt.desc, func(t *testing.T) {
 			o := open(t, storeitem.ProgramCredset, tt.fake)
@@ -151,13 +151,65 @@ func TestC05StoreNeedsTeam(t *testing.T) {
 	}
 }
 
+// TestC05StoreProgramMismatch opens the store as one program from a
+// signature whose sealed Info.plist names another executable, none, or
+// can't be read, and as a program that has no executable. It sees
+// every call refused with store-program-mismatch before any backend
+// call, though the fake holds every group (S15-02-secret-store, "The
+// group of each call"). A store opened without a team still refuses
+// with keychain-needs-team first.
+func TestC05StoreProgramMismatch(t *testing.T) {
+	all := []string{groupBinding, groupCA, groupWbadmin}
+	for _, tt := range []struct {
+		desc    string
+		program storeitem.Program
+		fake    func() *storetest.Fake
+	}{
+		{"wb-credset as wb-proxyd", storeitem.ProgramProxyd, func() *storetest.Fake {
+			return storetest.New(storeitem.ProgramCredset, team, all...)
+		}},
+		{"no Info.plist", storeitem.ProgramCredset, func() *storetest.Fake {
+			f := storetest.New(storeitem.ProgramCredset, team, all...)
+			f.CodeInfo.Executable = ""
+			return f
+		}},
+		{"unreadable", storeitem.ProgramCredset, func() *storetest.Fake {
+			f := storetest.New(storeitem.ProgramCredset, team, all...)
+			f.CodeErr = errors.New("OSStatus -67062")
+			return f
+		}},
+		{"a program with no executable", storeitem.Program("wb"), func() *storetest.Fake {
+			f := storetest.New(storeitem.ProgramCredset, team, all...)
+			f.CodeInfo.Executable = ""
+			return f
+		}},
+	} {
+		t.Run(tt.desc, func(t *testing.T) {
+			o := open(t, tt.program, tt.fake())
+			var e *secretstore.Error
+			if !errors.As(o.err, &e) || e.Rule != storeitem.RuleProgramMismatch {
+				t.Fatalf("New: %v, want %s", o.err, storeitem.RuleProgramMismatch)
+			}
+			requireAllRefused(t, o, storeitem.RuleProgramMismatch)
+		})
+	}
+
+	adhoc := storetest.New(storeitem.ProgramCredset, "", all...)
+	adhoc.CodeInfo.Executable = "secretstore.test"
+	o := open(t, storeitem.ProgramCredset, adhoc)
+	var e *secretstore.Error
+	if !errors.As(o.err, &e) || e.Rule != storeitem.RuleNeedsTeam {
+		t.Fatalf("New without a team: %v, want %s", o.err, storeitem.RuleNeedsTeam)
+	}
+}
+
 // TestC05AccessGroupsMismatch asks for a ca/ write with the binding
 // group, and for a group the entitlements don't hold, and sees each
 // refused with store-group-mismatch before any backend call, with both
 // groups in the log (C05-credentials-and-store, "Access groups").
 func TestC05AccessGroupsMismatch(t *testing.T) {
 	ctx := context.Background()
-	o := open(t, storeitem.ProgramProxyd, storetest.New(team, groupBinding, groupCA))
+	o := open(t, storeitem.ProgramProxyd, storetest.New(storeitem.ProgramProxyd, team, groupBinding, groupCA))
 	ca := "wraithbox/ca/vm-1/ca-1"
 	err := o.store.Write(ctx, name(t, ca), storeitem.RoleBinding, []byte(secretValue))
 	requireRule(t, o, err, storeitem.RuleGroupMismatch, storeitem.AccessWrite, ca)
@@ -165,14 +217,14 @@ func TestC05AccessGroupsMismatch(t *testing.T) {
 		t.Errorf("the log doesn't name both groups:\n%s", o.log)
 	}
 
-	notHeld := open(t, storeitem.ProgramProxyd, storetest.New(team, groupCA))
+	notHeld := open(t, storeitem.ProgramProxyd, storetest.New(storeitem.ProgramProxyd, team, groupCA))
 	binding := "wraithbox/binding/github"
 	_, err = notHeld.store.Fetch(ctx, name(t, binding), storeitem.RoleBinding)
 	requireRule(t, notHeld, err, storeitem.RuleGroupMismatch, storeitem.AccessFetch, binding)
 
 	// wb-credset doesn't hold the group and may not fetch a binding
 	// either. The group check runs first, so its rule is the one logged.
-	both := open(t, storeitem.ProgramCredset, storetest.New(team, groupCA))
+	both := open(t, storeitem.ProgramCredset, storetest.New(storeitem.ProgramCredset, team, groupCA))
 	_, err = both.store.Fetch(ctx, name(t, binding), storeitem.RoleBinding)
 	requireRule(t, both, err, storeitem.RuleGroupMismatch, storeitem.AccessFetch, binding)
 
@@ -191,7 +243,7 @@ func TestC05AccessGroupsMismatch(t *testing.T) {
 // read, and sees every call refused with store-group-mismatch
 // (C05-credentials-and-store, "Access groups").
 func TestC05AccessGroupsUnreadable(t *testing.T) {
-	fake := storetest.New(team, groupBinding)
+	fake := storetest.New(storeitem.ProgramCredset, team, groupBinding)
 	fake.GroupsErr = errors.New("the entitlement isn't a list of strings")
 	o := open(t, storeitem.ProgramCredset, fake)
 	if o.err != nil {
@@ -206,18 +258,18 @@ func TestC05AccessGroupsUnreadable(t *testing.T) {
 func TestC05StoreAccessUndeclared(t *testing.T) {
 	ctx := context.Background()
 	binding := "wraithbox/binding/github"
-	credset := open(t, storeitem.ProgramCredset, storetest.New(team, groupBinding))
+	credset := open(t, storeitem.ProgramCredset, storetest.New(storeitem.ProgramCredset, team, groupBinding))
 	_, err := credset.store.Fetch(ctx, name(t, binding), storeitem.RoleBinding)
 	requireRule(t, credset, err, storeitem.RuleAccessUndeclared, storeitem.AccessFetch, binding)
 
-	proxyd := open(t, storeitem.ProgramProxyd, storetest.New(team, groupBinding, groupCA, groupWbadmin))
+	proxyd := open(t, storeitem.ProgramProxyd, storetest.New(storeitem.ProgramProxyd, team, groupBinding, groupCA, groupWbadmin))
 	_, err = proxyd.store.List(ctx, storeitem.RoleBinding)
 	requireRule(t, proxyd, err, storeitem.RuleAccessUndeclared, storeitem.AccessList, "")
 	image := "wraithbox/wbadmin/image/base"
 	_, err = proxyd.store.Fetch(ctx, name(t, image), storeitem.RoleWbadmin)
 	requireRule(t, proxyd, err, storeitem.RuleAccessUndeclared, storeitem.AccessFetch, image)
 
-	rotate := open(t, storeitem.ProgramGuestadminRotate, storetest.New(team, groupWbadmin))
+	rotate := open(t, storeitem.ProgramGuestadminRotate, storetest.New(storeitem.ProgramGuestadminRotate, team, groupWbadmin))
 	vm := "wraithbox/wbadmin/vm/vm-1/disk-0"
 	err = rotate.store.Delete(ctx, name(t, vm), storeitem.RoleWbadmin)
 	requireRule(t, rotate, err, storeitem.RuleAccessUndeclared, storeitem.AccessDelete, vm)
@@ -243,7 +295,7 @@ func TestC05StoreErrorsNotFoundLocked(t *testing.T) {
 		{secretstore.StatusNotFound, secretstore.ErrNotFound, storeitem.RuleNotFound},
 		{secretstore.StatusLocked, secretstore.ErrLocked, storeitem.RuleLocked},
 	} {
-		fake := storetest.New(team, groupBinding)
+		fake := storetest.New(storeitem.ProgramProxyd, team, groupBinding)
 		fake.SetStatus(storeitem.AccessFetch, binding, tt.status)
 		o := open(t, storeitem.ProgramProxyd, fake)
 		value, err := o.store.Fetch(ctx, name(t, binding), storeitem.RoleBinding)
@@ -272,7 +324,7 @@ func TestC05StoreErrorsReadFailed(t *testing.T) {
 			{storeitem.ProgramProxyd, groupBinding, "wraithbox/binding/github", storeitem.RoleBinding},
 			{storeitem.ProgramGuestadminRotate, groupWbadmin, "wraithbox/wbadmin/image/base", storeitem.RoleWbadmin},
 		} {
-			fake := storetest.New(team, tt.group)
+			fake := storetest.New(tt.program, team, tt.group)
 			fake.SetStatus(storeitem.AccessFetch, tt.item, status)
 			o := open(t, tt.program, fake)
 			_, err := o.store.Fetch(ctx, name(t, tt.item), tt.role)
@@ -292,7 +344,7 @@ func TestC05StoreErrorsWriteFailed(t *testing.T) {
 	binding := "wraithbox/binding/github"
 	build := "wraithbox/wbadmin/build/b1"
 
-	fake := storetest.New(team, groupBinding)
+	fake := storetest.New(storeitem.ProgramCredset, team, groupBinding)
 	fake.SetStatus(storeitem.AccessWrite, binding, secretstore.StatusMissingEntitlement)
 	fake.SetStatus(storeitem.AccessDelete, binding, secretstore.StatusMissingEntitlement)
 	credset := open(t, storeitem.ProgramCredset, fake)
@@ -301,7 +353,7 @@ func TestC05StoreErrorsWriteFailed(t *testing.T) {
 	err = credset.store.Delete(ctx, name(t, binding), storeitem.RoleBinding)
 	requireRule(t, credset, err, storeitem.RuleWriteFailed, storeitem.AccessDelete, binding)
 
-	wbadminFake := storetest.New(team, groupWbadmin)
+	wbadminFake := storetest.New(storeitem.ProgramGuestadminBuild, team, groupWbadmin)
 	wbadminFake.SetStatus(storeitem.AccessWrite, build, secretstore.StatusMissingEntitlement)
 	guestadmin := open(t, storeitem.ProgramGuestadminBuild, wbadminFake)
 	err = guestadmin.store.Write(ctx, name(t, build), storeitem.RoleWbadmin, []byte(secretValue))
@@ -313,7 +365,7 @@ func TestC05StoreErrorsWriteFailed(t *testing.T) {
 // group of its role.
 func TestStoreRoundTrip(t *testing.T) {
 	ctx := context.Background()
-	fake := storetest.New(team, groupBinding, groupCA)
+	fake := storetest.New(storeitem.ProgramCredset, team, groupBinding, groupCA)
 	credset := open(t, storeitem.ProgramCredset, fake)
 	if credset.err != nil {
 		t.Fatal(credset.err)
@@ -327,6 +379,8 @@ func TestStoreRoundTrip(t *testing.T) {
 	if err != nil || len(names) != 1 || names[0] != item {
 		t.Fatalf("List = %v, %v", names, err)
 	}
+	// The same store, opened from wb-proxyd's bundle.
+	fake.CodeInfo.Executable = storeitem.ProgramProxyd.Executable()
 	proxyd := open(t, storeitem.ProgramProxyd, fake)
 	got, err := proxyd.store.Fetch(ctx, item, storeitem.RoleBinding)
 	if err != nil || string(got) != secretValue {
@@ -359,7 +413,7 @@ func TestStoreRoundTrip(t *testing.T) {
 func TestStoreListRefusesForeignName(t *testing.T) {
 	ctx := context.Background()
 	for _, listed := range []string{"not-an-item\nrule=forged", "wraithbox/ca/vm-1/ca-1", strings.Repeat("x", 4096)} {
-		fake := storetest.New(team, groupBinding)
+		fake := storetest.New(storeitem.ProgramCredset, team, groupBinding)
 		fake.AddListed(listed)
 		o := open(t, storeitem.ProgramCredset, fake)
 		names, err := o.store.List(ctx, storeitem.RoleBinding)

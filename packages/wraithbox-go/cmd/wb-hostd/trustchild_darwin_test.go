@@ -71,7 +71,7 @@ type fakeProxyd struct {
 // newFakeCA returns the child's caTest: a fake wb-proxyd end that
 // writes the leaf of each accepted CA set to dir.
 func newFakeCA(dir string, log *slog.Logger) (*caTest, error) {
-	backend := storetest.New(fakeTeam, storeitem.Group(fakeTeam, storeitem.RoleCA))
+	backend := storetest.New(storeitem.ProgramProxyd, fakeTeam, storeitem.Group(fakeTeam, storeitem.RoleCA))
 	store, err := secretstore.New(storeitem.ProgramProxyd, backend, log)
 	if err != nil {
 		return nil, err

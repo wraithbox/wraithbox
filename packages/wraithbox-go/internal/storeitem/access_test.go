@@ -71,12 +71,8 @@ func TestDeclaredRefusals(t *testing.T) {
 
 // everyAccess returns every program, form and access kind.
 func everyAccess() []Declaration {
-	programs := []Program{
-		ProgramCredset, ProgramProxyd,
-		ProgramGuestadminBuild, ProgramGuestadminRotate, ProgramGuestadminCleanup,
-	}
 	var out []Declaration
-	for _, p := range programs {
+	for _, p := range Programs() {
 		for _, f := range Forms() {
 			for _, a := range []Access{AccessWrite, AccessDelete, AccessFetch, AccessList, AccessUse} {
 				out = append(out, Declaration{p, f, a})
@@ -100,5 +96,29 @@ func TestFormRoles(t *testing.T) {
 	}
 	if Form("other/<x>").Role() != "" || Role("other").Valid() {
 		t.Error("an unknown form or role is valid")
+	}
+}
+
+// TestProgramExecutable maps each program to the executable of its
+// helper bundle, and an unknown program to none.
+func TestProgramExecutable(t *testing.T) {
+	want := map[Program]string{
+		ProgramCredset:           "wb-credset",
+		ProgramProxyd:            "wb-proxyd",
+		ProgramGuestadminBuild:   "wb-guestadmin",
+		ProgramGuestadminRotate:  "wb-guestadmin",
+		ProgramGuestadminCleanup: "wb-guestadmin",
+		"wb":                     "",
+		"":                       "",
+	}
+	for p, exe := range want {
+		if got := p.Executable(); got != exe {
+			t.Errorf("%q.Executable() = %q, want %q", p, got, exe)
+		}
+	}
+	for _, p := range Programs() {
+		if _, ok := want[p]; !ok {
+			t.Errorf("no expected executable for %s", p)
+		}
 	}
 }

@@ -7,10 +7,12 @@
 //
 //  1. the call that turns dialogs off failed at Open: store-dialogs-on;
 //  2. the process's own signature has no team: keychain-needs-team;
-//  3. the item's role isn't the role the call names, or the process's
+//  3. the executable of the Info.plist the process's own signature seals
+//     isn't the program's: store-program-mismatch;
+//  4. the item's role isn't the role the call names, or the process's
 //     entitlements don't hold that role's group or can't be read:
 //     store-group-mismatch;
-//  4. the access isn't declared for the program: store-access-undeclared.
+//  5. the access isn't declared for the program: store-access-undeclared.
 //
 // Each refusal and each failed call is logged with the call, the item,
 // the groups and the rule, and never a value.
@@ -83,11 +85,28 @@ type Backend interface {
 	// hold. It runs once, at Open. An error means they can't be read,
 	// and the process holds no group.
 	Groups() ([]string, error)
+	// Code returns the signing identifier and the main executable of the
+	// process's own signature. It runs once, at Open.
+	Code() (Code, error)
 
 	Write(ctx context.Context, group, item string, value []byte) Status
 	Fetch(ctx context.Context, group, item string) ([]byte, Status)
 	Delete(ctx context.Context, group, item string) Status
 	List(ctx context.Context, group string) ([]string, Status)
+}
+
+// Code is what the process's own code signature says the process is.
+type Code struct {
+	// Identifier is the signing identifier, kSecCodeInfoIdentifier on
+	// macOS. Every helper bundle has the app's bundle identifier
+	// (X29-dev-signing), so it names the build, not the program. It is
+	// logged, and no check reads it.
+	Identifier string
+	// Executable is the CFBundleExecutable of the Info.plist the
+	// signature seals, or "" when the code has none. It names the
+	// program: renaming a helper's executable breaks its bundle's
+	// signature.
+	Executable string
 }
 
 // ErrNotFound is wrapped by the error of a call for an item that isn't in
