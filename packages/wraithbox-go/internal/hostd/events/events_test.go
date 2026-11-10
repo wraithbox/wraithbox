@@ -92,6 +92,8 @@ type fakeLog struct {
 	mu      sync.Mutex
 	records []audit.Record
 	budget  audit.Budget
+	// full is Room's channel while the test holds the queue full.
+	full chan struct{}
 }
 
 func (l *fakeLog) Record(r audit.Record) {
@@ -104,6 +106,19 @@ func (l *fakeLog) Budget(string) audit.Budget {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return l.budget
+}
+
+// Room returns full while the test has set one, and a closed channel
+// otherwise.
+func (l *fakeLog) Room() <-chan struct{} {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.full != nil {
+		return l.full
+	}
+	c := make(chan struct{})
+	close(c)
+	return c
 }
 
 func (l *fakeLog) got() []audit.Record {

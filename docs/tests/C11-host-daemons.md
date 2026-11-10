@@ -329,6 +329,17 @@ Spec: S04-architecture.
   with `fdchan`'s rule or `event-channel-failed`, and
   `TestRealChannelOversizeEndsSender` with `fdchan-record-size` for a
   record over 4 KiB.
+- A sender that ignores its budget is held back (S04-08-records-and-bounds,
+  "Host work the guest can cause"). `TestFloodHeldBack` floods a real
+  socketpair with well-formed records that ignore every notice. It sees
+  the audit writer's queue stay at its cap, logged with
+  `event-queue-full`, then the receiver hold at the budget plus its
+  margin, logged with `event-budget-ignored`, the sender's writes fail
+  each time, and every record it sent written. `TestFloodStopWhileQueueFull`,
+  `TestQueueFullReleasedWhenSenderGone` and
+  `TestBudgetHoldReleasedWhenSenderGone` see a VM stop not wait for
+  either hold. `TestQueueCapRoom` and `TestRoomOnClose` in
+  `internal/hostd/audit` check the queue's cap.
 - Send a mapping entry with an uppercase or non-LDH name, a trailing
   dot, an address outside 198.18.0.0/15, one past 131,072 live
   entries, or one whose name or address the VM holds for another. See
