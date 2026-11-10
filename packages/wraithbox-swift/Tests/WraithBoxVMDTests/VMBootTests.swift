@@ -247,7 +247,12 @@ final class SpawnedDaemon: Sendable {
         var actions: posix_spawn_file_actions_t?
         posix_spawn_file_actions_init(&actions)
         defer { posix_spawn_file_actions_destroy(&actions) }
-        for (fd, target) in zip(descriptors, InheritedDescriptor.allCases.map(\.rawValue)) {
+        // Copies above every target first, so that a dup2 onto 0 to 5
+        // never overwrites a source that a later dup2 still reads.
+        let sources = descriptors.map { fcntl($0, F_DUPFD_CLOEXEC, 64) }
+        defer { sources.forEach { close($0) } }
+        try #require(!sources.contains(-1), "fcntl F_DUPFD: \(errno)")
+        for (fd, target) in zip(sources, InheritedDescriptor.allCases.map(\.rawValue)) {
             posix_spawn_file_actions_adddup2(&actions, fd, target)
         }
         var attributes: posix_spawnattr_t?
