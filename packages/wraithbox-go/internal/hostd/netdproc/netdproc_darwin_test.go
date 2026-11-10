@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -17,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit/audittest"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/egress"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/events"
@@ -76,20 +78,33 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-// buildNetd builds wb-netd stamped with nt.Own, once per test binary.
-var buildNetd = sync.OnceValues(func() (string, error) {
+// makeBuildDir makes buildDir, once per test binary.
+var makeBuildDir = sync.OnceValues(func() (string, error) {
 	dir, err := os.MkdirTemp("", "netdproc")
+	buildDir = dir
+	return dir, err
+})
+
+// build builds the command in pkg as name, stamped with nt.Own.
+func build(pkg, name string) (string, error) {
+	dir, err := makeBuildDir()
 	if err != nil {
 		return "", err
 	}
-	buildDir = dir
-	out := filepath.Join(dir, "wb-netd")
-	cmd := exec.Command("go", "build", "-ldflags=-X "+version.StampVar+"="+nt.Own, "-o", out, "../../../cmd/wb-netd")
+	out := filepath.Join(dir, name)
+	cmd := exec.CommandContext(context.Background(), "go", "build", "-ldflags=-X "+version.StampVar+"="+nt.Own, "-o", out, pkg)
 	if b, err := cmd.CombinedOutput(); err != nil {
 		return "", errors.New(string(b))
 	}
 	return out, nil
-})
+}
+
+// buildNetd builds wb-netd, and buildFlood testdata/flood-netd, once per
+// test binary.
+var (
+	buildNetd  = sync.OnceValues(func() (string, error) { return build("../../../cmd/wb-netd", "wb-netd") })
+	buildFlood = sync.OnceValues(func() (string, error) { return build("./testdata/flood-netd", "flood-netd") })
+)
 
 type setup struct {
 	starter *netdproc.Starter
@@ -310,5 +325,44 @@ func TestNetdStopTimeoutKills(t *testing.T) {
 	<-run.Exited()
 	if !strings.Contains(s.log.String(), `"rule":"netd-stop-timeout","decision":"kill"`) {
 		t.Errorf("the kill isn't logged\n%s", s.log)
+	}
+}
+
+// fullLog is an audit writer that holds its cap of records for good, as
+// one whose disk is slow or whose writes fail.
+type fullLog struct{ *audittest.Recorder }
+
+func (fullLog) Room() <-chan struct{} { return make(chan struct{}) }
+
+// TestStopReadsPastAFullQueue is S04-08-records-and-bounds, "Host work
+// the guest can cause": a wb-netd whose event channel is full while the
+// audit writer holds its cap still hands its open runs to the stop. The
+// stop lets the receiver read past its hold, so wb-netd's close drops no
+// record, and the stop doesn't wait for StopTimeout.
+func TestStopReadsPastAFullQueue(t *testing.T) {
+	const stopTimeout = 2 * time.Second
+	flood, err := buildFlood()
+	if err != nil {
+		t.Fatalf("build flood-netd: %v", err)
+	}
+	s := newSetup(t, flood, func(c *netdproc.Config) {
+		c.Events = events.NewHub(fullLog{&audittest.Recorder{}}, c.Log)
+		c.StopTimeout = stopTimeout
+	})
+	run, err := s.start(t.Context(), vm.SlotWork, 1, guestMAC, s.t)
+	if err != nil {
+		t.Fatalf("start: %v\n%s\n%s", err, s.log, s.netdLog)
+	}
+	waitFor(t, s.netdLog, "flood-netd blocked")
+	began := time.Now()
+	runs := run.Stop()
+	if took := time.Since(began); took >= stopTimeout || strings.Contains(s.log.String(), "netd-stop-timeout") {
+		t.Errorf("the stop took %s\n%s", took, s.log)
+	}
+	if !slices.ContainsFunc(runs, func(r audit.OpenRun) bool { return r.Rule == "frame-ethertype" }) {
+		t.Errorf("open runs %+v, want frame-ethertype", runs)
+	}
+	if strings.Contains(s.netdLog.String(), "event records not written at close") {
+		t.Errorf("flood-netd dropped records\n%s", s.netdLog)
 	}
 }

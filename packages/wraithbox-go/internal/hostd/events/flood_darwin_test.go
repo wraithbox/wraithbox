@@ -1,5 +1,8 @@
 package events
 
+// The flood tests run on macOS only: fdchan.Socketpair is unsupported
+// elsewhere, and hold_test.go checks the holds on every OS.
+
 import (
 	"bytes"
 	"errors"

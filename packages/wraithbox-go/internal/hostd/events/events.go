@@ -16,15 +16,18 @@
 // A sender that ignores its budget notices is held back, never dropped
 // (S04-08-records-and-bounds, "Host work the guest can cause";
 // SEC13-bounded-resources). The receiver stops reading its channel while
-// the audit writer's queue is at its cap, and while the VM of the last
-// record is past a budget by a margin. The sender's writes then fail,
-// and it refuses new work with event-channel-blocked.
+// the audit writer holds its cap of records, and while the VM of the
+// last record is past a budget by a margin. The sender's writes then
+// fail, and it refuses new work with event-channel-blocked. Once the
+// sender's stop begins, the receiver reads a bounded allowance past the
+// holds, so the stop record gets the runs the sender flushes.
 package events
 
 import (
 	"errors"
 	"io"
 	"log/slog"
+	"os"
 	"sync"
 	"time"
 
@@ -51,6 +54,9 @@ const (
 	// RuleBudgetIgnored: the receiver stopped reading while a VM is past
 	// its budget by the margin, so its sender ignored the notice.
 	RuleBudgetIgnored = "event-budget-ignored"
+	// RuleStopAllowance: the receiver read past its holds for a sender
+	// whose stop began, up to stopAllowance records.
+	RuleStopAllowance = "event-stop-allowance"
 )
 
 // The margins past a VM's budget at which its sender counts as one that
@@ -106,8 +112,10 @@ func (s Source) serves(vm eventchan.VM) bool { return s.VM == nil || *s.VM == vm
 type Hub struct {
 	log    Log
 	logger *slog.Logger
-	// recheck is recheckEvery, shorter in tests.
-	recheck time.Duration
+	// recheck is recheckEvery, shorter in tests, and allowance is
+	// stopAllowance, smaller in tests.
+	recheck   time.Duration
+	allowance int
 
 	mu        sync.Mutex
 	live      map[eventchan.VM]bool
@@ -118,7 +126,7 @@ type Hub struct {
 // NewHub returns a hub that writes to log.
 func NewHub(log Log, logger *slog.Logger) *Hub {
 	return &Hub{
-		log: log, logger: logger, recheck: recheckEvery,
+		log: log, logger: logger, recheck: recheckEvery, allowance: stopAllowance,
 		live: map[eventchan.VM]bool{}, openRuns: map[eventchan.VM][]audit.OpenRun{}, receivers: map[*Receiver]bool{},
 	}
 }
@@ -156,14 +164,21 @@ func (h *Hub) isLive(vm eventchan.VM) bool {
 // Receiver reads one sender's channel.
 type Receiver struct {
 	hub  *Hub
-	conn eventchan.Conn
+	conn Conn
 	src  Source
 	end  Ender
 	last uint64
 	done chan struct{}
-	// gone is closed once the sender has exited, see SenderGone.
+	// gone is closed once the sender has exited, see SenderGone, and
+	// stopping once its stop began, see Stopping.
 	gone     chan struct{}
 	goneOnce sync.Once
+	stopping chan struct{}
+	stopOnce sync.Once
+	// spent is the records read since the sender's stop began, against
+	// stopAllowance. The loop's own, as are the hold logs.
+	spent               int
+	queueLog, budgetLog holdLog
 	// over is the VM of the last record when it was past a budget by
 	// the margin, read by the next hold. The loop's own.
 	over *eventchan.VM
@@ -174,9 +189,10 @@ type Receiver struct {
 
 // Attach starts a receiver of src on conn. end ends the sender when a
 // record is refused.
-func (h *Hub) Attach(conn eventchan.Conn, src Source, end Ender) *Receiver {
+func (h *Hub) Attach(conn Conn, src Source, end Ender) *Receiver {
 	r := &Receiver{
-		hub: h, conn: conn, src: src, end: end, done: make(chan struct{}), gone: make(chan struct{}),
+		hub: h, conn: conn, src: src, end: end, done: make(chan struct{}),
+		gone: make(chan struct{}), stopping: make(chan struct{}),
 		sent: map[eventchan.VM]audit.Budget{},
 	}
 	h.mu.Lock()
@@ -190,23 +206,27 @@ func (h *Hub) Attach(conn eventchan.Conn, src Source, end Ender) *Receiver {
 // a record ended it.
 func (r *Receiver) Done() <-chan struct{} { return r.done }
 
-// SenderGone tells the receiver that its sender has exited. The
-// receiver then reads what the sender left without holding back, to the
-// end of the channel: the socket's buffer bounds it, and the caller that
-// waits for Done, such as a VM stop, doesn't wait for a budget's turn or
-// for a writer whose writes fail. Call it before waiting for Done.
-func (r *Receiver) SenderGone() { r.goneOnce.Do(func() { close(r.gone) }) }
-
 func (r *Receiver) loop() {
 	defer close(r.done)
 	defer r.detach()
 	for {
 		r.holdBudget()
 		r.holdQueue()
+		if r.isGone() {
+			r.drain()
+			return
+		}
 		m, err := r.conn.Recv()
+		if errors.Is(err, os.ErrDeadlineExceeded) && r.isGone() {
+			r.drain()
+			return
+		}
 		if err != nil {
 			r.failed(err)
 			return
+		}
+		if r.isStopping() {
+			r.spent++
 		}
 		if !r.accept(m) {
 			return
@@ -273,64 +293,6 @@ func (r *Receiver) accept(m *fdchan.Message) bool {
 // margin.
 func pastMargin(b audit.Budget) bool {
 	return b.EventsThisMinute >= b.EventsPerMinute+eventsMargin || b.BytesToday >= b.BytesPerDay+bytesMargin
-}
-
-// holdBudget waits before the next read while the VM of the last record
-// is past a budget by the margin, until the budget's minute or day turns
-// (S04-08-records-and-bounds, "Host work the guest can cause";
-// SEC13-bounded-resources). It stops waiting once the sender is gone,
-// or for wb-proxyd once the VM stops.
-func (r *Receiver) holdBudget() {
-	if r.over == nil {
-		return
-	}
-	vm := *r.over
-	r.over = nil
-	slot := eventchan.SlotName(vm.Slot)
-	b := r.hub.log.Budget(slot)
-	if !pastMargin(b) {
-		return
-	}
-	r.hub.logger.Warn("event channel held, the sender ignores its budget", "rule", RuleBudgetIgnored, "decision", "hold",
-		"sender", r.src.Sender, "vm", vm.String(), "events_this_minute", b.EventsThisMinute,
-		"bytes_today", b.BytesToday, "until", b.Until.UTC().Format(time.RFC3339))
-	t := time.NewTicker(r.hub.recheck)
-	defer t.Stop()
-	for pastMargin(b) && (r.src.VM != nil || r.hub.isLive(vm)) {
-		select {
-		case <-t.C:
-		case <-r.gone:
-			r.hub.logger.Info("event channel released, the sender is gone", "rule", RuleBudgetIgnored,
-				"decision", "drain", "sender", r.src.Sender, "vm", vm.String())
-			return
-		}
-		b = r.hub.log.Budget(slot)
-	}
-	r.hub.logger.Info("event channel resumed", "rule", RuleBudgetIgnored, "decision", "read",
-		"sender", r.src.Sender, "vm", vm.String())
-}
-
-// holdQueue waits before the next read while the audit writer's queue
-// is at its cap (S04-08-records-and-bounds, "Host work the guest can
-// cause"; SEC13-bounded-resources). Each receiver adds at most one
-// record before it waits again, so the queue holds at most the cap plus
-// one record per receiver. It stops waiting once the sender is gone.
-func (r *Receiver) holdQueue() {
-	room := r.hub.log.Room()
-	select {
-	case <-room:
-		return
-	default:
-	}
-	r.hub.logger.Warn("event channel held, the audit queue is full", "rule", RuleQueueFull, "decision", "hold",
-		"sender", r.src.Sender, "after_sequence", r.last)
-	select {
-	case <-room:
-		r.hub.logger.Info("event channel resumed", "rule", RuleQueueFull, "decision", "read", "sender", r.src.Sender)
-	case <-r.gone:
-		r.hub.logger.Info("event channel released, the sender is gone", "rule", RuleQueueFull,
-			"decision", "drain", "sender", r.src.Sender)
-	}
 }
 
 // writeRun writes a run, or holds an open one for the VM's stop record.

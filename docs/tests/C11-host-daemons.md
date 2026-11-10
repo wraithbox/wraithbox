@@ -393,11 +393,21 @@ Spec: S04-architecture.
   the audit writer's queue stay at its cap, logged with
   `event-queue-full`, then the receiver hold at the budget plus its
   margin, logged with `event-budget-ignored`, the sender's writes fail
-  each time, and every record it sent written. `TestFloodStopWhileQueueFull`,
-  `TestQueueFullReleasedWhenSenderGone` and
-  `TestBudgetHoldReleasedWhenSenderGone` see a VM stop not wait for
-  either hold. `TestQueueCapRoom` and `TestRoomOnClose` in
-  `internal/hostd/audit` check the queue's cap.
+  each time, and every record it sent written. The flood tests run on
+  macOS only, because `fdchan.Socketpair` is unsupported elsewhere, and
+  the tests in `hold_test.go` check the holds on every OS.
+  `TestFloodStopWhileQueueFull`, `TestQueueFullReleasedWhenSenderGone`,
+  `TestBudgetHoldReleasedWhenSenderGone`, `TestStoppingReleasesBudgetHold`
+  and `TestSenderGoneWakesRecv` see a VM stop not wait for either hold.
+  `TestStoppingReadsTheAllowance` sees the receiver read no more than
+  the stop allowance past a hold, and log the rest with
+  `event-stop-allowance`. `TestHoldLogLimited` sees a repeated hold
+  logged at most once a second. `TestStopReadsPastAFullQueue` in
+  `internal/hostd/netdproc` starts a `wb-netd` stand-in that fills its
+  event channel while the audit writer holds its cap, and sees the stop
+  return its open run before `StopTimeout`, with no record dropped at
+  its close. `TestQueueCapRoom` and `TestRoomOnClose` in
+  `internal/hostd/audit` check the writer's cap.
 - Send a mapping entry with an uppercase or non-LDH name, a trailing
   dot, an address outside 198.18.0.0/15, one past 131,072 live
   entries, or one whose name or address the VM holds for another. See

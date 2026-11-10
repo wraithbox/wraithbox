@@ -50,6 +50,40 @@ func TestQueueCapRoom(t *testing.T) {
 	}
 }
 
+// TestRoomCountsUnsynced: a record written but not yet synced counts
+// against the cap, because a failed sync puts it back in the queue. The
+// writer syncs once the unsynced records reach the cap, so Room's
+// callers don't wait for the tick.
+func TestRoomCountsUnsynced(t *testing.T) {
+	h := newHarness(t, func(c *Config) { c.QueueCap = 4 })
+	h.w.Record(VMRunning("work", 1, "vm-start"))
+	h.flush()
+	h.fault(func(f *faults) { f.write = []error{syscall.EIO} })
+	h.w.Record(VMRunning("work", 1, "vm-start"))
+	h.flush()
+	// Queued: the record that failed, and the failure's own records.
+	if closedNow(h.w.Room()) || h.w.Queued() != 3 {
+		t.Fatalf("room with %d queued and one unsynced, under a cap of 4", h.w.Queued())
+	}
+	h.advance(time.Second)
+	if !closedNow(h.w.Room()) {
+		t.Fatalf("no room once the tick synced, %d queued", h.w.Queued())
+	}
+	h.fault(func(f *faults) { f.syncs = 0 })
+	for range 4 {
+		h.w.Record(VMRunning("work", 1, "vm-start"))
+	}
+	h.flush()
+	h.fault(func(f *faults) {
+		if f.syncs != 1 {
+			t.Errorf("%d syncs of 4 records under a cap of 4, want 1", f.syncs)
+		}
+	})
+	if !closedNow(h.w.Room()) {
+		t.Fatal("no room once the writer synced at the cap")
+	}
+}
+
 // TestRoomOnClose: a closed writer releases Room's callers, so a
 // receiver never waits on a writer that is gone.
 func TestRoomOnClose(t *testing.T) {
