@@ -196,11 +196,16 @@ func sortedNames(set map[dnsname.Name]bool) []dnsname.Name {
 
 // served records that wb-proxyd acknowledged vm's hand-off socket of
 // generation gen. A VM that isn't started keeps none.
+//
+// An acknowledgment at or above the served generation is a new socket,
+// a replacement included, so it clears the mark of an ended socket: a
+// HandoffSocketClosed for the new one is acted on again.
 func (s *State) served(vm string, gen uint64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if v, ok := s.vms[vm]; ok && v.started {
-		v.served = max(v.served, gen)
+	if v, ok := s.vms[vm]; ok && v.started && gen >= v.served {
+		v.served = gen
+		v.ended = 0
 	}
 }
 
@@ -231,13 +236,23 @@ func (s *State) endOnce(vm string, gen uint64) bool {
 	return true
 }
 
-// handoffEnded reports whether a HandoffSocketClosed ended vm's hand-off
-// socket of generation gen since the VM's start.
-func (s *State) handoffEnded(vm string, gen uint64) bool {
+// confirmCheck returns the check that refuses Confirm for vm's hand-off
+// socket of generation gen, and "" when the socket is the VM's current
+// one: the VM is started, wb-proxyd acknowledged gen last, and no
+// HandoffSocketClosed ended it.
+func (s *State) confirmCheck(vm string, gen uint64) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	v, ok := s.vms[vm]
-	return ok && v.started && gen != 0 && v.ended == gen
+	switch {
+	case !ok || !v.started:
+		return checkNotStarted
+	case gen == 0 || v.served != gen:
+		return checkNotServed
+	case v.ended == gen:
+		return checkHandoffClosed
+	}
+	return ""
 }
 
 // Record checks one accounting record from src, and whether a
