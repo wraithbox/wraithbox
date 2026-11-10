@@ -24,8 +24,11 @@ jobs:
   # Decides which of the go and swift jobs, the Swift bundle steps and the
   # docs site steps a pull request needs, from the files it changes
   # (scripts/ci-changes.mjs).
-  # A push to main and workflow_dispatch run everything. When this job
-  # fails, the others run as if every file changed, and `CI result` fails.
+  # A push to main and workflow_dispatch run everything. Its `full` output
+  # decides the fuzz smoke and the Windows Go leg, which a pull request
+  # skips unless it is a train's pull request into main (#753). When this
+  # job fails, the others run as if every file changed and `full` were
+  # true, and `CI result` fails.
   changes:
     name: Detect changes
     runs-on: ubuntu-26.04
@@ -34,6 +37,7 @@ jobs:
       swift: ${{ steps.detect.outputs.swift }}
       bundle: ${{ steps.detect.outputs.bundle }}
       docs: ${{ steps.detect.outputs.docs }}
+      full: ${{ steps.detect.outputs.full }}
     steps:
       # Depth 2: a pull request checks out its merge commit, and the diff
       # is against the merge commit's first parent, the base branch.
@@ -52,6 +56,8 @@ jobs:
 
       - name: Detect changed inputs
         id: detect
+        # Reads GITHUB_EVENT_NAME, and GITHUB_HEAD_REF and GITHUB_BASE_REF
+        # on a pull request, from the runner's default environment.
         run: bun scripts/ci-changes.mjs detect
 
   go:
@@ -65,12 +71,20 @@ jobs:
     # docs/spec/S02-toolchain.md. The fuzz smoke run is the `fuzz` job.
     #
     # Skipped only when detection succeeded and found no Go input changed.
+    #
+    # A pull request drops the Windows leg unless it is a train's pull
+    # request into main (`full`, #753). `go:cross` in the local `mise run
+    # ci` gate vets, lints and builds for windows before each push, so only
+    # a test that fails on Windows alone waits for the push to main. The
+    # exclude names no leg when `full` is true or detection failed.
     needs: changes
     if: ${{ !cancelled() && !(needs.changes.result == 'success' && needs.changes.outputs.go == 'false') }}
     strategy:
       fail-fast: false
       matrix:
         os: [xcode-27, ubuntu-26.04, windows-2025]
+        exclude:
+          - os: ${{ (needs.changes.result == 'success' && needs.changes.outputs.full == 'false') && 'windows-2025' || '' }}
     runs-on: ${{ matrix.os }}
     steps:
       # Full history on Linux only: the contracts step compares the .proto
@@ -119,11 +133,15 @@ jobs:
   # with 4, a shard took about as long as the Go job on macOS. Change it
   # in both the matrix and its names. The daily fuzz run is fuzz.yml.
   #
-  # Skipped under the same condition as the Go job.
+  # Skipped under the same condition as the Go job, and on a pull request
+  # that is not a train's pull request into main (`full`, #753). The smoke
+  # run is too short to find much that is new, plain `go test` replays
+  # every target's seeds and testdata/fuzz inputs, and the local `mise run
+  # ci` gate runs go:fuzz before each push.
   fuzz:
     name: Fuzz smoke (${{ matrix.shard }})
     needs: changes
-    if: ${{ !cancelled() && !(needs.changes.result == 'success' && needs.changes.outputs.go == 'false') }}
+    if: ${{ !cancelled() && !(needs.changes.result == 'success' && (needs.changes.outputs.go == 'false' || needs.changes.outputs.full == 'false')) }}
     strategy:
       fail-fast: false
       matrix:
@@ -413,7 +431,8 @@ jobs:
   # The one required check (docs/github-settings.md). A skipped matrix job
   # never reports its per-OS check names, so the ruleset cannot require
   # those. This job fails unless every job passed or was skipped because
-  # `changes` found its inputs unchanged. always(), not !cancelled(): a
+  # `changes` said so: its inputs did not change, or `full` is false for
+  # the fuzz smoke (#753). always(), not !cancelled(): a
   # skipped required check counts as passed, so this job has to run, and
   # fail, when the run is cancelled.
   result:

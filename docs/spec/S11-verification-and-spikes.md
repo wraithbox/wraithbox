@@ -30,6 +30,10 @@ targets, each one fuzzes for less time. Building the test
 binaries takes time on top. Plain `go test` already replays every
 target's seeds and the failing inputs kept in `testdata/fuzz`.
 
+`ci` runs the smoke run locally before each push. CI runs it on a push
+to `main` and on a train's pull request into `main`, and not on other
+pull requests (S02-toolchain, "CI").
+
 The smoke run is too short to find much that is new. A daily run
 (`go:fuzz-long`, the `Fuzz` workflow) fuzzes every target the same
 way within a budget of 10 minutes. It also runs locally. CI keeps the
@@ -127,10 +131,14 @@ A change to a spec adds or changes its cases on the page of their area.
 
 These run on hosted runners:
 
-- Go unit tests, lint, and vet, natively on macOS, Linux, and Windows;
+- Go unit tests, lint, and vet, natively on macOS, Linux, and Windows,
+  with Windows only on a push to `main` and a train's pull request into
+  `main`;
 - Swift, on macOS;
-- the fuzz smoke runs, on Linux;
+- the fuzz smoke runs, on Linux, as often as the Windows leg;
 - and once a day, the daily fuzz run, on Linux.
+
+Which jobs run on which event is in S02-toolchain, "CI".
 
 CI compiles the conformance suite in its Go build step
 (`conformance:build`) and never runs it. A check that stops compiling

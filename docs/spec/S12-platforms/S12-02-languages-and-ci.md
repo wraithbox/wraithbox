@@ -24,7 +24,8 @@ platform.
 ### CI
 
 Go is built, linted, vetted, and tested natively on macOS, Ubuntu, and
-Windows runners from the start (S02-toolchain). Swift runs on macOS
+Windows runners from the start. A pull request skips the Windows leg,
+and a push to `main` runs it (S02-toolchain, "CI"). Swift runs on macOS
 only. Both macOS jobs, Swift and Go's macOS leg, run on the `xcode-27`
 runner image, which is macOS 27 with Xcode 27, the oldest v1 host
 (NFR04-host-platforms). The darwin-only Go tests and `wb-vmd`'s host

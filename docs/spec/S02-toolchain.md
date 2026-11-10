@@ -74,8 +74,22 @@ push to `main` runs every job. `scripts/ci-changes.mjs` maps the changed
 files to jobs and runs every job when in doubt. `mise run ci` always
 runs every check. The `CI result` job is the one required check
 (`docs/github-settings.md`). It needs every job but the vulnerability
-scan, and fails unless each passed or was skipped because its inputs
-did not change.
+scan, and fails unless each passed or was skipped because detection
+said so.
+
+A pull request also skips the fuzz smoke and the Windows leg of the Go
+job (I753). The local `mise run ci` gate runs both checks before each
+push: `go:fuzz`, and `go:cross`, which vets, lints, and builds for
+Windows. Only a test that fails on Windows alone waits. A push to
+`main` runs them, and so do `workflow_dispatch` and a train's pull
+request into `main` (head `train/**`, base `main`). The train's pull
+request runs each time a builder's work merges into the train, so
+during a campaign they run about once an hour and catch a break before
+it reaches `main`. A builder's pull request into a train skips them
+like any other. The rule that `mise run ci` and the workflow run the
+same checks holds for the workflow as a whole: every check runs on
+every push to `main`, though not on every pull request. When detection
+fails, the run includes both.
 
 A change to the Go module alone runs the build, sign, and bundle steps
 of the Swift job, because the app bundle holds the Go programs, and
@@ -149,7 +163,8 @@ Go runs on macOS, Linux, and Windows from the start. Most code is
 cross-platform Go (S12-platforms).
 
 - CI lints, vets, tests, and builds it natively on all three, in a job
-  matrix.
+  matrix. A pull request runs the macOS and Linux legs, and the Windows
+  leg waits for the push to `main` ("CI").
 - Those jobs install only the Go tools and `buf` (`install_args`),
   because some pinned tools have no Windows build.
 - Locally, `mise run go:cross` vets, lints, and builds for all three
@@ -157,7 +172,8 @@ cross-platform Go (S12-platforms).
 - `go:fuzz` runs every fuzz target briefly, within a time budget
   (S11-verification-and-spikes). `test` depends on it, and the task
   runs a Go program, which works on all three. CI runs it on Linux
-  only, in the `fuzz` job and not the Go job. That job runs the targets in
+  only, in the `fuzz` job and not the Go job, and not on a pull request
+  ("CI"). That job runs the targets in
   parallel shards, `go:fuzz -- -shard <i>/<n>`, and `ci.yml` sets the
   shard count. Each shard runs one part of the sorted list of targets.
   The parts don't overlap and together hold the whole list. Each shard
