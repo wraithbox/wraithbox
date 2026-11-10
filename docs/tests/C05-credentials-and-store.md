@@ -200,6 +200,17 @@ sees no dialog at any step.
   the test sees it not find the item, and the item still there after
   (G2 of S15-02-secret-store).
 
+On 2026-11-10 the maintainer ran these on the head of PR743, with a
+team build. Each passed:
+
+- the confine-first step still got OSStatus 100001, from the read of
+  the signature before the validity check;
+- the lock step got -25308 while the screen was locked, and the fetch
+  succeeded 24 seconds later, after the unlock;
+- for G2, `security` printed "The specified item could not be found in
+  the keychain.";
+- the maintainer saw no dialog.
+
 ## Fuzzing
 
 - The credential parameter scan of query strings and of form and JSON
