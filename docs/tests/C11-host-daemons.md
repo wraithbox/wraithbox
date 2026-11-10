@@ -52,7 +52,7 @@ S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-0
   restore image"; `BuildSlotTests`). The `build` slot resolves to the
   build bundle and the real path of the restore image. The `work`
   slot resolves without one. A restore image that is missing, a
-  directory, or a symbolic link is refused with
+  directory, a symbolic link, or a hard link is refused with
   `vmd-restore-image-mismatch` before `sandbox_init`. The build profile
   is the `wb-vmd` profile plus the three install rules with `IPSW`, and
   the `work`, `isolated` and `layer` profiles are the `wb-vmd` profile

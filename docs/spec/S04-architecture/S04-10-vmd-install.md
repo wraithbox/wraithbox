@@ -26,12 +26,16 @@ The install reads the restore image only at the fixed path
 `wb-hostd` checks its hash before it starts `wb-vmd-install`
 (S17-03-downloads).
 
-Before it confines itself, `wb-vmd-install` also refuses to start, logs
-the rule and exits unless both hold (`vmd-restore-image-mismatch`):
+Before it confines itself, `wb-vmd-install` opens the restore image
+once, without following a symbolic link, and checks that descriptor.
+It refuses to start, logs the rule and exits unless all of these hold
+(`vmd-restore-image-mismatch`):
 
-- the real path of the restore image is `images/macos-restore.ipsw`
-  under the real path of `<data>`;
-- `lstat` shows a regular file.
+- the descriptor is a regular file;
+- the file has one link, so a hard link to a file elsewhere is refused;
+- the file is owned by the user `wb-vmd-install` runs as;
+- the descriptor path is `images/macos-restore.ipsw` under the real
+  path of `<data>`.
 
 ### The build bundle
 

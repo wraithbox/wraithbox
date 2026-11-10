@@ -67,6 +67,18 @@ struct BuildSlotTests {
         }
     }
 
+    @Test("a restore image that is a hard link is refused with vmd-restore-image-mismatch")
+    func hardLink() throws {
+        let fixture = try BundleFixture(slot: .build, files: [])
+        let elsewhere = try TemporaryDirectory()
+        let target = elsewhere.path + "/other.ipsw"
+        FileManager.default.createFile(atPath: target, contents: Data("i".utf8))
+        try FileManager.default.linkItem(atPath: target, toPath: fixture.restoreImagePath)
+        try expectRefusal(.restoreImageMismatch) {
+            try SlotResolution.resolve(slotValue: "build", home: fixture.home.path)
+        }
+    }
+
     @Test("the build profile adds the three install rules, and no other slot's profile has them")
     func profiles() {
         #expect(Confinement.profile(for: .build) == Confinement.profile + Confinement.installRules)
