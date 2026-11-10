@@ -3091,7 +3091,7 @@
 	},
 	"505": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "platform: Keychain item calls in the cgo shim, run in a team-signed test bundle and through wb cred on the maintainer's Mac",
 		"summary": "Package M3.8 of docs/implementation-plan.md, part 3 of 3 (M3.8c)."
 	},
@@ -3990,7 +3990,7 @@
 	},
 	"654": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-vmd-install: the build slot, the install rules, the restore image check, the Install call and the provisioning input",
 		"summary": "Package IMG.2 of docs/implementation-plan.md, part 1 of 5 (IMG.2a)."
 	},
@@ -4524,7 +4524,7 @@
 	},
 	"743": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "feat(go): Keychain item calls in the secret store's cgo shim",
 		"summary": "The macOS secret store can now really write, read, update, delete and list items in the Keychain, where until now every call stopped before it reached it."
 	},
@@ -4536,8 +4536,32 @@
 	},
 	"745": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "feat(vmd): serve the build slot with the install rules, Install and the build password pipe",
 		"summary": "wb-vmd can now run in the build slot and install macOS from the restore image into the build bundle."
+	},
+	"746": {
+		"kind": "pr",
+		"state": "open",
+		"title": "fix(netd): keep a handed-off stream's end open until wb-proxyd holds it",
+		"summary": "The network daemon used to close its own copy of each connection's socket the moment it passed that socket to the proxy."
+	},
+	"747": {
+		"kind": "pr",
+		"state": "open",
+		"title": "fix(vmd): keep a passed descriptor until wb-hostd acknowledges it",
+		"summary": "On the newest macOS the kernel can throw away a socket that is in transit between two processes once the sender has closed its copy, so a guest connection or the VM's network link could reach the host daemon already…"
+	},
+	"748": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spec): measure the Xcode export, signatures and offline import",
+		"summary": "The Xcode image design held back the build until a real Mac showed how Xcode and its simulator runtimes are exported, signed, licensed and imported."
+	},
+	"749": {
+		"kind": "pr",
+		"state": "open",
+		"title": "feat(go): Secure Enclave CA key kept as its wrapped form, with host tests",
+		"summary": "On a Mac, the inspection CA's private key is now made inside the Secure Enclave and never leaves it."
 	}
 }
