@@ -139,9 +139,14 @@ reads the outcome from that line, and prints the rule and its fix.
 
 `wb cred` runs `wb-credset` by its path in the bundle `wb` runs from,
 never from `PATH`. It checks the binding name first, and exits 2 on a
-bad one before `set` reads anything.
+bad one before `set` reads anything. It refuses with `cred-no-bundle`
+when its bundle's build version isn't its own, as `wb setup` does
+(S17-02-setup, "The bundle check"), and when the helper's path goes
+through a link.
 
-`set` reads the value from a prompt that doesn't show it. When standard
+`set` sets its core file limit to 0, then reads the value from a prompt
+that doesn't show it. It refuses a prompt line of 1000 bytes or more,
+which the terminal may have cut, and names a pipe instead. When standard
 input isn't a terminal, it reads standard input to its end, and removes
 one trailing newline, so `echo token | wb cred set github` stores
 `token`. It refuses an empty value, or one over 16 KiB, before
@@ -150,7 +155,9 @@ one trailing newline, so `echo token | wb cred set github` stores
 
 `list` prints the names on standard output, and the signing team on
 standard error ("Backend guarantees" below). `rm` of a binding that
-isn't in the store succeeds, and says so. A refusal ends with
+isn't in the store succeeds, and says so on standard error only. Output
+from `wb-credset` longer than `wb` keeps fails the run with
+`cred-helper-failed`, and prints no names. A refusal ends with
 `wraith box: <message> (<rule>)` after the fix, and exits 255
 (S05-02-exit-status-and-signals). The rule is `wb-credset`'s, or the
 store's, as it came.

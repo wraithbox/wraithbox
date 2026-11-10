@@ -67,6 +67,12 @@ and runs the same probe.
 
 None of that reads anything the guest sent.
 
+### Store programs before they confine themselves
+
+`wb-credset` opens the store before it confines itself. The open turns
+dialogs off and reads only its own signature, no argument, variable or
+descriptor. Opened after the profile, it fails with OSStatus 100001 (I505).
+
 ### `wb-vmd` before it confines itself
 
 `wb-vmd` on macOS is a second, bounded exception. Before it confines
