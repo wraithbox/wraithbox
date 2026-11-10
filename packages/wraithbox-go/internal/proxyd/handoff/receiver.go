@@ -252,7 +252,7 @@ func (r *Receiver) vm(slot string) *vmState {
 // and the generation. A fresh one first clears what the VM's previous
 // run left (S07-06-name-mapping, "Lifetime"). It sends wb-proxyd's
 // version record on the new socket, then the HandoffSocketAck to
-// wb-hostd. A refusal ends the control channel, as control.proto says.
+// wb-hostd, and only then starts the socket's reader. A refusal ends the control channel, as control.proto says.
 func (r *Receiver) addSocket(m *egressv1.HandoffSocket, f *os.File) error {
 	slot, gen := m.GetVm(), m.GetGeneration()
 	ch, err := fdchan.New(f, egressmsg.MaxRecord)
@@ -304,12 +304,21 @@ func (r *Receiver) addSocket(m *egressv1.HandoffSocket, f *os.File) error {
 		s.close()
 		return fmt.Errorf("handoff: send the version record on the hand-off socket of %s: %w", slot, err)
 	}
+	// The ack goes before the socket's reader starts, so no
+	// HandoffSocketClosed for this socket can reach wb-hostd before it
+	// (S07-05-stream-hand-off, "One hand-off socket per VM"). wb-hostd
+	// keeps its copy of this socket's other end until the ack, and
+	// wb-netd sends nothing on it before then.
+	if err := r.sendHostd(&egressv1.ProxydToHostd{Kind: &egressv1.ProxydToHostd_HandoffSocketAck{
+		HandoffSocketAck: &egressv1.HandoffSocketAck{Vm: slot, Generation: gen},
+	}}); err != nil {
+		s.close()
+		return err
+	}
 	if !s.run() {
 		return errors.New("handoff: closed")
 	}
-	return r.sendHostd(&egressv1.ProxydToHostd{Kind: &egressv1.ProxydToHostd_HandoffSocketAck{
-		HandoffSocketAck: &egressv1.HandoffSocketAck{Vm: slot, Generation: gen},
-	}})
+	return nil
 }
 
 // clear drops what a VM's previous run left at a start that cleared its

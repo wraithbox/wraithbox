@@ -199,7 +199,11 @@ func (n *netd) rawSend(t *testing.T, record []byte, fds int) {
 
 // TestVersionRecordFirst: a hand-off socket whose first record isn't
 // wb-netd's version record of this build is malformed, reported as
-// message-form.
+// message-form. The bad record is sent before the test reads anything
+// from wb-proxyd's control channel, and the HandoffSocketAck still
+// comes before the HandoffSocketClosed: wb-proxyd acknowledges a socket
+// before it reads it (S07-05-stream-hand-off, "One hand-off socket per
+// VM").
 func TestVersionRecordFirst(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
@@ -217,13 +221,11 @@ func TestVersionRecordFirst(t *testing.T) {
 			h := newHarness(t, DefaultCaps())
 			h.start()
 			nd := h.handoff("work", 1)
-			// wb-hostd gives wb-netd its end after the ack, so wb-netd's
-			// first record never comes before it.
-			if ack := h.recvHostd().GetHandoffSocketAck(); ack.GetVm() != "work" {
-				t.Fatalf("no HandoffSocketAck first: %v", ack)
-			}
 			if err := nd.ch.Send(tc.record, nil); err != nil {
 				t.Fatal(err)
+			}
+			if ack := h.recvHostd().GetHandoffSocketAck(); ack.GetVm() != "work" || ack.GetGeneration() != 1 {
+				t.Fatalf("no HandoffSocketAck first: %v", ack)
 			}
 			h.expectEvent("work", RuleNameReportMalformed, CheckVersion)
 			closed := h.recvHostd().GetHandoffSocketClosed()

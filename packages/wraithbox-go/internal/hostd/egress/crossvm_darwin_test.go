@@ -201,6 +201,9 @@ func setUp(t *testing.T, p *Proxyd, vm string, gen uint64) *netdEnd {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if err := p.Confirm(vm, gen); err != nil {
+		t.Fatal(err)
+	}
 	if err := p.Policy(ctx, vm, 1, wild); err != nil {
 		t.Fatal(err)
 	}
