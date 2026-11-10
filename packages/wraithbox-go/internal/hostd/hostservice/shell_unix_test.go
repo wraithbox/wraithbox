@@ -286,7 +286,10 @@ func (f *shellFixture) wantStarted(t *testing.T, opened *hostdv1.ShellOpened) {
 }
 
 // wantKilledOnce waits for the registry's kills, and checks the user was
-// unlocked once and killed once.
+// unlocked once and killed once. The caller first sees the Shell handler
+// return (its status or io.EOF): the handler calls End, which starts the
+// kill, after its last frame, and a kill End starts after Close never
+// runs.
 func (f *shellFixture) wantKilledOnce(t *testing.T) {
 	t.Helper()
 	f.reg.Close()
@@ -480,6 +483,11 @@ func TestShellOpenHeld(t *testing.T) {
 	}
 	if got := recvFrame(t, stream).GetFailure().GetRule(); got != shells.RuleRefused {
 		t.Fatalf("failure rule = %q", got)
+	}
+	// The server sends the failure frame before End starts the kill, so
+	// the test waits for the handler's return first (#634).
+	if _, err := stream.Recv(); !errors.Is(err, io.EOF) {
+		t.Fatalf("after the failure: %v", err)
 	}
 	f.wantKilledOnce(t)
 	if !strings.Contains(f.logs.String(), "didn't open within 20ms") {
