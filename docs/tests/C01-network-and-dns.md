@@ -125,7 +125,7 @@ S04-02-vm-provider ("The device set is fixed and checked")
   those over the rate dropped at once with `dns-query-rate`, no answer
   sent for them, and none dropped with `dns-hold-full`. See a name that
   isn't allowlisted, looked up during the flood, still raise an
-  approval event once the rate lets it through. Send one over the rate
+  approval event once the rate has a token for it. Send one over the rate
   over DNS over TCP, and see the connection closed.
 - With queries held, approve a name, so that more held queries are run
   again at once than the query rate allows. See the excess refused with

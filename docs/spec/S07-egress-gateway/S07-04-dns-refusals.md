@@ -112,22 +112,17 @@ A query over the VM's query rate (S07-03-dns, "Wildcard budget") is
 dropped at once without an answer, and isn't held.
 
 - It is the first check that can refuse after the local answers
-  ("Order at arrival"), so it makes no debit and no accounting record.
+  ("Order at arrival"), so it doesn't debit or write an accounting record.
 - It doesn't raise or join an approval event, and doesn't go on a
   learn list.
 - It is logged and counted with the rule `dns-query-rate`, in runs per
   rule (S07-02-packet-path, "Events and rate limits").
 
-So the held-query table fills only at the query rate. A flood over the
-rate holds at most the burst and the rate for one hold, well under
-the cap, and leaves room for the queries of names that raise an
-approval event (T11-shared-vm-grants). The guest can tell a rate
-refusal from the others: it gets no answer at all. That tells it only
-that it sent too many queries, not anything about a name.
-
-Over UDP the guest's resolver sends it again after its own timeout.
-Over TCP `wb-netd` closes the DNS-over-TCP connection that sent it, as
-for a query over the cap.
+So a flood over the rate holds at most the burst and the rate for one
+hold, well under the cap, and leaves room for names that raise an
+approval event (T11-shared-vm-grants). Over UDP the guest's resolver
+sends it again after its own timeout. Over TCP `wb-netd` closes the
+connection that sent it, as for a query over the cap.
 
 #### TCP
 
@@ -287,8 +282,8 @@ exception to "Hold every refusal for 4 seconds".
   dropped what didn't fit, the queries of names that raise an approval
   event included. The cap bounded memory, not the rate.
 - **Cost:** the guest can tell a rate refusal from the others, since
-  it gets no answer. That reveals its own query rate, nothing about a
-  name or the policy.
+  it doesn't get an answer. That reveals only its own query rate, nothing
+  about a name or the policy.
 - **Decided:** I566.
 
 ### A quiet list for the guest OS
