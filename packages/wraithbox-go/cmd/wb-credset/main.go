@@ -23,6 +23,7 @@ import (
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/credset"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/secretstore"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/selfsandbox"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/sessionproc"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/storeitem"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/version"
 )
@@ -36,8 +37,11 @@ var profile = selfsandbox.Profile{Name: "wb-credset", Text: profileText}
 
 func main() {
 	setLog()
-	os.Exit(run(context.Background(), os.Args[1:], os.Environ()))
+	os.Exit(run(context.Background(), credset.Process{Args: os.Args[1:], Environ: os.Environ(), Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr}))
 }
+
+// confine is selfsandbox.Confine. A test makes it refuse.
+var confine = selfsandbox.Confine
 
 // setLog makes the JSON log on standard error the default, which the
 // store and the sandbox log to, before anything logs.
@@ -45,28 +49,37 @@ func setLog() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, nil)).With(slog.String("version", version.Build())))
 }
 
-// run is wb-credset's main, in the order of S15-02-secret-store,
-// "`wb-credset`":
+// run is wb-credset's main:
 //
-//  1. it opens the store with its own compiled-in identity, which turns
-//     the Keychain's dialogs off and reads the team and the groups of its
-//     own signature. An open that fails, such as keychain-needs-team in
-//     an ad-hoc build, is logged, and the store then refuses every call
-//     with that rule;
-//  2. it confines itself with the store-only profile
+//  1. it sets its core file limit to 0, so no core file holds the value
+//     (S13-01-process-hardening, "Limits and environment"), and exits 1
+//     when that fails;
+//  2. it opens the store with its own compiled-in identity. Open turns
+//     the Keychain's dialogs off and reads the team and the groups of
+//     the process's own signature, and takes nothing from its arguments,
+//     environment or descriptors. The store-only profile doesn't allow
+//     that read, so Open comes before the profile (S04-03-self-sandboxing,
+//     "Store programs before they confine themselves"). An open that
+//     fails, such as keychain-needs-team in an ad-hoc build, is logged,
+//     and the store then refuses every call with that rule;
+//  3. it confines itself with the store-only profile
 //     (SEC12-least-privilege), and exits 1 when that fails, before it
-//     reads its arguments;
-//  3. credset.Run checks the arguments and the environment, and makes
+//     reads its arguments or its standard input;
+//  4. credset.Run checks the arguments and the environment, and makes
 //     one store call.
-func run(ctx context.Context, args, environ []string) int {
+func run(ctx context.Context, p credset.Process) int {
+	if err := sessionproc.NoCore(); err != nil {
+		slog.Default().LogAttrs(ctx, slog.LevelError, "wb-credset: the core file limit can't be set to 0", slog.String("error", err.Error()))
+		return 1
+	}
 	store, err := secretstore.Open(storeitem.ProgramCredset)
 	if err != nil {
 		// Open logged the rule. Each call on store refuses with it, and
 		// credset.Run logs that as its decision.
 		slog.Default().LogAttrs(ctx, slog.LevelWarn, "wb-credset: the store didn't open, so its calls are refused", slog.String("error", err.Error()))
 	}
-	if err := selfsandbox.Confine(profile, nil); err != nil {
+	if err := confine(profile, nil); err != nil {
 		return 1
 	}
-	return credset.Run(ctx, credset.Process{Args: args, Environ: environ, Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr}, store)
+	return credset.Run(ctx, p, store)
 }

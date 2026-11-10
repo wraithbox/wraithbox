@@ -9,7 +9,9 @@ import (
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/codesign"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/sessionproc"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/tty"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/version"
 )
 
 // exitInterrupted is the exit status after Ctrl-C at the prompt: 128
@@ -28,6 +30,8 @@ func SystemEnv(log *slog.Logger) Env {
 		Stderr:        os.Stderr,
 		LookupEnv:     os.LookupEnv,
 		ReadTeam:      codesign.ReadTeam,
+		Version:       version.Build(),
+		NoCore:        sessionproc.NoCore,
 		Log:           log,
 	}
 	env.Executable, env.Unavailable = os.Executable()

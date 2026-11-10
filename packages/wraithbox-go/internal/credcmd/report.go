@@ -58,6 +58,10 @@ func report(ctx context.Context, env Env, c command, helper string, r result) in
 			name = "SIGKILL"
 		}
 		return fail(env, RuleHelperSignaled, fmt.Sprintf("%s ended on signal %d (%s) during the %s", helperName, int(r.signal), name, what), signaledFix)
+	case r.cut:
+		// The decision is the last line, and a cut list could end in part
+		// of a name (S04-08-records-and-bounds).
+		return fail(env, RuleHelperFailed, fmt.Sprintf("%s wrote more than wb reads during the %s", helperName, what), setupFix)
 	case !r.hasDecision:
 		return fail(env, RuleHelperFailed, fmt.Sprintf("%s exited with %d during the %s, and logged no decision", helperName, r.exit, what), setupFix)
 	case r.exit != 0 || r.decision.Decision != credset.DecisionAccept:
@@ -72,7 +76,8 @@ func report(ctx context.Context, env Env, c command, helper string, r result) in
 		fmt.Fprintf(env.Stdout, "Set the binding %s.\n", c.binding)
 	case credset.OpDelete:
 		if r.decision.Rule == string(storeitem.RuleNotFound) {
-			fmt.Fprintf(env.Stderr, "wb cred: the binding %s wasn't in the store.\n", c.binding)
+			fmt.Fprintf(env.Stderr, "wb cred: the binding %s wasn't in the store, so nothing was removed.\n", c.binding)
+			return exitOK
 		}
 		fmt.Fprintf(env.Stdout, "Removed the binding %s.\n", c.binding)
 	default:

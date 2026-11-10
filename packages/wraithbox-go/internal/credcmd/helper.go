@@ -10,11 +10,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"slices"
 	"syscall"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/appbundle"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/credset"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/version"
 )
 
 // helperName is the program wb cred runs.
@@ -24,10 +24,13 @@ const helperName = "wb-credset"
 const noBundleFix = `Install Wraith Box with "mise run app:install" or put "` + appbundle.AppName + `" in ~/Applications, run "wb setup" from it, and use the wb inside it.`
 
 // helperPath returns the absolute path of wb-credset in the bundle wb
-// runs from: wb's real path is <bundle>/Contents/MacOS/wb, as wb setup
-// finds its bundle, and the helper is a regular file at its place in the
-// layout (internal/appbundle). wb runs it by that path only, never from
-// PATH.
+// runs from, after a part of wb setup's bundle check (S17-02-setup, "The
+// bundle check"): wb's real path is <bundle>/Contents/MacOS/wb, and the
+// bundle's Info.plist has a build version equal to wb's stamped one, so
+// an unstamped wb or one copied into another bundle starts no helper.
+// The helper is a regular file at its place in the layout
+// (internal/appbundle), with no link on the way to it. wb runs it by
+// that path only, never from PATH.
 func helperPath(env Env) (string, error) {
 	if env.Unavailable != nil {
 		return "", fmt.Errorf("wb can't find its own path: %w", env.Unavailable)
@@ -38,13 +41,27 @@ func helperPath(env Env) (string, error) {
 	}
 	macos := filepath.Dir(exe)
 	contents := filepath.Dir(macos)
+	bundle := filepath.Dir(contents)
 	if filepath.Base(exe) != "wb" || filepath.Base(macos) != "MacOS" || filepath.Base(contents) != "Contents" {
 		return "", fmt.Errorf("wb runs from %q, which is not Contents/MacOS/wb of an installed bundle, so it has no %s to start", exe, helperName)
 	}
-	i := slices.IndexFunc(appbundle.Programs, func(p appbundle.Program) bool { return p.Name == helperName })
-	helper := filepath.Join(filepath.Dir(contents), filepath.FromSlash(appbundle.Programs[i].Path()))
+	if env.Version == "" {
+		return "", errors.New("this wb is unstamped, so it has no build version to match its bundle's (S04-08-records-and-bounds, \"Version skew\")")
+	}
+	got, err := appbundle.ReadBuildVersion(filepath.Join(bundle, filepath.FromSlash(appbundle.InfoPlistPath)))
+	if err != nil {
+		return "", fmt.Errorf("the bundle %q has no build version: %w", bundle, err)
+	}
+	if got != env.Version {
+		return "", fmt.Errorf("the bundle %q has %s %s, and this wb is build %s", bundle, appbundle.BuildVersionKey, version.Label(got), version.Label(env.Version))
+	}
+	rel := appbundle.HelperDir(helperName) + "/Contents/MacOS/" + helperName
+	helper := filepath.Join(bundle, filepath.FromSlash(rel))
 	if fi, err := os.Lstat(helper); err != nil || !fi.Mode().IsRegular() {
-		return "", fmt.Errorf("the bundle %q has no program %s", filepath.Dir(contents), appbundle.Programs[i].Path())
+		return "", fmt.Errorf("the bundle %q has no program %s", bundle, rel)
+	}
+	if resolved, err := filepath.EvalSymlinks(helper); err != nil || resolved != helper {
+		return "", fmt.Errorf("the path of %s in the bundle %q goes through a link", helperName, bundle)
 	}
 	return helper, nil
 }
@@ -60,8 +77,11 @@ func readValue(env Env, binding string) (buf, value []byte, reason string) {
 		fmt.Fprintf(env.Stderr, "Secret for binding %s (not shown): ", binding)
 		line, err := env.ReadHidden()
 		fmt.Fprintln(env.Stderr)
-		if err != nil {
+		switch {
+		case err != nil:
 			return line, nil, "reading the secret from the terminal failed: " + err.Error()
+		case len(line) >= maxPromptLine:
+			return line, nil, fmt.Sprintf("the secret at the prompt is %d bytes or longer, and the terminal may have cut it. Pass it on standard input instead, such as with \"wb cred set %s < file\"", maxPromptLine, binding)
 		}
 		return line, line, checkValue(line)
 	}
@@ -75,6 +95,13 @@ func readValue(env Env, binding string) (buf, value []byte, reason string) {
 	value = trimNewline(buf[:n])
 	return buf, value, checkValue(value)
 }
+
+// maxPromptLine is the shortest line read at the prompt that wb
+// refuses. term.ReadPassword reads in the terminal's canonical mode, and
+// macOS keeps at most 1024 bytes of a line in that mode (MAX_CANON), and
+// drops the rest, so a longer secret pasted at the prompt would be
+// stored cut. The bound leaves room below that limit.
+const maxPromptLine = 1000
 
 // trimNewline removes one trailing "\r\n" or "\n", and keeps a second.
 func trimNewline(v []byte) []byte {
@@ -133,8 +160,11 @@ type result struct {
 	// signal is the signal it ended on.
 	signal   syscall.Signal
 	signaled bool
-	stdout   []byte
-	stderr   []byte
+	// cut is set when wb kept only the first part of the helper's
+	// standard output or error.
+	cut    bool
+	stdout []byte
+	stderr []byte
 	// decision is its decision line, when found.
 	decision    credset.Decision
 	hasDecision bool
@@ -147,6 +177,8 @@ func (r result) rule() string {
 		return RuleHelperFailed
 	case r.signaled:
 		return RuleHelperSignaled
+	case r.cut:
+		return RuleHelperFailed
 	case r.hasDecision:
 		return r.decision.Rule
 	}
@@ -191,7 +223,8 @@ func runHelper(ctx context.Context, env Env, helper string, c command, value []b
 		r.signaled, r.signal = true, ws.Signal()
 	}
 	r.decision, r.hasDecision = credset.ParseDecision(r.stderr)
-	if stdout.cut || stderr.cut {
+	r.cut = stdout.cut || stderr.cut
+	if r.cut {
 		env.Log.LogAttrs(ctx, slog.LevelWarn, "wb cred: wb-credset's output was cut", slog.Bool("stdout_cut", stdout.cut), slog.Bool("stderr_cut", stderr.cut))
 	}
 	return r
