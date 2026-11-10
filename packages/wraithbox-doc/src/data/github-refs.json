@@ -4386,15 +4386,15 @@
 	},
 	"720": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Campaign 2026-11-10 (V1-M3-network-floor, lane mac)",
 		"summary": "/campaign --lane mac --vm-slots 2"
 	},
 	"721": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "Train 720: Campaign 2026-11-10 (V1-M3-network-floor, lane mac)",
-		"summary": "Train of campaign #720."
+		"summary": "Train of campaign #720 (docs/agents/campaigns.md)."
 	},
 	"722": {
 		"kind": "pr",
@@ -4575,5 +4575,41 @@
 		"state": "open",
 		"title": "wb-vmd: one bad hand-off ack ends the ack reader, so later hand-offs hold their slot for 5 s",
 		"summary": "Follow-up from the code re-review of #747 (#648), on the design it added."
+	},
+	"752": {
+		"kind": "issue",
+		"state": "open",
+		"title": "ci: CodeQL on pushes to main only, and Swift only when Swift changes",
+		"summary": "CodeQL runs as GitHub's default setup on every pull request, every push to main and weekly, for Go, Swift, JavaScript/TypeScript and Actions (docs/github-settings.md, \"Code scanning\")."
+	},
+	"753": {
+		"kind": "issue",
+		"state": "open",
+		"title": "ci: run the fuzz smoke and the Windows Go leg on pushes to main, not on every pull request",
+		"summary": "On 2026-11-10 CI ran 1,328 jobs over 107 runs."
+	},
+	"754": {
+		"kind": "issue",
+		"state": "open",
+		"title": "S07-05-stream-hand-off and S04: settle the hand-off contract end to end (descriptor passing, acks, identity, close, restarts, audit)",
+		"summary": "The hand-off of sockets and streams between host processes keeps getting patched one review at a time:"
+	},
+	"755": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(planning): add V1-M8-hardening and the defect-or-hardening rule",
+		"summary": "Adds one hardening milestone to V1 and the rule for what goes in it."
+	},
+	"756": {
+		"kind": "pr",
+		"state": "open",
+		"title": "ci: run the fuzz smoke and the Windows Go leg only on the way into main",
+		"summary": "Pull requests no longer run the four fuzz smoke shards or the Windows leg of the Go job."
+	},
+	"757": {
+		"kind": "pr",
+		"state": "open",
+		"title": "ci: run CodeQL on main only, and Swift only when Swift changes",
+		"summary": "Code scanning stops running on pull requests."
 	}
 }

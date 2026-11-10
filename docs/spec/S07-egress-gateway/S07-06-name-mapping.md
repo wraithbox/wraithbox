@@ -44,17 +44,15 @@ because `wb-hostd` checks the same entry first. For a malformed
 message, `wb-proxyd` also:
 
 1. closes the VM's hand-off socket, and every stream that came on it;
-2. tells `wb-hostd` on its control channel with a `HandoffSocketClosed`
-   message (S07-05-stream-hand-off, "The contract"). It names the VM,
-   the socket's generation, the rule `name-report-malformed`, and the
-   check that failed: `message-form`, `name-form` or `synthetic-range`.
+2. tells `wb-hostd` with a `HandoffSocketClosed` that names the
+   socket, the rule `name-report-malformed`, and the check that failed:
+   `message-form`, `name-form` or `synthetic-range`.
 
-`wb-hostd` ends that `wb-netd`, and counts the exit toward the restart
-limit, as for a malformed accounting record
+`wb-hostd` then ends that `wb-netd`, and counts the exit toward the
+restart limit, as for a malformed accounting record
 (S04-08-records-and-bounds, "Accounting and event channels").
-It does so on the first `HandoffSocketClosed` for the socket
-`wb-proxyd` last acknowledged for the VM. It ignores any other notice,
-logged with `handoff-notice-stale`.
+S07-20-handoff-sockets ("Closing a socket") has this for every rule,
+and how a notice for another socket is ignored.
 
 #### Address conflicts
 

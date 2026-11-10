@@ -20,6 +20,7 @@ Wraith Box works and why.
 | S04-09-netd-start | Starting `wb-netd` | Draft |
 | S04-10-vmd-install | Installing macOS in `wb-vmd` | Draft |
 | S04-11-vmd-start | Starting `wb-vmd` | Draft |
+| S04-12-descriptor-passing | Passing Descriptors | Draft |
 | S05-cli | Command Line Interface | Draft |
 | S05-01-agent-commands | Agent Commands | Draft |
 | S05-02-exit-status-and-signals | Exit Status and Signals | Draft |
@@ -60,6 +61,7 @@ Wraith Box works and why.
 | S07-17-approvals-and-learning | Approvals and Learning | Draft |
 | S07-18-build-network | Build Network | Draft |
 | S07-19-request-decisions | Request Decisions | Draft |
+| S07-20-handoff-sockets | Hand-off Sockets | Draft |
 | S08-workspace-and-git | Workspace and Git Round Trip | Draft |
 | S08-01-into-the-guest | Into the Guest | Draft |
 | S08-02-export-repository | Export Repository | Draft |
