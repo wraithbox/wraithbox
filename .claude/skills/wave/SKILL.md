@@ -196,6 +196,25 @@ above holds, except:
   against `main`.
 - **Until.** Pass `--until` to the lead: after it, the lead sends no
   new fix round and reviews nothing new, and reports.
+- **Keep the session alive.** `claude -p` exits when your turn ends
+  and no background task of your own runs. The lead's background
+  commands and its agents' don't count. When the lead ends a turn
+  while its check watches run, a notification says it is waiting on
+  its own background work. Without a task of your own, the session
+  then exits and stops the lead (I631). So in "Each wave", step 2,
+  right after you spawn the lead, start this wait in Bash with
+  `run_in_background` and a `timeout` of 3600000:
+
+  ```bash
+  for i in $(seq 110); do [ -f <wave-file> ] && break; sleep 30; done; ls <wave-file>
+  ```
+
+  It ends when the wave file exists, or after 55 minutes. Keep one
+  running until you write the wave file. Each time you wake before the
+  lead's report, start it again if it has ended, then end your turn. A
+  notification that the lead is waiting on its own background work is
+  not its report. After you write the wave file, stop the wait with
+  `TaskStop`, then end.
 - **Merge into the train, not `main`.** For each `Ready` pull request
   against the train, check the train merge check (`campaigns.md`, "What
   may ride the train") on GitHub, never from the report:

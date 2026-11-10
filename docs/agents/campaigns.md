@@ -60,6 +60,15 @@ the lead and resumes when the lead reports, and the timeout above
 bounds it. The final result's `total_cost_usd` counts every turn of the
 session.
 
+That wait covers the dispatcher's own background tasks, the lead
+among them, but not the lead's. A lead that ends a turn while its
+check watches run is reported to the dispatcher as waiting, and with
+nothing of the dispatcher's left running, the session exits and stops
+the lead. That ended the first wave of I622 with three approved pull
+requests and nothing merged (I631). So the dispatcher keeps a
+background wait of its own until it writes the wave file (the `wave`
+skill, "Campaign mode").
+
 The reserve pays for the manager's own session and for finishing up.
 The manager's session isn't metered by the script, and the report says
 so. After a limit is hit the manager still finishes up ("Ending").
