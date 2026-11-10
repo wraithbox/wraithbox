@@ -79,7 +79,7 @@ struct HandoffKeeperTests {
     func deadline() async throws {
         let fixture = try ServiceFixture(handoffDeadline: .milliseconds(100))
         try await fixture.supervisor.start(
-            generation: 1, cpuCount: 2, memoryMiB: 1024, macAddress: testMAC)
+            generation: 1, cpuCount: 2, memoryMiB: 1024, macAddress: testMAC, provisioning: false)
         let network = try #require(receiveHandoff(fixture.handoff.host))
         closeAll(network.descriptors)
         let machine = try #require(fixture.engine.machines.first)
@@ -110,7 +110,7 @@ struct HandoffKeeperTests {
     func networkKept() async throws {
         let fixture = try ServiceFixture()
         try await fixture.supervisor.start(
-            generation: 1, cpuCount: 2, memoryMiB: 1024, macAddress: testMAC)
+            generation: 1, cpuCount: 2, memoryMiB: 1024, macAddress: testMAC, provisioning: false)
         #expect(fixture.keeper.keptCount == 1)
         let received = try #require(receiveHandoff(fixture.handoff.host))
         defer { closeAll(received.descriptors) }
@@ -213,7 +213,7 @@ struct HandoffKeeperTests {
     func channelEnded() async throws {
         let fixture = try ServiceFixture(handoffDeadline: .milliseconds(300))
         try await fixture.supervisor.start(
-            generation: 1, cpuCount: 2, memoryMiB: 1024, macAddress: testMAC)
+            generation: 1, cpuCount: 2, memoryMiB: 1024, macAddress: testMAC, provisioning: false)
         #expect(fixture.keeper.keptCount == 1)
         // A record for nothing kept wakes the read source, and the close
         // comes before the keeper drains it: darwin doesn't wake a read
