@@ -243,11 +243,11 @@ project code has run. The host parses no guest filesystem
 - files outside `/Users` owned by a non-system user ID, other than the
   temporary folders of `wbadmin`;
 - launchd jobs outside an allowlist: what macOS ships (`com.apple.*`
-  and `amsdstat.plist` in `/Library/LaunchDaemons`), plus
-  `wb-guestd`'s and `wb-guestroot`'s (S15-05-admin-path).
+  and `amsdstat.plist` in `/Library/LaunchDaemons`), `wb-guestd`'s and
+  `wb-guestroot`'s (S15-05-admin-path), and, in an image with the Xcode
+  step only, the three jobs S06-14-xcode-image names, by label and path.
 
-So any admin account the build creates is disabled or removed before
-the image is sealed.
+So every admin account the build creates is disabled or removed at sealing.
 
 #### The `wbadmin` exception
 

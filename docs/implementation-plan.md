@@ -181,7 +181,7 @@ Cut into issues on 2026-11-10. The maintainer's decisions of that day:
 | IMG.5 | Named provisioning operations, `wb-guestroot`'s install, terminfo for Ghostty, kitty, WezTerm, Alacritty and foot, the sealing scan | S06-02; SEC04 | IMG.4d, SCAN, #614 | vm | #667 to #671, folded: #203 and the image half of #474 |
 | IMG.6 | Base layer: Command Line Tools from the host-fetched package, the toolchain user and prefix, the npm configuration; Homebrew from the built-in recipe; named images from recipes | S06-01, X20-shared-homebrew; FR06; C09 | #150, #180, #565, IMG.5, IMG.7b, IMG.7d, M3.12 (#513) | any, vm, host | #672 to #675 |
 | IMG.7 | Claude Code in its own top layer: `wb-release-check`, `internal/agent`, install with the managed `CLAUDE.md`, `wb-vmd-layer`, `wb image list` | S14-01, S14-04, S17-04; FR01 | IMG.1c, IMG.2b, IMG.4d, IMG.5 | any, vm, host | #676 to #680, folded: #607 |
-| IMG.8 | Xcode variant from a host-built read-only disk image | S06-01, S06-14; FR06 | #624, IMG.6c, IMG.7c | any, vm, host | #681 to #684 |
+| IMG.8 | Xcode variant from a host-built read-only disk image | S06-01, S06-14, S06-15; FR06 | #624, IMG.6c, IMG.7c | any, vm, host | #681 to #684 |
 
 Also in V1-M7: the admin path (#614, B448 option A, no Full Disk
 Access), the guest kernel panic found in X31-admin-channel (#615), the

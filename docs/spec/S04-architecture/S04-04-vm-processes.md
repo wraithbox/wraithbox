@@ -107,11 +107,11 @@ identity check of S06-02-image-build, "Taking the sealed image".
 ### `wb-diskfmt`
 
 `wb-diskfmt` formats a VM's new data disk (S06-13-data-disk-format,
-X08-data-disk), or an image build's Xcode disk (S06-14-xcode-image).
+X08-data-disk), or an image build's Xcode disk (S06-15-xcode-disk).
 `wb-launcher` has three fixed entries, `wb-diskfmt-work`,
 `wb-diskfmt-isolated` and `wb-diskfmt-xcode`. Each takes no arguments,
 and has its slot's bundle as its profile parameter (the build bundle
-and, for `xcode`, the parameters in S06-14-xcode-image), and an
+and, for `xcode`, the parameters in S06-15-xcode-disk, "The entry"), and an
 instance cap of one. Its shim is started as the
 leader of a new process group, so that its parent can kill the shim
 with the `diskutil` it runs (S06-13-data-disk-format, "When
@@ -192,7 +192,12 @@ attach an image without that service (I353).
 These rest on the shim's inputs: it takes no guest input, only
 `wb-hostd`'s request, and it exits after one format and is never
 restarted. It denies the network and every other file, except the
-Xcode entry's reads and programs in S06-15-xcode-disk. The service names are in code.
+Xcode entry's reads and programs in S06-15-xcode-disk. The Xcode entry
+also reaches `com.apple.trustd.agent`, which `codesign` needs. That
+service runs outside the sandbox and may fetch from the network to
+evaluate a certificate, so a subverted shim can make the host user's
+trust service fetch on its behalf (S06-15-xcode-disk, "The profile").
+The service names are in code.
 They were measured on macOS 27 with the opt-in host test, which runs a
 confined format (I228).
 

@@ -64,9 +64,9 @@ The command downloads every runtime Apple lists for the platform, and
 writes each as an *exported runtime*, which is a directory
 (X06-guest-xcode, "Follow-up (I624)"). For iOS 27.2 it wrote two
 of about 8.3 GB each, one general runtime and one for a newer device.
-The same run also installed both runtimes on the host itself, 15.5 GB,
-and Wraith Box neither uses nor removes them.
-The exported runtime looks like this:
+After the export, the host listed both as installed and `Ready`, 15.5
+GB in all. Wraith Box neither uses nor removes them. An exported
+runtime looks like this:
 
 ```text
 iphonesimulator_27.2_24B8117.exportedBundle/
@@ -105,7 +105,7 @@ The caps are in code.
 Before it copies anything, the shim of S06-15-xcode-disk checks,
 and refuses with the rule:
 
-- that Apple signed the app and that it is unchanged
+- that Apple signed the app and that its sealed parts are unchanged
   (`xcode-signature-invalid`), with `codesign --verify --deep --strict`
   against this code requirement:
 
@@ -162,19 +162,15 @@ doesn't name a build. The app names the license it needs in
 `Contents/Resources/LicenseInfo.plist` (`licenseID`, `licenseType`).
 
 The shim parses both plists itself. It refuses unless the ID recorded
-for the app's license type equals the app's `licenseID`. It doesn't
+for the app's license type equals the app's `licenseID`. A fixed list
+in code maps the type to the record's key, and holds only the measured
+one: `GM` to `IDELastGMLicenseAgreedTo`. Any other type, a beta's
+included, refuses with `xcode-license-not-accepted`. It doesn't
 compare the recorded version, because Xcode doesn't either: on the
 reference machine the record says `27.0`, Xcode 27.2 is installed,
 and `xcodebuild -license check` exits 0 (X06-guest-xcode, "Follow-up
 (I624)"). A new license ID still needs a new acceptance, which the
 refusal names: `sudo xcodebuild -license accept`.
-
-### The Xcode disk
-
-The host copies Xcode and the exported runtimes onto a disk image,
-`xcode.img`, in the build bundle. The `wb-diskfmt` shim that makes the
-checks above also builds that disk, under its own profile, and reports
-what the build records (S06-15-xcode-disk).
 
 ### In the build VM
 
@@ -203,17 +199,26 @@ A named `wb-guestd` operation, `install-xcode`, then runs as root
    `/Users` that a non-system user owns (S06-02-image-build,
    "Sealing"). `--hfsCompression` keeps the copy at the 4.0 GB it
    takes on the host instead of 10 GB;
-3. It checks the copy's signature with the same requirement.
+3. It checks the copy's signature with the same requirement. That
+   check accepts a planted `_MASReceipt` or `.DS_Store` and changed
+   mode bits (X06-guest-xcode, "Follow-up (I624)"). So the step also
+   refuses a copy that holds either name at any depth, or a file not
+   owned by `root` (`xcode-copy-invalid`), and clears every setuid and
+   setgid bit.
 4. It runs `xcode-select -s`, `xcodebuild -license accept` and
    `xcodebuild -runFirstLaunch`.
-5. It imports each runtime with `xcrun simctl runtime add` on the
-   runtime's disk image, the one `.dmg` in its `Restore/`, and checks
+5. It checks each runtime's disk image, the one `.dmg` in its
+   `Restore/`, with `identifier image and anchor apple`
+   (`xcode-runtime-signature-invalid`, 29.8 s measured). It imports it
+   with `xcrun simctl runtime add`, and checks
    that `xcrun simctl runtime list` then shows it as `Ready`.
 6. It unmounts the volume.
 
-These steps worked in a guest with every network interface down, and
-an iOS simulator then booted on the imported runtime (X06-guest-xcode,
-"Follow-up (I624)"). `xcodebuild -importPlatform` didn't work there.
+These steps worked, and an iOS simulator then booted on the imported
+runtime (X06-guest-xcode, "Follow-up (I624)"). They were measured in a
+guest with a network device whose interfaces were all down. I684 runs
+them without a network device. A failure there fails the build, and
+the build doesn't add a device to get past it. `xcodebuild -importPlatform` didn't work there.
 It first copied its input into root's temporary directory, then
 refused for lack of room with 22 GiB free, and left the copy behind.
 `simctl runtime add` copies the disk image once. The clone of the
@@ -221,7 +226,15 @@ Xcode step needs room on its system disk for Xcode and every runtime.
 
 A failure fails the build. The host bounds and escapes the failure
 text as for terminfo (S06-02-image-build, "Terminfo"). Then the image
-is sealed as any other, and the sealing scan applies unchanged.
+is sealed as any other. `-runFirstLaunch` adds three root launchd
+jobs with no file in `/Library/LaunchDaemons`:
+`com.apple.CoreDevice.CoreDeviceDDIUpdaterService.job`,
+`com.apple.CoreSimulator.simdiskimaged` and
+`com.apple.PerformanceTrace.PerformanceTraceService`. The sealing scan
+accepts these labels only in an image with the Xcode step, and only
+for a program under `/Library/Developer/PrivateFrameworks` that root
+owns (S06-02-image-build, "Sealing"). X06-guest-xcode didn't record
+the program paths. I683's run records them, and they are in code.
 
 ### Who runs the first launch
 

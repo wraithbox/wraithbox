@@ -317,10 +317,13 @@ descend from them.
   runtime is a directory with a signed disk image in it, and the
   runtime rules now check the directory and what it holds.
 - **Controls touched:** none weakened. SEC12-least-privilege: the
-  shim's profile needs more than `wb-diskfmt`'s, and the spec now names
-  each addition. SEC13-bounded-resources: the Xcode disk is sized from
-  file sizes, and the build VM needs room for every runtime.
-  SEC15-no-guest-disk-mount: unchanged. The runtime's disk image has an
+  shim's profile needs more than `wb-diskfmt`'s. S06-15-xcode-disk
+  names the additions and the one Mach service, `com.apple.trustd.agent`,
+  and "The profile" below lists the measured rules.
+  SEC13-bounded-resources: the Xcode disk is sized from file sizes, and
+  the build VM needs room for every runtime. SEC15-no-guest-disk-mount:
+  the shim mounts the blank volume twice, in `/Volumes` and on its own
+  directory, and both mounts fall under the existing exception. The runtime's disk image has an
   Apple signature, which the shim now checks with `identifier image and
   anchor apple`, and a changed byte fails it. The Xcode requirement's
   new third branch uses `anchor apple`, which only Apple's own signing
@@ -331,6 +334,11 @@ descend from them.
   section first left open: the license check compares the license ID
   only, and the code requirement has a third branch for the
   developer-site install.
+- **Asked of the maintainer:** whether other local accounts on the Mac
+  count as an adversary. T00-index trusts the host user's account, and
+  S06-15-xcode-disk is written for that account only. If other
+  accounts count, the shim's volume, while it is mounted, needs a
+  closer look.
 
 ### Question
 
@@ -515,10 +523,68 @@ exists".
 - **A guest with no network device.** The guest had a NAT device with
   its interfaces turned down. `wb-dev-bundle` attaches a network to
   every VM it starts, and a start without one is a new option there.
-- **The shim's profile is not minimal.** It is `wb-diskfmt`'s with
-  every rule the runs needed added, and no rule was taken out to see
-  whether it is needed.
+- **The shim's file and `sysctl` rules are not minimal.** They are
+  `wb-diskfmt`'s with every rule the runs needed added, and no rule was
+  taken out to see whether it is needed. The Mach services were
+  narrowed afterward ("The profile" below).
+- **The launchd jobs' program paths.** The guest run listed the three
+  new labels, not where their programs are.
+- **An import without the runtime's `Firmware` files.**
 - **Xcode's GUI**, and the iPhone19-4 runtime.
+
+### The profile
+
+The throwaway shim ran with `wb-diskfmt`'s profile plus these rules,
+for I681 to start from:
+
+- read `/Applications/Xcode.app`'s real path, `<data>/xcode-runtimes`
+  and `/Library/Preferences/com.apple.dt.Xcode.plist`, and the metadata
+  of `/Applications`;
+- read, write, `file-mount` and `file-unmount` under `xcode-mnt` in
+  the build bundle;
+- `process-exec` of `/usr/bin/ditto` and `/usr/bin/codesign`;
+- `mach-lookup` of `com.apple.trustd`, `com.apple.trustd.agent`,
+  `com.apple.SecurityServer`, `com.apple.ocspd` and
+  `com.apple.system.opendirectoryd.libinfo`;
+- `sysctl-read` of `kern.bootargs`, `kern.osproductversion`,
+  `kern.osvariant_status`, `kern.iossupportversion`,
+  `hw.ephemeral_storage`, `security.mac.lockdown_mode_state` and
+  `security.mac.amfi.qa_root_certs_allowed`;
+- `system-info` `vfs.disk-space`;
+- metadata of `/System/Cryptexes/OS`, `/System/Cryptexes/App`, `/etc`,
+  `/var`, `/Users`, and each parent of the build bundle and of the runtimes folder, and read of
+  `/usr/share/icu`.
+
+The Mach services were then measured one by one with `sandbox-exec`,
+with every file read and `sysctl-read` allowed, and `codesign` and
+`ditto` run directly (I624's builder, and again in PR748's security
+review):
+
+| Profile's `mach-lookup` | Runtime disk image | Xcode, three branches |
+|---|---|---|
+| none | exit 1, `CSSMERR_TP_NOT_TRUSTED`, 0.1 s | exit 1, 1.0 s |
+| `com.apple.trustd` only | exit 1, `CSSMERR_TP_NOT_TRUSTED` | |
+| `com.apple.trustd.agent` only | exit 0, 26.1 s | exit 0, 16.7 s |
+| both trust services | exit 0, 25.2 s | exit 0, 31.2 s |
+| both, with a wrong requirement | | exit 3, 20.6 s |
+
+`ditto --norsrc --noextattr --noacl --noqtn` of an exported runtime
+didn't need a service, and the copy's disk image equals the source's. That
+copy was on the same volume. So `com.apple.trustd.agent` is the one
+service S06-15-xcode-disk allows. `com.apple.SecurityServer`, which
+serves the keychain, `com.apple.ocspd` and the user database lookup
+aren't needed for these checks.
+
+The same security review measured what `codesign --verify --deep
+--strict` with the requirement doesn't catch, on a `ditto` copy of an
+App Store app signed like Xcode. A planted executable in
+`Contents/_MASReceipt`, a new `_MASReceipt` in a nested `.appex` or
+framework, a `.DS_Store` with arbitrary bytes in `Resources`, mode 6755
+on the main executable, and mode 0777 on `Info.plist` and `Frameworks`
+all passed with exit 0. A new file in `Resources` and a file in
+`_CodeSignature` failed with exit 1. S06-15-xcode-disk removes
+`_MASReceipt` and `.DS_Store` at any depth, and `install-xcode` refuses
+them and clears setuid and setgid bits.
 
 ### Attended steps
 
@@ -550,8 +616,13 @@ S06-14-xcode-image, changed in this pull request:
   install. The license record doesn't name a build, and Xcode accepts a
   record from an older version. The license check compares the license
   ID for the app's type only.
-- "Where the runtimes come from": the export also installs each
-  runtime on the host.
+- "Where the runtimes come from": after the export, the host listed
+  both runtimes as installed and `Ready`.
+- "In the build VM": the guest checks each runtime's disk image before
+  it imports it, refuses a receipt, a `.DS_Store` or a file not owned
+  by root in the copy, and clears setuid and setgid bits. The sealing
+  scan accepts the three launchd jobs of `-runFirstLaunch`, and only in
+  an Xcode image.
 - "In the build VM": the guest copies Xcode with `--hfsCompression`
   and sets the owner itself, imports each runtime with `xcrun simctl
   runtime add` on its disk image, and needs room for Xcode and every
@@ -563,11 +634,15 @@ past a page's length:
 
 - the image is sized from the sum of `st_size`, not from blocks;
 - `eraseDisk` mounts the new volume, and the shim then mounts it on a
-  directory in the bundle;
-- the copy drops `_MASReceipt`;
-- the profile's additions are named, and the timings above set the
-  deadlines;
-- the build records the SHA-256 of each runtime's disk image.
+  directory in the bundle. It finds the volume by device only, and
+  requires an empty volume before the copy and only what it copied
+  before the unmount;
+- the copy drops `_MASReceipt` and `.DS_Store` at any depth;
+- the copy is checked again, runtimes included, and the reported
+  values come from the copy;
+- the profile's additions are named, with `com.apple.trustd.agent` as
+  the one Mach service, and the timings above set the deadlines;
+- the build records the SHA-256 of each copied runtime disk image.
 
 ### Spike code
 
