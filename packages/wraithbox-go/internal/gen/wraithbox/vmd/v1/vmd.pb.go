@@ -1013,29 +1013,45 @@ func (x *InstallResponse) GetError() *VMError {
 // passes to wb-vmd at spawn (S04-02-vm-provider, "Hand-off on macOS").
 // The record is this message's protobuf encoding, with exactly one
 // descriptor attached by SCM_RIGHTS: a connection (KIND_CONNECTION) or
-// the packet transport (KIND_NETWORK).
+// the packet transport (KIND_NETWORK). The channel carries records both
+// ways: wb-hostd answers each HandoffMessage it decodes with a
+// HandoffAck, and wb-vmd keeps its copy of the descriptor until then.
 //
 // The receiver refuses the record, closes every descriptor that came
-// with it, and logs the refusal with its rule, when:
+// with it, and logs the refusal with its rule. internal/platform/fdchan
+// refuses, before the record is decoded:
 //
-//   - the record is over 256 bytes, or arrived truncated (MSG_TRUNC or
-//     MSG_CTRUNC);
-//   - it doesn't decode as a HandoffMessage;
-//   - it carries other than exactly one descriptor;
-//   - `kind` is neither KIND_CONNECTION nor KIND_NETWORK;
-//   - the descriptor isn't a socket of the type its kind names;
-//   - `generation` is 0, or isn't the VM's current generation.
+//   - a record over 256 bytes (`fdchan-record-size`), or one whose control
+//     data arrived truncated (`fdchan-control-truncated`);
+//   - a record with two or more descriptors (`fdchan-fd-count`).
+//
+// The receiver then refuses:
+//
+//   - a record that doesn't decode as a HandoffMessage, or that holds a
+//     field this message doesn't have (`handoff-malformed`);
+//   - a `kind` that is neither KIND_CONNECTION nor KIND_NETWORK
+//     (`handoff-kind`);
+//   - a record without a descriptor (`handoff-fd-count`).
 //
 // A KIND_CONNECTION record is also refused when:
 //
-//   - `request_id` is 0, or doesn't name an open ConnectGuest request of
-//     that generation;
-//   - `direction` isn't DIRECTION_HOST_TO_GUEST;
-//   - `destination_port` isn't the guest port that request asked for.
+//   - `generation` is 0, or isn't the VM's current generation
+//     (`handoff-generation`);
+//   - `request_id` is 0, or doesn't name an open ConnectGuest request
+//     (`handoff-unexpected`). A newer generation's request closes every
+//     open request of the older one, so an older generation's request is
+//     refused with `handoff-generation` above;
+//   - `direction` isn't DIRECTION_HOST_TO_GUEST (`handoff-direction`);
+//   - `destination_port` isn't the guest port that request asked for
+//     (`handoff-unexpected`);
+//   - the descriptor isn't an AF_UNIX stream socket
+//     (`handoff-socket-type`).
 //
-// A KIND_NETWORK record is also refused when `request_id`, `direction`,
-// `source_port` or `destination_port` is set, or when the generation
-// already had one.
+// A KIND_NETWORK record is refused with `handoff-network-refused` when
+// `generation` is 0 or isn't the current one, when the generation's start
+// was cancelled, already had its packet transport or asked for none, when
+// `request_id`, `direction`, `source_port` or `destination_port` is set,
+// or when the descriptor isn't an AF_UNIX datagram socket.
 type HandoffMessage struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The ConnectGuest request this connection answers, at least 1. 0 in a
@@ -1130,6 +1146,125 @@ func (x *HandoffMessage) GetKind() Kind {
 	return Kind_KIND_UNSPECIFIED
 }
 
+// HandoffAck is not part of any RPC. wb-hostd's receiver sends one on
+// the hand-off channel for each HandoffMessage record it accepts or
+// refuses, once its recvmsg has returned, as one record with no
+// descriptor: this message's protobuf encoding, at most 256 bytes. It
+// repeats the record's `kind`, `request_id` and `generation`. A record
+// that doesn't decode as a HandoffMessage, or that the channel refuses
+// before it is decoded, names nothing and gets no acknowledgment.
+//
+// wb-vmd keeps its copy of a descriptor it sent until the HandoffAck for
+// it arrives, or until the exchange's deadline passes, the connect
+// timeout of 5 s, and then closes it (S07-05-stream-hand-off,
+// "Transport"; S04-02-vm-provider, "Hand-off on macOS"). On macOS 27 the
+// kernel can collect a socket in flight that no process holds, and it
+// then arrives dead.
+//
+// A refused record is answered with the fields it had. One with fields
+// wb-vmd never builds, such as KIND_UNSPECIFIED or generation 0, gets an
+// acknowledgment that wb-vmd refuses as `handoff-ack-malformed`, and its
+// copy, if any, closes at the deadline.
+//
+// wb-vmd refuses the record and logs the refusal with its rule, and its
+// wait goes on to the deadline, when:
+//
+//   - the record is empty, over 256 bytes, arrived truncated, or carries a
+//     descriptor, which it closes (`handoff-ack-malformed`);
+//   - it doesn't decode as a HandoffAck, or holds a field the message
+//     doesn't have (`handoff-ack-malformed`);
+//   - `kind` is neither KIND_CONNECTION nor KIND_NETWORK, `generation` is
+//     0, a KIND_CONNECTION record has `request_id` 0, or a KIND_NETWORK
+//     record has it set (`handoff-ack-malformed`);
+//   - it names no descriptor wb-vmd still keeps (`handoff-ack-unexpected`).
+//
+// wb-vmd also logs, each with its rule:
+//
+//   - a deadline that passes without a HandoffAck, with the record's kind,
+//     request ID and generation (`handoff-ack-timeout`);
+//   - a channel it can't read any more: a receive failed, such as with
+//     ECONNRESET after wb-hostd closed its end, control data arrived
+//     truncated, or a wake found nothing to read and wb-hostd's end closed
+//     (`handoff-ack-channel-ended`). It stops reading, and every copy it
+//     keeps closes at its deadline. darwin doesn't wake the reader for the
+//     close of wb-hostd's end alone, and the copies close at their
+//     deadlines then too.
+//
+// wb-hostd logs a HandoffAck it can't send (`handoff-ack-send-failed`).
+type HandoffAck struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The request_id of the HandoffMessage. 0 for KIND_NETWORK.
+	RequestId uint64 `protobuf:"varint,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	// The generation of the HandoffMessage.
+	Generation uint64 `protobuf:"varint,2,opt,name=generation,proto3" json:"generation,omitempty"`
+	// The kind of the HandoffMessage.
+	Kind Kind `protobuf:"varint,3,opt,name=kind,proto3,enum=wraithbox.vmd.v1.Kind" json:"kind,omitempty"`
+	// True when wb-hostd accepted the record and holds its descriptor,
+	// false when it refused the record and closed the descriptor. wb-vmd
+	// only logs it: either way wb-hostd's recvmsg has returned.
+	Accepted      bool `protobuf:"varint,4,opt,name=accepted,proto3" json:"accepted,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HandoffAck) Reset() {
+	*x = HandoffAck{}
+	mi := &file_wraithbox_vmd_v1_vmd_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HandoffAck) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HandoffAck) ProtoMessage() {}
+
+func (x *HandoffAck) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_vmd_v1_vmd_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HandoffAck.ProtoReflect.Descriptor instead.
+func (*HandoffAck) Descriptor() ([]byte, []int) {
+	return file_wraithbox_vmd_v1_vmd_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *HandoffAck) GetRequestId() uint64 {
+	if x != nil {
+		return x.RequestId
+	}
+	return 0
+}
+
+func (x *HandoffAck) GetGeneration() uint64 {
+	if x != nil {
+		return x.Generation
+	}
+	return 0
+}
+
+func (x *HandoffAck) GetKind() Kind {
+	if x != nil {
+		return x.Kind
+	}
+	return Kind_KIND_UNSPECIFIED
+}
+
+func (x *HandoffAck) GetAccepted() bool {
+	if x != nil {
+		return x.Accepted
+	}
+	return false
+}
+
 var File_wraithbox_vmd_v1_vmd_proto protoreflect.FileDescriptor
 
 const file_wraithbox_vmd_v1_vmd_proto_rawDesc = "" +
@@ -1195,7 +1330,16 @@ const file_wraithbox_vmd_v1_vmd_proto_rawDesc = "" +
 	"\vsource_port\x18\x04 \x01(\rR\n" +
 	"sourcePort\x12)\n" +
 	"\x10destination_port\x18\x05 \x01(\rR\x0fdestinationPort\x12*\n" +
-	"\x04kind\x18\x06 \x01(\x0e2\x16.wraithbox.vmd.v1.KindR\x04kind*Q\n" +
+	"\x04kind\x18\x06 \x01(\x0e2\x16.wraithbox.vmd.v1.KindR\x04kind\"\x93\x01\n" +
+	"\n" +
+	"HandoffAck\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x01 \x01(\x04R\trequestId\x12\x1e\n" +
+	"\n" +
+	"generation\x18\x02 \x01(\x04R\n" +
+	"generation\x12*\n" +
+	"\x04kind\x18\x03 \x01(\x0e2\x16.wraithbox.vmd.v1.KindR\x04kind\x12\x1a\n" +
+	"\baccepted\x18\x04 \x01(\bR\baccepted*Q\n" +
 	"\bStopMode\x12\x19\n" +
 	"\x15STOP_MODE_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11STOP_MODE_REQUEST\x10\x01\x12\x13\n" +
@@ -1243,7 +1387,7 @@ func file_wraithbox_vmd_v1_vmd_proto_rawDescGZIP() []byte {
 }
 
 var file_wraithbox_vmd_v1_vmd_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_wraithbox_vmd_v1_vmd_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_wraithbox_vmd_v1_vmd_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_wraithbox_vmd_v1_vmd_proto_goTypes = []any{
 	(StopMode)(0),                // 0: wraithbox.vmd.v1.StopMode
 	(State)(0),                   // 1: wraithbox.vmd.v1.State
@@ -1264,6 +1408,7 @@ var file_wraithbox_vmd_v1_vmd_proto_goTypes = []any{
 	(*InstallRequest)(nil),       // 16: wraithbox.vmd.v1.InstallRequest
 	(*InstallResponse)(nil),      // 17: wraithbox.vmd.v1.InstallResponse
 	(*HandoffMessage)(nil),       // 18: wraithbox.vmd.v1.HandoffMessage
+	(*HandoffAck)(nil),           // 19: wraithbox.vmd.v1.HandoffAck
 }
 var file_wraithbox_vmd_v1_vmd_proto_depIdxs = []int32{
 	0,  // 0: wraithbox.vmd.v1.StopRequest.mode:type_name -> wraithbox.vmd.v1.StopMode
@@ -1274,23 +1419,24 @@ var file_wraithbox_vmd_v1_vmd_proto_depIdxs = []int32{
 	13, // 5: wraithbox.vmd.v1.InstallResponse.error:type_name -> wraithbox.vmd.v1.VMError
 	2,  // 6: wraithbox.vmd.v1.HandoffMessage.direction:type_name -> wraithbox.vmd.v1.Direction
 	3,  // 7: wraithbox.vmd.v1.HandoffMessage.kind:type_name -> wraithbox.vmd.v1.Kind
-	4,  // 8: wraithbox.vmd.v1.VMService.Start:input_type -> wraithbox.vmd.v1.StartRequest
-	6,  // 9: wraithbox.vmd.v1.VMService.Stop:input_type -> wraithbox.vmd.v1.StopRequest
-	8,  // 10: wraithbox.vmd.v1.VMService.GetState:input_type -> wraithbox.vmd.v1.GetStateRequest
-	10, // 11: wraithbox.vmd.v1.VMService.WatchState:input_type -> wraithbox.vmd.v1.WatchStateRequest
-	14, // 12: wraithbox.vmd.v1.VMService.ConnectGuest:input_type -> wraithbox.vmd.v1.ConnectGuestRequest
-	16, // 13: wraithbox.vmd.v1.VMService.Install:input_type -> wraithbox.vmd.v1.InstallRequest
-	5,  // 14: wraithbox.vmd.v1.VMService.Start:output_type -> wraithbox.vmd.v1.StartResponse
-	7,  // 15: wraithbox.vmd.v1.VMService.Stop:output_type -> wraithbox.vmd.v1.StopResponse
-	9,  // 16: wraithbox.vmd.v1.VMService.GetState:output_type -> wraithbox.vmd.v1.GetStateResponse
-	11, // 17: wraithbox.vmd.v1.VMService.WatchState:output_type -> wraithbox.vmd.v1.WatchStateResponse
-	15, // 18: wraithbox.vmd.v1.VMService.ConnectGuest:output_type -> wraithbox.vmd.v1.ConnectGuestResponse
-	17, // 19: wraithbox.vmd.v1.VMService.Install:output_type -> wraithbox.vmd.v1.InstallResponse
-	14, // [14:20] is the sub-list for method output_type
-	8,  // [8:14] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	3,  // 8: wraithbox.vmd.v1.HandoffAck.kind:type_name -> wraithbox.vmd.v1.Kind
+	4,  // 9: wraithbox.vmd.v1.VMService.Start:input_type -> wraithbox.vmd.v1.StartRequest
+	6,  // 10: wraithbox.vmd.v1.VMService.Stop:input_type -> wraithbox.vmd.v1.StopRequest
+	8,  // 11: wraithbox.vmd.v1.VMService.GetState:input_type -> wraithbox.vmd.v1.GetStateRequest
+	10, // 12: wraithbox.vmd.v1.VMService.WatchState:input_type -> wraithbox.vmd.v1.WatchStateRequest
+	14, // 13: wraithbox.vmd.v1.VMService.ConnectGuest:input_type -> wraithbox.vmd.v1.ConnectGuestRequest
+	16, // 14: wraithbox.vmd.v1.VMService.Install:input_type -> wraithbox.vmd.v1.InstallRequest
+	5,  // 15: wraithbox.vmd.v1.VMService.Start:output_type -> wraithbox.vmd.v1.StartResponse
+	7,  // 16: wraithbox.vmd.v1.VMService.Stop:output_type -> wraithbox.vmd.v1.StopResponse
+	9,  // 17: wraithbox.vmd.v1.VMService.GetState:output_type -> wraithbox.vmd.v1.GetStateResponse
+	11, // 18: wraithbox.vmd.v1.VMService.WatchState:output_type -> wraithbox.vmd.v1.WatchStateResponse
+	15, // 19: wraithbox.vmd.v1.VMService.ConnectGuest:output_type -> wraithbox.vmd.v1.ConnectGuestResponse
+	17, // 20: wraithbox.vmd.v1.VMService.Install:output_type -> wraithbox.vmd.v1.InstallResponse
+	15, // [15:21] is the sub-list for method output_type
+	9,  // [9:15] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_wraithbox_vmd_v1_vmd_proto_init() }
@@ -1304,7 +1450,7 @@ func file_wraithbox_vmd_v1_vmd_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_wraithbox_vmd_v1_vmd_proto_rawDesc), len(file_wraithbox_vmd_v1_vmd_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   15,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

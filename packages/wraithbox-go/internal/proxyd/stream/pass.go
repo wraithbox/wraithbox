@@ -6,11 +6,15 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"os"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/dnsname"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/egressmsg"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/policy"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/proxyd/handoff"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/proxyd/tlsparse"
 )
 
@@ -36,20 +40,14 @@ func (h *Handler) pass(st *stream, first firstBytes) {
 	if !ok {
 		return
 	}
-	h.allowed(st, RulePassAllowed, ModePass, entryAttrs(entry.Source, entry.Reason)...)
 	r := &relay{h: h, st: st, up: up}
+	if !r.sendHello(first.buf[:first.n], entry) {
+		return
+	}
 	p := &passState{
 		name:          st.name,
 		firstBytesCap: h.firstBytesCap,
 		flight:        tlsparse.NewServerFlight(h.serverFlightCap),
-	}
-	if err := r.send(up, first.buf[:first.n], &r.toUpstream); err != nil {
-		how := "error"
-		if !r.endStream(false) {
-			how = endedByHandoff
-		}
-		h.ended(st, how, r.toUpstream.Load(), 0)
-		return
 	}
 	rest := append([]byte(nil), first.buf[first.n:]...)
 	r.run(
@@ -57,6 +55,47 @@ func (h *Handler) pass(st *stream, first firstBytes) {
 		func() error { return r.checkedCopy(st.conn, up, &r.toGuest, nil, p.nextServer) },
 	)
 }
+
+// sendHello logs the pass relay allowed and sends its checked
+// ClientHello upstream, in one step with the check that the stream is
+// open (Control.SendWhileOpen). A stream that a recompute, an address
+// conflict or the socket's end ended after the dial sends nothing
+// upstream and logs nothing more, and its upstream connection is closed
+// (S07-15-non-http-streams, "Logging a reset"). The send is bounded by
+// firstSendTimeout, as the stream's end waits for it
+// (SEC13-bounded-resources). It reports whether the relay goes on.
+func (r *relay) sendHello(hello []byte, entry policy.PassHost) bool {
+	err := r.st.ctl.SendWhileOpen(func() error {
+		r.h.allowed(r.st, RulePassAllowed, ModePass, entryAttrs(entry.Source, entry.Reason)...)
+		if err := r.up.SetWriteDeadline(time.Now().Add(r.h.firstSendTimeout)); err != nil {
+			return err
+		}
+		if err := r.send(r.up, hello, &r.toUpstream); err != nil {
+			return err
+		}
+		return r.up.SetWriteDeadline(time.Time{})
+	})
+	if err == nil {
+		return true
+	}
+	if errors.Is(err, handoff.ErrEnded) {
+		_ = r.up.Close()
+		return false
+	}
+	how := "error"
+	if errors.Is(err, os.ErrDeadlineExceeded) {
+		how = endFirstSendTimeout
+	}
+	if !r.endStream(false) {
+		how = endedByHandoff
+	}
+	r.h.ended(r.st, how, r.toUpstream.Load(), 0)
+	return false
+}
+
+// endFirstSendTimeout is a pass relay's end when its ClientHello's
+// write upstream didn't finish within firstSendTimeout.
+const endFirstSendTimeout = "first-send-timeout"
 
 // checkPassHello checks a ClientHello to a pass host: its server name is
 // the stream's name, it holds no encrypted_client_hello or encrypted SNI

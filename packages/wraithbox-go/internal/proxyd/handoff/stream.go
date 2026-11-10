@@ -1,6 +1,7 @@
 package handoff
 
 import (
+	"errors"
 	"log/slog"
 	"net"
 	"net/netip"
@@ -28,7 +29,11 @@ type Stream struct {
 	// Conn is the stream's socket, from wb-netd.
 	Conn net.Conn
 
-	sock  *socket
+	sock *socket
+	// endMu makes the end and a SendWhileOpen call one step each: end
+	// sets ended and closes done under it, and SendWhileOpen checks
+	// ended and sends under it.
+	endMu sync.Mutex
 	ended atomic.Bool
 	// done is closed when the stream ends. doneOnce makes it, so a
 	// Stream built without it works.
@@ -119,13 +124,40 @@ func (s *Stream) doneChan() chan struct{} {
 	return s.done
 }
 
+// ErrEnded is SendWhileOpen's error when the stream had ended.
+var ErrEnded = errors.New("handoff: the stream has ended")
+
+// SendWhileOpen runs send unless the stream has ended, and returns
+// ErrEnded without running it otherwise. The check and send are one
+// step under the lock that ends the stream: a Reset or Close that comes
+// while send runs waits for it to return, and once Done is closed no
+// send starts. So a byte that goes upstream through send went before
+// the stream ended, and none after (S07-15-non-http-streams, "Logging a
+// reset": a connection that opens after a reset sends nothing
+// upstream). send must be bounded, by a write deadline, as every end
+// of the stream waits for it.
+func (s *Stream) SendWhileOpen(send func() error) error {
+	s.endMu.Lock()
+	defer s.endMu.Unlock()
+	if s.ended.Load() {
+		return ErrEnded
+	}
+	return send()
+}
+
 // end ends the stream once, and reports whether this call did. The
-// StreamReset goes before Conn closes.
+// StreamReset goes before Conn closes. Done is closed under endMu, so
+// it waits for a SendWhileOpen that runs.
 func (s *Stream) end(reset bool) bool {
-	if !s.ended.CompareAndSwap(false, true) {
+	s.endMu.Lock()
+	did := s.ended.CompareAndSwap(false, true)
+	if did {
+		close(s.doneChan())
+	}
+	s.endMu.Unlock()
+	if !did {
 		return false
 	}
-	close(s.doneChan())
 	s.sock.remove(s)
 	if reset {
 		s.sock.sendReset(s.ID)

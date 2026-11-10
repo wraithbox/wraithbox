@@ -29,29 +29,30 @@ type `SOCK_SEQPACKET` or `SOCK_DGRAM`, as for the other descriptor
 channels (S04-architecture). macOS has no `SOCK_SEQPACKET` for Unix
 domain sockets, so it uses `SOCK_DGRAM`.
 
-The design needs two properties of the type:
-
-- messages arrive in the order they were sent;
-- a message that doesn't fit fails at the sender with an error, and is
-  never dropped silently.
-
+The design needs messages in the order they were sent, and a message
+that doesn't fit to fail at the sender instead of being dropped.
 On macOS the ordering test of C11-host-daemons ("Descriptor channels")
-shows both on a channel of `fdchan.Socketpair(4096)`. Every record of
-100,000 arrives once and in order, through a sender that retries a
-full channel and a receiver that falls behind. A send to a full
-channel fails with `ENOBUFS`. The channel queues 19 records of 4 KiB,
-or 292 name reports of a 253-byte name, before a send fails. A Linux
-or Windows host gets the same test when its channels are built
+shows both on a channel of `fdchan.Socketpair(4096)`, and how many
+records it queues before a send fails with `ENOBUFS`. A Linux or
+Windows host gets the same test when its channels are built
 (S12-platforms).
 
 A send that fails, or that blocks for more than 100 ms, counts as
-failed. A sender never retries out of order.
+failed. A sender never retries out of order. `wb-netd` then refuses
+the name of a report with the answer every refusal gets
+(S07-04-dns-refusals), or resets a stream's TCP connection. Both are
+logged with the rule `handoff-send-failed`.
 
-- When a name report fails, `wb-netd` refuses the name with the same
-  answer as every refusal (S07-04-dns-refusals).
-- When a stream fails, `wb-netd` resets the TCP connection.
-
-Both are logged with the rule `handoff-send-failed`.
+A process that passes a socket in a message keeps its copy until an
+acknowledgment or the receiver's first record or byte on the socket
+shows the receiver holds it (I647, I648). On macOS 27 the kernel can collect
+a socket in flight with no other reference, and it arrives dead (I637).
+Pipes and descriptors inherited at spawn are exempt. `wb-netd` keeps a
+stream's copy no longer than a deadline (SEC13-bounded-resources),
+then closes it without a reset, logged `stream-hold-expired`. Until
+then it doesn't read end of file there. So a stream that `wb-proxyd`
+closes before a byte or a `StreamReset`, or drops for a full
+descriptor table, gives the guest its FIN at the deadline.
 
 ### The contract
 
@@ -126,7 +127,12 @@ connection, not to close it, when it reads end of file on that socket.
 
 `wb-netd` reads what waits on the hand-off socket and sends every byte
 it already queued for the guest. Then it answers end of file with a
-FIN, or with a reset when a `StreamReset` for the stream came first.
+FIN, or with a reset when a `StreamReset` for the stream came first
+(`stream-reset`). Another read error gets a reset, logged
+`proxyd-stream-read-failed` when no `StreamReset` came. A guest that
+takes no bytes within a deadline (`guest-write-timeout`,
+SEC13-bounded-resources) or fails a write (`guest-write-failed`) is
+reset. Only the path that resets a stream first logs it.
 
 When a `StreamReset` send fails (`ENOBUFS` or its deadline), `wb-proxyd`
 closes the VM's hand-off socket before the stream's socket, and
@@ -138,11 +144,13 @@ closes the VM's hand-off socket before the stream's socket, and
 restore, and at the restarts of S04-07-supervision, "Restarting a daemon".
 
 1. It passes one end to `wb-proxyd`.
-2. It waits 10 s for `wb-proxyd` to acknowledge it. Otherwise it closes
-   both ends and refuses the start with `proxyd-setup-failed`.
+2. It waits 10 s for `wb-proxyd` to acknowledge it, holding its copy
+   ("Transport"). Otherwise it closes both ends and refuses the start
+   with `proxyd-setup-failed`.
 3. Only then does it give the other end to `wb-netd`: at start to a new
    `wb-netd`, and on its control channel to a running one.
-4. It starts or resumes the VM only after `wb-netd` holds its end.
+4. It starts or resumes the VM only after `wb-netd` holds its end. A
+   `HandoffSocketClosed` for the socket before then fails the start.
 
 The build VM gets no hand-off socket, and its `wb-netd` hands no
 stream (S07-18-build-network).
@@ -159,7 +167,7 @@ spawn, its control channel (S04-architecture, "Control channels").
 
 Each message (`HandoffSocket`) holds exactly one descriptor, and the
 fields VM and generation. `wb-proxyd` answers with a `HandoffSocketAck`
-that names both. `wb-hostd` keeps each VM's generation in `state.db`,
+that names both, before it reads the socket. `wb-hostd` keeps each VM's generation in `state.db`,
 and only increases it. S07-06-name-mapping ("Lifetime") has the `fresh` field.
 
 `wb-proxyd` refuses the message when:
@@ -215,10 +223,8 @@ these checks pass.
 ### Caps
 
 This section serves SEC13-bounded-resources. Per hand-off socket,
-`wb-proxyd` caps:
-
-- the streams open from it;
-- the hand-off messages it has read but not yet decided on.
+`wb-proxyd` caps the streams open from it and the hand-off messages it
+has read but not yet decided on.
 
 Each cap is configuration with a default. Each hand-off socket has its
 own reader, so one VM's flood doesn't hold up another VM's streams.
@@ -231,19 +237,13 @@ holds, or refuses the stream. The label can only narrow
 
 So a compromised `wb-netd` can hand over a stream only under a name
 and port that the VM's effective policy allows, within the wildcard
-budget. It can't give a stream:
+budget. It can't give a stream another VM's policy, credential
+bindings or CA, or the grants of a project with no session in the VM.
 
-- another VM's policy, credential bindings or CA;
-- the grants of a project with no session in the VM.
-
-Some checks only `wb-netd` makes:
-
-- the link filter, DHCP and its per-VM caps;
-- the query rate;
-- the count of refused lookups in the wildcard budget;
-- the local and quiet answers;
-- approval events and learn lists;
-- the rule that every refusal gets the same answer.
+Some checks only `wb-netd` makes: the link filter, DHCP and its per-VM
+caps, the query rate, and the count of refused lookups in the wildcard
+budget. It alone gives the local and quiet answers and the one answer
+to every refusal, and sends approval events and learn lists.
 
 A compromised `wb-netd` that skips them can refuse or slow its own
 VM's traffic, or send approval events. `wb-hostd` applies the request

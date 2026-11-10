@@ -192,7 +192,9 @@ func ownerRepo(path, prefix string) (string, bool) {
 // gitlabProject reads the project path of `/api/v4/projects/{id}`. The
 // id names a path only when it holds an encoded `/`, and nothing else
 // escaped, since a GitLab path has only letters, digits, `_`, `-` and
-// `.`.
+// `.`. An id with an empty segment, from a leading, trailing or doubled
+// `%2F`, is malformed and names no repository, so the write it is in is
+// refused (SEC06-repo-writes).
 func gitlabProject(path string) (string, bool) {
 	rest, ok := strings.CutPrefix(path, "/api/v4/projects/")
 	if !ok {
@@ -204,6 +206,9 @@ func gitlabProject(path string) (string, bool) {
 	}
 	decoded := strings.ReplaceAll(id, "%2F", "/")
 	if strings.Contains(decoded, "%") || hasAPIRepoSuffix(decoded) {
+		return "", false
+	}
+	if slices.Contains(strings.Split(decoded, "/"), "") {
 		return "", false
 	}
 	return "/" + decoded, true

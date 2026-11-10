@@ -17,6 +17,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 
 	guestv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/guest/v1"
@@ -256,10 +257,7 @@ func TestShellOpenAndExit(t *testing.T) {
 	if e := recvFrame(t, stream).GetExit(); e == nil || e.GetCode() != 0 {
 		t.Fatalf("exit = %v", e)
 	}
-	if _, err := stream.Recv(); !errors.Is(err, io.EOF) {
-		t.Fatalf("after the exit: %v", err)
-	}
-	f.wantKilledOnce(t)
+	f.wantKilledOnce(t, stream, codes.OK)
 	f.wantRecords(t, "shell open", "shell end")
 	if end := f.audit.Find("shell end")[0].Fields(); end.Rule != shells.RuleExit || end.Session.ExitCode == nil || *end.Session.ExitCode != 0 {
 		t.Errorf("end record: rule %s, session %+v", end.Rule, end.Session)
@@ -285,10 +283,21 @@ func (f *shellFixture) wantStarted(t *testing.T, opened *hostdv1.ShellOpened) {
 	}
 }
 
-// wantKilledOnce waits for the registry's kills, and checks the user was
-// unlocked once and killed once.
-func (f *shellFixture) wantKilledOnce(t *testing.T) {
+// wantKilledOnce reads stream to its end, waits for the registry's
+// kills, and checks the user was unlocked once and killed once. Close
+// drops a kill that End starts after it, so the helper calls Close only
+// once the handler has returned, which is after its End (#634). want is
+// the code of the stream's end: codes.OK for a shell that opened, whose
+// every end is a frame and then io.EOF, or the code of a refusal.
+func (f *shellFixture) wantKilledOnce(t *testing.T, stream hostdv1.ShellService_ShellClient, want codes.Code) {
 	t.Helper()
+	_, err := stream.Recv()
+	switch {
+	case want == codes.OK && !errors.Is(err, io.EOF):
+		t.Fatalf("after the shell's end: %v, want io.EOF", err)
+	case want != codes.OK && status.Code(err) != want:
+		t.Fatalf("after the shell's end: %v, want code %s", err, want)
+	}
 	f.reg.Close()
 	if got := f.kills(); len(got) != 1 || got[0] != "work/"+projectuser.UserName(shellUID) {
 		t.Fatalf("kills = %v", got)
@@ -462,9 +471,9 @@ func TestShellRefusingModeEndedFirst(t *testing.T) {
 func TestShellUnlockFailed(t *testing.T) {
 	f := newShells(t, nil)
 	f.links.unlockErr = &guestconn.SessionRefusal{Rule: guestconn.RuleUnlockFailed, Message: "no answer."}
-	_, _, err := f.open(t.Context(), t, &hostdv1.ShellOpen{ProjectId: f.projectID, Setup: pipedSetup()})
+	stream, _, err := f.open(t.Context(), t, &hostdv1.ShellOpen{ProjectId: f.projectID, Setup: pipedSetup()})
 	wantRefused(t, "unlock failed", err, codes.FailedPrecondition, guestconn.RuleUnlockFailed)
-	f.wantKilledOnce(t)
+	f.wantKilledOnce(t, stream, codes.FailedPrecondition)
 	f.wantRecords(t, "shell open", "shell fail")
 }
 
@@ -481,7 +490,7 @@ func TestShellOpenHeld(t *testing.T) {
 	if got := recvFrame(t, stream).GetFailure().GetRule(); got != shells.RuleRefused {
 		t.Fatalf("failure rule = %q", got)
 	}
-	f.wantKilledOnce(t)
+	f.wantKilledOnce(t, stream, codes.OK)
 	if !strings.Contains(f.logs.String(), "didn't open within 20ms") {
 		t.Fatalf("log = %s", f.logs.String())
 	}

@@ -32,6 +32,16 @@ func (r *Recorder) SetBudget(slot string, b audit.Budget) {
 	r.budgets[slot] = b
 }
 
+// room is closed: the fake's queue always has room.
+var room = func() chan struct{} {
+	c := make(chan struct{})
+	close(c)
+	return c
+}()
+
+// Room returns a closed channel: the fake's queue always has room.
+func (r *Recorder) Room() <-chan struct{} { return room }
+
 // Budget returns the budget set for slot, or none.
 func (r *Recorder) Budget(slot string) audit.Budget {
 	r.mu.Lock()

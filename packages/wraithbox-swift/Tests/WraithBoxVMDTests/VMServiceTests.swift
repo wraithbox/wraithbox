@@ -22,6 +22,9 @@ final class ServiceFixture {
     nonisolated let recorded = RecordedLog()
     nonisolated let supervisor: VMSupervisor
     nonisolated let connector: GuestConnector
+    /// Keeps each descriptor wb-vmd sends until the test acknowledges it
+    /// (acknowledge), or until its deadline.
+    let keeper: HandoffKeeper
     nonisolated let bundlePath: String
     nonisolated let homePath: String
     /// wb-vmd's end of the hand-off channel, and wb-hostd's, which the
@@ -33,40 +36,59 @@ final class ServiceFixture {
     /// engine never opens.
     init(
         slot: VMSlot = .work, files: [BundleFile] = BundleFile.allCases,
-        connectTimeout: Duration = GuestConnector.defaultTimeout
+        connectTimeout: Duration = GuestConnector.defaultTimeout,
+        handoffDeadline: Duration = HandoffKeeper.defaultDeadline
     ) throws {
         bundle = try BundleFixture(slot: slot, files: files)
         bundlePath = bundle.path
         homePath = bundle.home.path
         let pair = try makeSocketPair(SOCK_DGRAM)
         handoff = (pair.0, pair.1)
+        keeper = HandoffKeeper(
+            channel: HandoffChannel(fd: pair.0), log: recorded.log, deadline: handoffDeadline)
         supervisor = VMSupervisor(
             engine: engine, slot: slot, bundlePath: bundle.path,
             restoreImagePath: slot == .build ? bundle.restoreImagePath : nil,
-            handoff: HandoffChannel(fd: pair.0), log: recorded.log)
+            handoff: keeper, log: recorded.log)
         connector = GuestConnector(
-            supervisor: supervisor, handoff: HandoffChannel(fd: pair.0), log: recorded.log,
-            timeout: connectTimeout)
+            supervisor: supervisor, handoff: keeper, log: recorded.log, timeout: connectTimeout)
     }
 
     /// Whether the test closed wb-hostd's end already.
     private nonisolated let hostClosed = Mutex(false)
 
-    deinit {
+    isolated deinit {
+        // Stops the read source before its descriptor is closed.
+        keeper.close()
         close(handoff.vmd)
         if !hostClosed.withLock({ $0 }) {
             close(handoff.host)
         }
     }
 
-    /// Closes wb-hostd's end, as when wb-hostd is gone.
-    nonisolated func closeHostEnd() {
+    /// Closes wb-hostd's end and doesn't wait. A send on wb-vmd's end
+    /// would take the reset that the close leaves there, so a test of how
+    /// wb-vmd reads the close uses this one.
+    nonisolated func closeHostEndOnly() {
         hostClosed.withLock { closed in
             if !closed {
                 close(handoff.host)
                 closed = true
             }
         }
+    }
+
+    /// Closes wb-hostd's end, as when wb-hostd is gone, and waits until
+    /// wb-vmd's end sees the close: a send on it fails because its peer
+    /// is gone (peerIsClosed). Returns false when that takes over two
+    /// seconds. Until the close shows, a send can still succeed: a test
+    /// running in parallel that spawns a process gives the new process a
+    /// copy of wb-hostd's end until posix_spawn closes it (closeShows),
+    /// and the record lands in that copy's buffer.
+    func closeHostEnd() async throws -> Bool {
+        closeHostEndOnly()
+        let vmd = handoff.vmd
+        return try await closeShows { peerIsClosed(vmd) }
     }
 
     /// Runs `body` with a client of the service.

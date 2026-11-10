@@ -130,6 +130,12 @@ const (
 	// ServerFlightCap is the most of a pass host's record fragments
 	// wb-proxyd reads before its ServerHello.
 	ServerFlightCap = 64 << 10
+	// FirstSendTimeout bounds the write of a pass relay's ClientHello
+	// upstream. The stream's end waits for that write
+	// (Control.SendWhileOpen), so it waits at most this long per
+	// stream. A recompute that resets several streams in turn can wait
+	// this long for each whose write is stalled.
+	FirstSendTimeout = 5 * time.Second
 )
 
 // Mode is the mode a stream is handled in.
@@ -167,12 +173,15 @@ type Dialer interface {
 // *handoff.Stream implements it. Reset and Close report whether the
 // call ended the stream, so a stream that a recompute, an address
 // conflict or the socket's end ended first isn't logged again. Done is
-// closed when the stream ends. AddCheck resets the stream itself, and
+// closed when the stream ends. SendWhileOpen runs a send unless the
+// stream has ended, as one step with the end, and returns
+// handoff.ErrEnded otherwise. AddCheck resets the stream itself, and
 // logs it, when the check fails at once.
 type Control interface {
 	Reset() bool
 	Close() bool
 	Done() <-chan struct{}
+	SendWhileOpen(send func() error) error
 	AddCheck(check func(*policy.Policy) egressmsg.Check) egressmsg.Check
 	Policy() *policy.Policy
 }
@@ -246,6 +255,7 @@ type Handler struct {
 	firstBytesTimeout time.Duration
 	firstBytesCap     int
 	serverFlightCap   int
+	firstSendTimeout  time.Duration
 }
 
 // New returns a Handler.
@@ -270,6 +280,7 @@ func New(cfg Config) (*Handler, error) {
 		firstBytesTimeout: FirstBytesTimeout,
 		firstBytesCap:     FirstBytesCap,
 		serverFlightCap:   ServerFlightCap,
+		firstSendTimeout:  FirstSendTimeout,
 	}, nil
 }
 
@@ -487,7 +498,9 @@ func (h *Handler) inspect(st *stream, r route, first firstBytes) {
 // upstream-connect-failed. The dial is cancelled when the stream ends,
 // and a connection that opens after the stream ended is closed unused,
 // so a stream a recompute reset sends nothing upstream
-// (S07-01-per-vm-policy, "Open streams").
+// (S07-01-per-vm-policy, "Open streams"). A reset that comes after this
+// check is caught by the pass relay's first send, which checks the end
+// again in one step with the send (relay.sendHello).
 func (h *Handler) dial(st *stream) (net.Conn, bool) {
 	if st.isEnded() {
 		return nil, false

@@ -61,13 +61,19 @@ func testPolicy(t testing.TB) *policy.Policy {
 // reset, and record how the stream ended. Only the first end counts, as
 // on a handoff.Stream. setPolicy runs the checks as a recompute does,
 // and resets the stream with policy-recomputed when one fails, and
-// AddCheck does when its check fails at once. The hand-off's own log
-// records aren't written.
+// AddCheck does when its check fails at once. SendWhileOpen checks the
+// end and sends under endMu, which end takes too, as on a
+// handoff.Stream. beforeSend, when set, runs as SendWhileOpen is
+// called, before its check. The hand-off's own log records aren't
+// written.
 type fakeCtl struct {
 	conn  net.Conn
 	ended chan string
 	done  chan struct{}
 	once  sync.Once
+	endMu sync.Mutex
+
+	beforeSend func()
 
 	mu     sync.Mutex
 	p      *policy.Policy
@@ -75,6 +81,8 @@ type fakeCtl struct {
 }
 
 func (c *fakeCtl) end(how string) bool {
+	c.endMu.Lock()
+	defer c.endMu.Unlock()
 	did := false
 	c.once.Do(func() {
 		did = true
@@ -93,6 +101,20 @@ func (c *fakeCtl) end(how string) bool {
 func (c *fakeCtl) Reset() bool           { return c.end("reset") }
 func (c *fakeCtl) Close() bool           { return c.end("close") }
 func (c *fakeCtl) Done() <-chan struct{} { return c.done }
+
+func (c *fakeCtl) SendWhileOpen(send func() error) error {
+	if c.beforeSend != nil {
+		c.beforeSend()
+	}
+	c.endMu.Lock()
+	defer c.endMu.Unlock()
+	select {
+	case <-c.done:
+		return handoff.ErrEnded
+	default:
+	}
+	return send()
+}
 
 // handoffReset ends the stream as a recompute or the socket's end does.
 func (c *fakeCtl) handoffReset() { c.end(handoffEnd) }

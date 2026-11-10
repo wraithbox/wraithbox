@@ -48,24 +48,23 @@ through the channel of `internal/platform/fdchan`, which refuses a
 record over 256 bytes or truncated (`fdchan-record-size`,
 `fdchan-control-truncated`) and two or more descriptors
 (`fdchan-fd-count`). It treats each record as untrusted input, because
-`wb-vmd` runs framework code on the guest's behalf, and refuses:
-
-- a record without a descriptor (`handoff-fd-count`);
-- a kind it doesn't know, or none (`handoff-kind`);
-- a guest connection that isn't an `AF_UNIX` stream socket
-  (`handoff-socket-type`);
-- a record that doesn't decode, or that has a field `HandoffMessage`
-  doesn't (`handoff-malformed`);
-- a guest connection of generation 0, or of another than the current
-  one (`handoff-generation`);
-- request ID 0, one that isn't open, or a destination port other than
-  the one that request asked for (`handoff-unexpected`);
-- a direction other than `DIRECTION_HOST_TO_GUEST` (`handoff-direction`);
-- a packet transport the current generation didn't ask for, or that
-  isn't an `AF_UNIX` datagram socket (`handoff-network-refused`).
-
+`wb-vmd` runs framework code on the guest's behalf, and refuses each
+case the comment on `HandoffMessage` lists with the rule it names there.
 A refused record ends the open request it names. A request of a newer
 generation ends every open request of the older one.
+
+Records go both ways on the channel. The receiver answers each record
+that decodes, accepted or refused, with a `HandoffAck` once `recvmsg`
+has returned. `wb-vmd` keeps its copy of each descriptor it sent until
+that acknowledgment, or for the connect timeout of 5 s at most, as
+S07-05-stream-hand-off ("Transport") asks. It checks each
+acknowledgment as input and refuses one of the wrong form
+(`handoff-ack-malformed`) or for a descriptor it doesn't keep
+(`handoff-ack-unexpected`). It logs a deadline that passes
+(`handoff-ack-timeout`), and a channel it can't read any more
+(`handoff-ack-channel-ended`), after which each kept copy closes at its
+deadline. `wb-hostd` logs an acknowledgment it can't send
+(`handoff-ack-send-failed`). `HandoffAck`'s comments list these rules.
 
 ### The host opens every connection
 
@@ -162,11 +161,11 @@ install is broken.
 
 ### Caps and closing
 
-- `wb-vmd` caps the connects it has started and not yet passed, at a
-  value in its code (8). Beyond it, `ConnectGuest` is refused with
-  `connect-cap`. A connect that timed out keeps its place until the
-  framework completes it, and the connection it then gets is closed
-  unused.
+- `wb-vmd` caps the connects it has started and whose connection it
+  hasn't closed, at a value in its code (8), so a passed connection
+  counts until `wb-vmd` closes its copy. Beyond the cap, `ConnectGuest`
+  is refused with `connect-cap`. A connect that timed out keeps its
+  place until the framework completes it, and its connection is closed.
 - `wb-hostd` caps live connections per VM (`guest-conn-cap-vm`) and per
   project (`guest-conn-cap-project`), and the connections it opens to
   one VM in a minute (`guest-reconnect-rate`,
@@ -175,10 +174,10 @@ install is broken.
 - Both log each refusal (SEC13-bounded-resources), `wb-hostd` at most
   once per rule per VM in a window, with the count it held back.
 - Every connection of a VM closes when its run ends, so before its
-  generation changes.
-- `wb-vmd` closes its copy of a descriptor once it has passed it, and
-  answers `ConnectGuest` only then. The passed descriptor keeps
-  working, also while `wb-vmd` is stopped.
+  generation changes. A copy `wb-vmd` keeps closes up to 5 s later.
+- `wb-vmd` answers `ConnectGuest` after it passed the descriptor, and
+  keeps its copy until `wb-hostd` holds it ("Hand-off on macOS"). The
+  descriptor then works while `wb-vmd` is stopped too.
 
 `ConnectGuest` also refuses, each with its rule: a guest port of 1024
 or more (`guest-port-not-reserved`), request ID 0 (`vm-request-id`), a

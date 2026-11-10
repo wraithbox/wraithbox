@@ -12,11 +12,11 @@ import (
 
 // Handle reads one message that arrived at arrival, decides it, and
 // sends its response with send: at once, or held until Hold after
-// arrival. A message that fails the form, and a refusal over the
-// held-query cap, get no response. Each decision is logged with its
-// rule, and each refusal and drop counted through Events
-// (S07-02-packet-path, "Events and rate limits", SEC10-audit). from
-// names the sender in the log.
+// arrival. A message that fails the form, a query over the query rate,
+// and a refusal over the held-query cap get no response. Each decision
+// is logged with its rule, and each refusal and drop counted through
+// Events (S07-02-packet-path, "Events and rate limits", SEC10-audit).
+// from names the sender in the log.
 func (r *Resolver) Handle(ctx context.Context, msg []byte, arrival time.Time, from string, send func([]byte)) Outcome {
 	src := slog.String("from", from)
 	q, err := ParseQuery(msg)

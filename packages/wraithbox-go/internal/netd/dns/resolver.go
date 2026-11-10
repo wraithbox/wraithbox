@@ -17,6 +17,7 @@ package dns
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"maps"
 	"net/netip"
@@ -39,6 +40,11 @@ const (
 	// "Wildcard budget"). They stop a flood, not normal use.
 	QueryRate  = 100
 	QueryBurst = 200
+	// MinHeldQueries is the smallest held-query cap New takes: one more
+	// than the queries the rate lets through in one hold, so a flood
+	// over the rate can't fill the table (S07-04-dns-refusals, "Hold
+	// limits", SEC13-bounded-resources).
+	MinHeldQueries = QueryBurst + QueryRate*int(Hold/time.Second) + 1
 	// ttl is the TTL of an A answer and of the SOA record of an allowed
 	// name's empty answers, in seconds: the pool's TTL (S07-03-dns,
 	// "Negative answers").
@@ -76,7 +82,7 @@ type Config struct {
 	// image.
 	Background []dnsname.Name
 	// HeldQueries bounds the held-query table. Zero means the default of
-	// netd.DefaultCaps.
+	// netd.DefaultCaps, and New refuses one below MinHeldQueries.
 	HeldQueries int
 	// Debited and DebitCount are the wildcard budget's state that
 	// wb-hostd kept for the active period (S04-07-supervision, "What a
@@ -120,8 +126,8 @@ func New(cfg Config) (*Resolver, error) {
 	if cfg.HeldQueries == 0 {
 		cfg.HeldQueries = netd.DefaultCaps().HeldQueries
 	}
-	if cfg.HeldQueries < 1 {
-		return nil, errors.New("dns: the held-query cap must be at least 1")
+	if cfg.HeldQueries < MinHeldQueries {
+		return nil, fmt.Errorf("dns: held-query cap %d is below %d, what the query rate lets through in one hold and one more", cfg.HeldQueries, MinHeldQueries)
 	}
 	r := &Resolver{
 		cfg:        cfg,
@@ -154,7 +160,9 @@ const (
 	// SendHeld: Hold after the query arrived, unless the held-query table is
 	// full, and then never.
 	SendHeld
-	// SendNever: the message is dropped without an answer.
+	// SendNever: the message is dropped without an answer. That is a
+	// message that fails the form, a query over the query rate, and a
+	// refusal over the held-query cap.
 	SendNever
 )
 
@@ -190,8 +198,8 @@ type Outcome struct {
 //  7. the class's refusal, or for an allowed name the answer for its
 //     type.
 //
-// Every refusal after step 1 is held and has the bytes of
-// Query.Refusal.
+// A query over the rate in step 2 is dropped without an answer. Every
+// refusal after step 2 is held and has the bytes of Query.Refusal.
 func (r *Resolver) Decide(ctx context.Context, q Query) Outcome {
 	typ := slog.String("type", TypeName(q.Type))
 	// S07-03-dns, "Local answers": matched on the raw last label, before
@@ -205,10 +213,13 @@ func (r *Resolver) Decide(ctx context.Context, q Query) Outcome {
 	}
 	// SEC13-bounded-resources: every query that isn't a local answer
 	// spends a token, a name that fails the form included, so a flood of
-	// bad names is refused with dns-query-rate like any other. The name
-	// is logged escaped, since it passed no check yet.
+	// bad names is dropped with dns-query-rate like any other. A query
+	// over the rate is dropped at once and isn't held, so a flood fills
+	// the held-query table only at the rate and leaves room for the
+	// names that raise an approval event (S07-04-dns-refusals, "Over the
+	// rate"). The name is logged escaped, since it passed no check yet.
 	if !r.rate.take(time.Now()) {
-		return refuse(q, netd.RuleDNSQueryRate, []slog.Attr{typ, slog.String("name", q.LogName())})
+		return Outcome{When: SendNever, Rule: netd.RuleDNSQueryRate, Attrs: []slog.Attr{typ, slog.String("name", q.LogName())}}
 	}
 	// SEC14-no-fake-approvals: a name that fails the form reaches no event
 	// and no other check.

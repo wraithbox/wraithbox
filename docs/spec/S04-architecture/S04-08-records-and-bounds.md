@@ -204,7 +204,7 @@ its limits before it merges.
 
 | Guest input | Process | Limits | Where |
 |---|---|---|---|
-| Host-guest socket connections | `wb-vmd`, `wb-hostd` | connections opened and not yet passed, connections per VM and per project, reconnects per minute | S04-02-vm-provider, "The VM provider passes descriptors, not bytes", S06-11-reconnect-and-recovery, "Reconnect" |
+| Host-guest socket connections | `wb-vmd`, `wb-hostd` | connections opened whose copy `wb-vmd` hasn't closed, a passed one until `wb-hostd` acknowledges it or 5 s pass, connections per VM and per project, reconnects per minute | S04-02-vm-provider, "The VM provider passes descriptors, not bytes", S06-11-reconnect-and-recovery, "Reconnect" |
 | RPCs from `wb-guestd`, with the guest requests multiplexed on them | `wb-hostd` | message size and streams per connection, set on whichever side `wb-hostd` is, client or server, and never left at the library default, requests per second per VM, entries in the reconnect session list, and for a debug shell 64 KiB per received message, 64 shells per VM and 16 frames after the shell's last one | values in code, S06-11-reconnect-and-recovery, "Reconnect", S06-08-projects-and-sessions, "Debug shells in V1-M2" |
 | The version `wb-guestd` reports | `wb-hostd` | 64 bytes, fixed form | "Version skew" |
 | The package list `wb-guestd` reports | `wb-hostd` | 16 names of at most 64 bytes, fixed form, refused with `guest-packages-form`, or `guest-packages-mismatch` when it isn't the host's own | "With `wb-guestd`" |
@@ -220,7 +220,7 @@ its limits before it merges.
 | Recovery pushes | `wb-hostd`, `wb-git` | one per lost session, to its own branch only, under the same limits as other pushes | S06-11-reconnect-and-recovery, "Recovery" |
 | Approval requests | `wb-netd`, `wb-hostd`, `wb-prover` | 16 pending requests and 10 new requests a minute per VM, one open request per name, prover runs at once | S09-10-approval-flow, and S09-09-approvals |
 | Native notifications | `wb-hostd` and the notification helper | one per pending approval request, one per daemon outage | S04-07-supervision, "Restarting a daemon", and S09-09-approvals |
-| Audit events | `wb-hostd` | a budget per class and per VM, refusals of new work instead of lost records, a byte budget per VM per day | S09-11-audit |
+| Audit events | `wb-hostd` | a budget per class and per VM, refusals of new work instead of lost records, a byte budget per VM per day, a cap of 4096 records the audit writer holds, queued or not yet synced, and no read of an event channel while the writer holds its cap or the last record's VM is past a budget by a margin. So the writer holds at most the cap, one record per channel, and the stop allowance: once a VM's stop begins, its `wb-netd` channel is read past the holds for at most 8192 records, one sender queue and as many again for the socket's buffer, and the records past that are left unread, the one exception to no lost record, logged with `event-stop-allowance` | S09-11-audit, "Telling the senders" |
 | Accounting and event records | `wb-hostd` | 4 KiB per record, fixed format, a malformed record ends the sender | "Accounting and event channels" |
 | Daemon log lines | `wb-hostd` | 100 lines per second per process, 4 KiB per line | "Logs and health" |
 

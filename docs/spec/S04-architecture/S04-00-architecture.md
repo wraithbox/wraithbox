@@ -127,7 +127,7 @@ The `.proto` files in `proto/` are the one contract for every language
 
 | File | Package | Holds |
 |---|---|---|
-| `proto/wraithbox/vmd/v1/vmd.proto` | `wraithbox.vmd.v1` | `VMService`, served by `wb-vmd` and called by `wb-hostd`, and `HandoffMessage`, the record of the hand-off channel |
+| `proto/wraithbox/vmd/v1/vmd.proto` | `wraithbox.vmd.v1` | `VMService`, served by `wb-vmd` and called by `wb-hostd`, and `HandoffMessage` and `HandoffAck`, the records of the hand-off channel |
 | `proto/wraithbox/guest/v1/guest.proto` | `wraithbox.guest.v1` | `GuestService`, served by `wb-guestd` and called by `wb-hostd`. Its `Shell` runs the terminal stream to the guest, and its `SetTime` sets the guest clock |
 | `proto/wraithbox/hostd/v1/hostd.proto` | `wraithbox.hostd.v1` | `HostService`, served by `wb-hostd` on its local IPC endpoint and called by `wb` |
 | `proto/wraithbox/hostd/v1/shell.proto` | `wraithbox.hostd.v1` | `ShellService`, served by `wb-hostd` on the same endpoint and called by `wb shell`, for the terminal stream |

@@ -1,0 +1,290 @@
+---
+title: "Campaign 720: network floor, lane mac"
+description: "Each socket hand-off between the host daemons keeps the sender's copy until the receiver holds it, wb-hostd holds back an audit event sender that ignores its budget, and four refusals get tighter."
+---
+
+**Ended 2026-11-10: The maintainer ended the campaign after wave 4, with the budget left: 7.8 of 12 hours and 119 of 240 dollars.** Train `train/720` in PR721. To veto a pull request on the train, comment `veto #<pr>` on PR721.
+
+## In short
+
+The train fixes a macOS 27 race in passing sockets on every hand-off between the host daemons and holds back an audit event sender that ignores its budget, with smaller fixes to four refusals and four flaky tests.
+
+- **`wb-vmd` keeps each socket it passes until `wb-hostd` acknowledges it.** On macOS 27 the kernel can collect a socket in flight once its sender has closed its copy, so a guest connection or the VM's network link could reach `wb-hostd` dead. `wb-hostd` now answers each hand-off record with a short acknowledgment, and `wb-vmd` checks it as untrusted input and closes its copy then, or after 5 s. It builds your decision on I648, and it hasn't run with a real VM yet.
+- **`wb-hostd` stops reading an audit event sender that ignores its budget.** A compromised `wb-netd` could send well-formed records without limit, and `wb-hostd` queued them all in memory. Now the sender's writes fail and it refuses new work, while `wb-hostd` keeps every record it sent. The audit spec names one exception at a VM stop, which **waits for your veto**. Your decision on I741 later replaces the budget hold with a stop of the VM.
+- **`wb-netd` keeps a handed-off stream's end until `wb-proxyd` holds it.** The same race on the stream path: `wb-netd` keeps its copy until `wb-proxyd`'s first byte or a reset, for 10 s at most. A stream that `wb-proxyd` closes without a byte gives the guest its FIN up to 10 s late. Resets after a failed guest write, a guest write timeout or a failed read from `wb-proxyd` now log a rule.
+- **The hand-off spec states the rule, and `wb-hostd` and `wb-proxyd` follow it.** A process that passes a socket keeps its copy until the receiver shows it holds it. `wb-proxyd` acknowledges a new hand-off socket before it reads it, and an early "socket closed" notice fails the VM's start instead of leaving the VM without a network. Your decisions on I728 and I729 make the next contract change.
+- **`wb-proxyd` sends a pass stream's ClientHello only while the stream is open.** The check and the write were two steps, so a reset between them could let the ClientHello out. The raw TCP relay keeps the same window, and no issue tracks it.
+- **`wb-netd` drops a DNS query over the rate at once.** Held rate refusals let a flood fill the table of held queries and push out names that should ask you for approval. It builds your decision on I566.
+- **`wb-netd` records a refusal before the guest sees it,** at seven places that reset first and logged after.
+- **`wb-proxyd` refuses a GitLab project id with an empty segment.** A trailing `%2F` was trimmed, and the write matched a project in the set.
+- **Flaky tests are fixed,** four of them, each by waiting for the event the test needs.
+
+Not merged: `wb-proxyd`'s strict HTTP/1.1 request reader from campaign 604, approved on 8 November, is open against the train, and no wave picked it again (PR613).
+
+## What needs you
+
+- **Merge the train, or veto parts of it.** The manager merged the last three changes after wave 4, under the run's standing approval: the stream end, the audit holds and the `wb-vmd` acknowledgment. The `wb-vmd` change was rebased onto the train after the merge of `main` and got a new code and security review. The audit holds' last two commits change only their new test and the host daemons' test plan, and got code review rounds 3 and 4 but no security re-check: its security approval names the commit before them. Veto any of them like the others. (PR746, PR740, PR747)
+- **The one lost record the audit spec now allows.** Once a VM's stop begins, `wb-hostd` reads its `wb-netd`'s channel past the holds for 8,192 records at most. A sender that keeps sending after that has the rest left unread, logged with `event-stop-allowance` in `wb-hostd`'s own log, and the audit spec names this as the one exception to "never drop records". Options: accept it, which the security review supports because such a sender can leave out any record anyway, or veto it and keep reading at a stop without a bound. The security review also recommends that `wb-hostd` write its own Detection Finding when this happens, in the next audit issue, which isn't filed. (S09-11-audit, SEC10-audit, PR740)
+- **Build I741 next.** You decided to count the audit margin per sender and stop the VM whose sender overruns it. The issue is ready for an agent and unblocked, and `wb-proxyd`'s start waits on it. Until then, the threat model's shared proxy entry describes the coupling the train leaves. A `wb-netd` that ignores its budget can hold `wb-proxyd`'s event channel until its budget turns, and with it the network of every VM. That sentence states the coupling ahead of your decision and isn't your acceptance. `wb-proxyd`'s event channel isn't attached yet. (T14-shared-proxyd, I741, I512)
+- **The HTTP/1.1 request reader beside the train.** Both reviews approved it and its checks passed on 8 November, against campaign 604's train. The manager changed its base to this train. Wave 3 picked from a snapshot taken before that change to I498, and no later wave picked it. Options: rebase it onto the train, where the one conflict is in the generated `github-refs.json`, and merge it after fresh checks and a re-check, or change its base to `main` after the train merges. (PR613, I498)
+- **A real VM run for the `wb-vmd` acknowledgment.** Both reviews of the `wb-vmd` change note that keeping the copy until the acknowledgment hasn't run against the macOS 27 socket collector with a real VM, and no issue has `needs-vm` for it. Options: file a `needs-vm` check for the dedicated Mac, or rely on the unit tests until the next issue that boots a VM. (PR747)
+- **A bisect gap in the `wb-vmd` change.** After the rebase, its commits before the last one don't build the Swift test target, because only the last adds the `provisioning:` argument that the merged `Install` work requires. A bisect that stops on one of them gets a compile error. The code review rates it drop, and fixing it means rewriting the train's history. (PR747)
+- **Triage** is due for I723, I724, I731, I742 and I751.
+- **Attended, on your second Mac, against `main`, not the train.** The planned queue: I504, I505 and I654 in parallel, I504 merging first so I505 rebases onto it, because both edit S15-02. Then I509 after I505, and I624 after I654, for that Mac's one VM slot. I504, I505 and I654 are merged into `main` (PR744, PR743, PR745). I509 and I624 are open against `main` (PR749, PR748).
+
+## What changed where
+
+![The components the train touches. On the host, wb-hostd changed in code to hold back an audit event sender that ignores its budget and to keep a hand-off socket until wb-proxyd acknowledges it. It also acknowledges each socket wb-vmd passes, and wb-vmd keeps its copy until then, for 5 seconds at most. wb-netd records a refusal before the reset and drops DNS queries over the rate at once. It keeps a stream's end until wb-proxyd's first byte. wb-proxyd acknowledges a hand-off socket before it reads it and sends a ClientHello upstream only while its stream is open. A strict HTTP/1.1 request reader for wb-proxyd is open beside the train. The guest processes and the upstream hosts are unchanged.](W720-network-floor-mac.svg)
+
+## The changes, largest first
+
+### `wb-proxyd` reads HTTP/1.1 request heads strictly, not merged
+
+*Code and spec, open beside the train. Security: a new parser of guest bytes in `wb-proxyd`, for default deny, repository writes and bounded resources (SEC05-default-deny, SEC06-repo-writes, SEC13-bounded-resources). 1,613 lines of Go added, 719 of them tests. 48 lines of spec and test plan added and 4 removed. Generated references left out.*
+
+**The question.** Inspected streams need a reader of HTTP/1.1 request heads that every policy step can trust, and the parts every HTTP version shares (I498).
+
+**What was built.** A new package, `internal/proxyd/httpreq`. `ReadRequest` reads a head under a 64 KiB cap and takes no byte past it. It checks the request form: origin or absolute form, userinfo dropped, and `Host` bound to the stream's name and port. `Canonicalize` reuses `match.CanonicalPath`. The path the rules match is then the path that goes upstream. A strict chunked decoder reads trailers within the cap and drops them. `Steps.Run` runs the seven request steps in the order the requests spec gives (S07-08-requests-and-credentials).
+
+| Rule | Refused when |
+|---|---|
+| `http-request-form`, 400 | two `Content-Length` fields even when they agree, an `Expect` other than one `100-continue`, a query with `#` or bytes outside visible ASCII, malformed userinfo, a field value with a byte over 0x7E |
+| `http-header-size`, 431 | the head passes 64 KiB |
+| `http-tunnel`, 403 | `CONNECT` in any case, or an `Upgrade` other than WebSocket, before any step runs |
+| `http-transfer-coding` | any coding but one `chunked`, `Transfer-Encoding` with `Content-Length` or on HTTP/1.0, a chunk framing error |
+| `http-path-form` | a path the canonical form refuses |
+| `http-step-missing`, 500 | the credential removal step or the HTTP policy step is missing |
+
+`FuzzHTTP1RequestHead`, `FuzzChunkedReader` and `FuzzCanonicalPath` cover it. The first two compare against Go's own HTTP reader and chunked decoder, and found a userinfo divergence that is now refused. In the second security round they ran 15.2 million and 3.0 million inputs with no failure, at 97.3 percent coverage.
+
+**Choices made, which you can veto:** path refusals use the existing `http-path-form`, as the spec says, and not `http-request-form`, as the issue said. A refusal's detail never repeats guest bytes or header names. `Expect` on HTTP/1.0 is ignored. The policy step is a plain step until the connection loop exists to test it against.
+
+**Not covered yet.** The connection loop that serves inspected streams, so nothing calls the reader yet: the header deadline, refusal answers, the upstream connection and keep-alive, the response step and WebSocket relay, body caps, and `Host` written upstream from the binding (I498). The second security review found that the reader deletes the fields a `Connection` header names before the audited credential step. So `Connection: Authorization` drops a credential with no removal log line. The credential never goes upstream, and the hardening goes with I500.
+
+### `wb-vmd` keeps a passed socket until `wb-hostd` acknowledges it
+
+*Code, spec and contract. Security: the hand-off channel between `wb-vmd` and `wb-hostd`, a trust boundary between host processes, which becomes two-way, for least privilege and bounded resources (SEC12-least-privilege, SEC13-bounded-resources). 1,174 lines of Swift and Go added, 588 of them tests, and 129 removed. 90 lines of proto added and 16 removed. 51 lines of spec and test plan added and 30 removed. 380 lines of generated code left out.*
+
+**The problem.** On macOS 27, the kernel's collector of sockets in flight can take a passed socket whose sender closed its copy, and the receiver gets it dead (I637). `wb-vmd` closed its copy of each guest connection and of the VM's network link right after it passed them to `wb-hostd`. The hand-off channel was one-way, so `wb-vmd` had no sign that `wb-hostd` held the socket. On 10 November you chose an acknowledgment on the same channel over a new call or field (I648).
+
+**What was built.**
+
+- `vmd.proto` gains `HandoffAck`: request ID, generation, kind, and whether the record was accepted, at most 256 bytes and never with a descriptor. `HandoffMessage`'s comment no longer calls the channel one-way, and lists each refusal with its rule.
+- `wb-hostd`'s receiver in `internal/platform/vmhandoff` answers each record it can decode, accepted or refused, after `recvmsg` returns and outside its lock, in one send that doesn't wait. A record that doesn't decode names nothing to answer, and its copy closes at the deadline.
+- `wb-vmd` sends through a new `HandoffKeeper.swift`, with the socket calls moved into `HandoffChannel.swift`. It keeps each copy until the matching acknowledgment or the 5 s connect timeout, keyed by kind, request ID and generation, and closes any descriptor that arrives on the channel.
+- A passed connection holds its place under `wb-vmd`'s connect cap of 8 until its copy closes. The cap then also bounds the copies kept (S04-02-vm-provider, S04-08-records-and-bounds).
+
+| Rule | Process | When |
+|---|---|---|
+| `handoff-ack-malformed` | `wb-vmd` | an acknowledgment of the wrong form, or one with a descriptor |
+| `handoff-ack-unexpected` | `wb-vmd` | an acknowledgment for a copy it doesn't keep |
+| `handoff-ack-timeout` | `wb-vmd` | 5 s passed with no acknowledgment, and the copy closes |
+| `handoff-ack-channel-ended` | `wb-vmd` | the channel can't be read any more, and kept copies close at their deadlines |
+| `handoff-ack-send-failed` | `wb-hostd` | the acknowledgment couldn't be sent |
+
+Go tests: `TestAckAccepted`, `TestAckRefused` and `TestAckSendFailed`, and `FuzzHandoffMessage` now also builds and decodes the answer. Swift `HandoffKeeperTests` covers the keep, the deadline, a late answer, 13 refused forms, and the walk over control data that closes stray descriptors. The security re-review flooded a scratch build with 4,000 bad acknowledgments: no kept copy closed early, and every passed descriptor was closed. The full Swift suite of 116 tests passed after the rebase.
+
+**Choices made, which you can veto:** either answer, accepted or refused, closes the copy, and `accepted` is only logged. A kept copy can close up to 5 s after its VM's run ends. Copies kept under one key close in the order they were sent. On darwin, closing only the other end of a pair of datagram sockets doesn't wake a read source, so `handoff-ack-channel-ended` is logged on a later failed receive, and the copies close at their deadlines meanwhile. The stream hand-off spec wasn't edited, because it already asks for the keep.
+
+**Reviews.** The first code review asked for one change: the VM provider spec said `HandoffAck`'s comment listed rules that it didn't. The code review approved in round 2, and the security review in round 1, with a re-check of its fixes. After `main` was merged into the train with the `Install` call (I654), the change conflicted in `vmd.proto` and the `wb-vmd` sources. The manager rebased it, and both reviews checked again that the provisioning and install paths pass no descriptor.
+
+**Not covered yet.** No run with a real VM and the real `wb-hostd` and `wb-vmd` pair. One malformed acknowledgment or one failed receive stops the reader until `wb-vmd` restarts, and every later hand-off then holds its cap place for 5 s (I751). The Go stand-in for `wb-vmd` that the Go tests use, `vmdfake`, still closes its copy right after the send.
+
+### `wb-hostd` stops reading an audit event sender that ignores its budget
+
+*Code and spec. Security: bounded resources and the audit, on the event channel from `wb-netd` into `wb-hostd` (SEC13-bounded-resources, SEC10-audit), and a new sentence in the threat model's shared proxy entry (T14-shared-proxyd). 1,347 lines of Go added, 952 of them tests, and 37 removed. 64 lines of spec and test plan added and 2 removed.*
+
+**The problem.** A compromised `wb-netd` could send well-formed audit records as fast as it liked and ignore every budget notice, and `wb-hostd` queued them all in memory (I541). You chose backpressure.
+
+**What was built.**
+
+- The audit writer in `internal/hostd/audit` caps the records it holds, queued or written but not yet synced, at 4,096, and syncs once it reaches the cap. `Room()` tells receivers when the writer is below the cap. Its own records, of VMs, sessions and approvals, never wait.
+- The event receiver in `internal/hostd/events` waits before each read while the writer holds its cap (`event-queue-full`), and while the last record's VM is past its records per minute plus 4,096, or its bytes per day plus 32 MiB (`event-budget-ignored`). The sender's writes then fail, and it refuses new work with `event-channel-blocked`. A hold is logged once, then at most once a second.
+- At a VM stop, `netdproc.Stop` calls `Stopping()` before it closes the control channel. The receiver then reads past both holds for an allowance of 8,192 records, one sender queue and as many again for the socket buffer. After `wb-netd` exits, `SenderGone()` wakes a waiting read and drains the rest, within the same allowance. The open runs that `wb-netd` flushes when it closes then go into the stop record, and a stop doesn't hang on a held channel.
+
+In total the writer holds at most the cap, one record per receiver, and the allowance of each VM that is stopping (S04-08-records-and-bounds, S09-11-audit).
+
+**Choices made, which you can veto:**
+
+- **The one lost record.** Records a sender sends past the stop allowance are left unread and logged with `event-stop-allowance`. The audit spec now names this as the one exception to "never drop records" ("What needs you").
+- The budget hold applies past the margin even when the notice didn't reach the sender. A sender can't escape it by leaving its notices unread.
+- The margins are one full sender queue of records and twice its bytes, room for the work admitted before the notice.
+- The queue hold ends once the writer has room, without a low-water mark, and the budget hold checks again once a second.
+
+**Tests.** `TestFloodHeldBack`, on a real socket pair: with the audit file taking no writes, the queue stays at its cap, and with it open, the receiver stops at exactly the test's budget plus the 4,096 margin. Every record sent ends up in the day file. `TestStopReadsPastAFullQueue` uses a stand-in `wb-netd` in `testdata/flood-netd` that fills its queue. `Stop` returns the open run in about 1 s, under its 2 s stop timeout, and fails without the `Stopping` call. `TestStopBoundsASenderThatIgnoresIt` runs the stand-in in a mode that ignores the stop and checks the drop is logged. The flood tests run on darwin only, because the socket pair has no Linux or Windows build yet, and `hold_test.go` covers the holds on every OS.
+
+**Reviews.** The first code review found that a stop on a held channel lost the open runs `wb-netd` flushes at its close, which the stop allowance fixed. The second round's new test failed on CI's macOS runner, because it relied on the drain racing the sender past the allowance. You chose one more fix round over dropping the commit: the test now kills the stand-in once it has written past the allowance, and passed 60 runs under the race detector. It took four code rounds and two security rounds.
+
+**Not covered yet.** A VM's budget counts the records of all its senders. A `wb-netd` that ignores its budget can then hold `wb-proxyd`'s channel until the budget turns, and with it the network of every VM. Stopping that VM can then end `wb-proxyd`, when a queued record names the stopped VM. Neither is reachable until `wb-proxyd`'s event channel is attached, and your decision on I741 replaces the budget hold with a stop of the VM. `wb-hostd` doesn't write a Detection Finding of its own when it leaves records unread or starts a budget hold. The accounting reader at a stop has no bound.
+
+### `wb-netd` keeps a handed-off stream's end until `wb-proxyd` holds it
+
+*Code and spec. Security: the stream hand-off between `wb-netd` and `wb-proxyd`, bounded resources and the audit (SEC13-bounded-resources, SEC10-audit). 331 lines of Go added, 181 of them tests, and 34 removed. 22 lines of spec added and 22 removed.*
+
+**The problem.** The same race on the stream path: `wb-netd` closed its copy of each stream's socket right after it passed it to `wb-proxyd` (I647).
+
+**What was built.** In `internal/netd/handoff/stream.go`, a stream keeps its copy after the send and releases it once: on `wb-proxyd`'s first byte, on a `StreamReset` for the stream, at a 10 s deadline, or when the hand-off returns. The deadline is logged as a routine note, `stream-hold-expired` with `decision=release-copy`, and no contract changes. The resets after a failed guest write, a guest write timeout and a failed read from `wb-proxyd` weren't recorded before and get new rules, and each of the four reset rules is recorded once and before the guest sees it, so only the path that resets a stream first logs it:
+
+| Rule | Reset when |
+|---|---|
+| `stream-reset` | `wb-proxyd` sent a `StreamReset` for the stream |
+| `proxyd-stream-read-failed` | a read from `wb-proxyd`'s side fails, and no `StreamReset` came first |
+| `guest-write-timeout` | the guest takes no bytes for 60 s |
+| `guest-write-failed` | a write to the guest fails |
+
+**Choices made, which you can veto:**
+
+- The deadline is 10 s, like `wb-hostd`'s wait for `wb-proxyd`'s acknowledgment, counted from when the send returned.
+- At the deadline `wb-netd` only closes its copy. A reset would break streams where the client speaks first and the upstream answers slowly. So a stream that `wb-proxyd` closes without a byte, or drops for a full descriptor table, gives the guest its FIN up to 10 s late.
+- A held stream costs two descriptors instead of one, at most 2,048 under the cap of 1,024 streams.
+- To keep the stream hand-off spec under 300 lines, two older paragraphs of "Transport" were shortened, and the ordering test's queue depths are now only in the host daemons' test plan. Both reviewers checked that nothing the spec must state was lost. The `wb-vmd` change was to edit this section, and the wave lead moved the edit here at both reviewers' request (S07-05-stream-hand-off, C11-host-daemons).
+
+**Reviews.** The first security review found that `guest-write-timeout` never fired in production, because gVisor's network stack returns a timeout error of its own type, and reproduced it with a real connection. The first code review asked for the deadline in the spec. Both were fixed, and both second rounds approved.
+
+**Not covered yet.** The stream rules go through the hand-off sender's recorder, which has no audit events, so they reach `wb-netd`'s log and counts but not the audit log (I730). The timeout test uses a copy of gVisor's error type, so a gVisor update that changes it could send timeouts back to `guest-write-failed` with the test still passing. No run against the macOS 27 collector itself or a real `wb-proxyd`.
+
+### The hand-off spec states the keep, and `wb-hostd` and `wb-proxyd` follow it
+
+*Code, spec and contract comments. Security: the control channel between `wb-hostd` and `wb-proxyd`, project isolation and the audit (SEC08-proj-isolation, SEC10-audit). 275 lines of Go added, 128 of them tests, and 34 removed. 8 lines of proto comments added and 4 removed. 29 lines of spec added and 23 removed.*
+
+**The problem.** `wb-hostd` closed its copy of `wb-proxyd`'s end of each hand-off socket at once. `wb-proxyd` started reading a new socket before it acknowledged it, so its "socket closed" notice could come before the acknowledgment. `wb-hostd` dropped such a notice as stale. The VM was left without a network, and the audit blamed an honest `wb-netd` (I637).
+
+**What was built.**
+
+- The stream hand-off spec's "Transport" now says that a process that passes a socket in a message keeps its copy until an acknowledgment, or the receiver's first record or byte on the socket, shows the receiver holds it. Pipes and descriptors inherited at spawn are exempt. The VM provider spec and a dated note under the spike's condition 4 drop "close at once" for `wb-vmd` (S07-05-stream-hand-off, S04-02-vm-provider, X18-vsock-handoff).
+- `Proxyd.Handoff` in `wb-hostd` keeps `wb-proxyd`'s end until the acknowledgment or the end of its 10 s wait. `wb-proxyd` sends `HandoffSocketAck` before it reads the socket.
+- A notice for a socket a `Handoff` waits on fails that wait with `proxyd-setup-failed`, check `handoff-closed`. A notice while no `wb-netd` runs marks the socket ended, logged as `name-report-malformed` with `decision=mark-ended`, and a new `Proxyd.Confirm` then fails the start. `Confirm` refuses with the checks `vm-not-started`, `handoff-not-served` and `handoff-closed`.
+
+**Choices made, which you can veto:** the rule is stated as a property, so each later hop could pick its own sign, as the stream and `wb-vmd` changes did. An early notice fails the start but doesn't end `wb-proxyd`, so it costs no other VM its network. A notice for a generation that a `Handoff` waits on is taken as the new socket's, the strict reading, until a per-socket number exists.
+
+**Not covered yet.** Only tests call `Confirm` until the session wiring (I490). The security review's two medium findings became your decisions of 10 November, to be built as one `control.proto` change: a per-socket number, so an old socket's notice can't be taken for its replacement's, and an acknowledgment from `wb-netd` for its end (I728, with I729). Daemon restarts, the session wiring and `wb-proxyd`'s start wait on that issue, which is ready for an agent (I480, I490, I512).
+
+### `wb-proxyd` sends a pass stream's ClientHello only while the stream is open
+
+*Code and test plan. Security: default deny on the hand-off boundary into `wb-proxyd` (SEC05-default-deny). 315 lines of Go added, 216 of them tests, and 17 removed. 7 lines of test plan added and 1 removed.*
+
+**The problem.** A pass stream that the policy reset just after its upstream connection opened could still send its ClientHello upstream, because the check that the stream was open and the write were two steps (I598).
+
+**What was built.** `handoff.Stream.SendWhileOpen` runs the send under the lock that ends a stream. A reset comes either before the check, and nothing is sent or logged as allowed, or after the write returns. `pass-allowed` is logged in the same step. Every end of the stream now waits for that write, so a new `FirstSendTimeout` of 5 s bounds it, and a write that hits it ends the relay with `end=first-send-timeout`. `TestC02ResetBeforeHelloSend` hits the window with no timing, and the security review saw it fail 3 times of 3 against the old order. `TestC02FirstSendTimeout` sees the deadline fire (C02-streams-and-tls).
+
+**Choices made, which you can veto:** the lock is in `handoff.Stream`, because a lock in the stream package couldn't order the send against a reset from a policy recompute or a closed socket.
+
+**Not covered yet.** The raw TCP relay still logs `raw-tcp-allowed` and can forward guest bytes it already read after a reset that comes past the dial check, with no issue. The inspect path has no upstream send yet, and the same rule goes to it (I498). The 5 s bound is per stream, and ends run one after another.
+
+### `wb-netd` drops a DNS query over the rate at once
+
+*Code and spec. Security: bounded resources on the DNS path from the guest, with a spec decision (SEC13-bounded-resources, T11-shared-vm-grants). 160 lines of Go added, 132 of them tests, and 22 removed. 74 lines of spec and test plan added and 20 removed, in four pages.*
+
+**The question.** Should the refusal of a query over the rate be held for 4 s like the others? Held rate refusals let a flood fill the table of held queries, and the queries that didn't fit were dropped, names that should ask you for approval among them. You chose to drop a query over the rate at once (I566).
+
+**What was built.** `Decide` returns `SendNever` with `dns-query-rate` before anything that can debit, so the query is dropped, counted in runs per rule, and never held or raised as an event. `dns.New` refuses a held-query cap below 601: the burst of 200, plus 100 a second for the 4 s hold, plus one. `TestRateFloodLeavesHoldRoom` sends 20 times the rate for a whole hold at that smallest cap. The table never reaches `dns-hold-full`, and a name that isn't allowed still raises an approval event afterwards. It and `TestRateDrops` fail against the old code. The DNS refusals spec gains "Over the rate" and the decision, and the packet path spec counts the drops in runs per rule (S07-04-dns-refusals, S07-02-packet-path, S07-03-dns).
+
+**Choices made, which you can veto:** over DNS over TCP, which isn't built, a rate drop closes the connection only when the connection has no query held. A rate drop then never evicts a held query (I487). The guest can tell a rate drop from the other refusals, which shows it only its own query rate. A rerun of a held query over the rate keeps its bytes and its timer.
+
+**Not covered yet.** The minimum cap leaves one entry of margin, and assumes the hold timers fire on time. `netd.Caps.Validate` still accepts a cap from 1 to 600, and the configured cap isn't passed to the resolver. No configuration sets the cap yet, and the reviews leave both to the issue that wires it, which isn't filed.
+
+### `wb-netd` records a refusal before the guest sees it
+
+*Code. Security: the audit (SEC10-audit). 113 lines of Go added, 78 of them tests, and 14 removed.*
+
+In seven places, `wb-netd` sent the guest a reset or a close first and recorded the decision after. A test that read the count once the guest saw the refusal could read it too early, which made `TestSyntheticPool` and others flaky (I569). Each place now records first: the SYN refusals, `tcp-handshake-failed`, the `tcp-cap` abort, `handoff-send-failed`, `handoff-socket-ended`, the closes of unmapped synthetic addresses, and the refusal of a hand-off socket on the control channel. The first code review found that the end of a hand-off socket set its flag before the note, so a stream could reset its guest first, and a stream's reset now waits for the note. `TestHandshakeFailed` checks the order on one path. **Choices you can veto:** the reset sent to a SYN after the stop began isn't recorded, as part of shutdown, and the DNS resolver still records a held refusal after it adds the query to the hold.
+
+### `wb-proxyd` refuses a GitLab project id with an empty segment
+
+*Code and spec. Security: repository writes, on request paths from the guest (SEC06-repo-writes). 26 lines of Go added, 20 of them tests, and 1 removed. 3 lines of spec added and 1 removed.*
+
+The proxy reads which repository a GitLab API write names from the project id, which spells each `/` as `%2F`. A trailing `%2F` was trimmed, so the write matched a project in the set, and the fuzz test's oracle saw another project (I577). Now an id with any empty segment, leading, trailing or doubled, doesn't name a repository, and the write is refused with `git-write-outside-project-set`, as the requests spec now says (S07-19-request-decisions). Test rows cover nine forms, and the fuzz input is a seed. **Choice you can veto:** `.` and `..` segments are left alone, since they can't match a key of the project set.
+
+### The flaky tests
+
+*Test code only, four tests: 121 lines added and 34 removed in six test files. Not a security change.*
+
+- `TestAnswerFails`, on `wb-netd`'s address pool, now runs on a simulated clock, so the pool's 100 ms timeout always fires first. A new `TestReleaseSlow` covers a release acknowledged too late (PR733, I589).
+- `TestShellOpenHeld`, on `wb-hostd`'s debug shell, closed the shell registry before the handler's end started the kill. It now reads the stream to its end and checks the code it ends with. The server's order stays, because no spec asks for the kill before the failure frame (PR734, I634).
+- Two `wb-vmd` tests of a failed send closed `wb-hostd`'s end and expected the next send to fail, but a process spawned in parallel briefly holds a copy of every descriptor. They now wait until the close shows (PR725, I580).
+- `TestDialerRefusesSecondCall`, on the guest link, took gRPC's connecting state for the drop it waited for, and now waits through it. The investigation behind it sorted the 15 flaky runs of the week of 26 October by cause and filed the rest (PR726, I547, I723, I724).
+
+## Review findings not resolved
+
+The must-fix findings were fixed before merge. These remain.
+
+**Security, most serious first:**
+
+- **Hand-off notices can't tell a replacement socket from the one it replaces.** After a `wb-netd` restart, the old socket's notice can fail the replacement's start or end the new `wb-netd`, and one malformed record from a compromised `wb-netd` can fail every later restart of that VM. Medium, fails closed, and not reachable until daemon restarts exist (I728).
+- **`wb-netd` can't acknowledge its end of the hand-off socket,** so "start the VM only after `wb-netd` holds its end" has no sign to wait for, and a sender that closes that end at once would bring the race back on that leg. Medium (I728, with I729).
+- **One VM's audit budget can hold `wb-proxyd`'s shared event channel** until the minute or the day turns, and with it the network of every VM. Stopping that VM can end `wb-proxyd`. Medium, not reachable until `wb-proxyd`'s event channel is attached (I741).
+- **The hand-off sender's refusals never reach the audit log.** `handoff-send-failed`, `stream-reset` and the stream rules of this train reach only `wb-netd`'s log and counts. A guest that opens connections faster than `wb-proxyd` reads them gets resets the audit never shows. Medium (I730).
+- **The raw TCP relay can forward guest bytes after a late reset** and still log `raw-tcp-allowed`, the window the train closed for pass streams. From the code review, with no issue.
+- **No audit mark where a sender showed itself compromised.** `wb-hostd` doesn't write a Detection Finding when it leaves records unread past the stop allowance or starts a budget hold, so the audit log has an unmarked gap. Low, with no issue.
+- **The accounting reader can hang a VM stop.** It reads to end of file, unbounded and with nothing to wake it, so a process that still holds `wb-netd`'s accounting socket after the kill hangs the stop. Low, and not reachable while `wb-netd`'s sandbox profile denies fork, which no test checks. No issue tracks it.
+- **One bad acknowledgment stops `wb-vmd`'s reader until it restarts,** and every later hand-off then holds a connect cap place for 5 s, which caps the VM's connection rate, and the stop isn't logged. The comment on `connectGuest` still describes the old order and invites the race back. Low (I751).
+- **A late call can count as on time.** Four `wb-netd` places decide lateness from the context after the call, so a write that returns after its 100 ms bound, before the timer fires, passes. Low (I736).
+- **The inspect path's first upstream send** needs the same one-step check once built, or a reset between the dial and the TLS handshake lets `wb-proxyd`'s own ClientHello out. Low, commented on I498.
+- **`repoKey` trims repository paths from requests as it does policy input,** so a later request parser could match the project set through a trailing `/` or `.git/`. Low, because today every parser refuses those forms first (I737).
+- **The `guest-write-timeout` test uses a copy of gVisor's error type,** so a gVisor update could route timeouts to `guest-write-failed` unnoticed. Low, with no issue.
+- **An established relay forwards bytes already in flight** for microseconds after its stream ends. No spec promises otherwise. The security review rated it drop and leaves it to you: closing the upstream when the stream ends would need a spec sentence.
+
+**Code and docs, which reviewers marked as optional:**
+
+- The held-query minimum leaves one entry of margin, and `netd.Caps.Validate` accepts caps the resolver refuses. Both are for the issue that wires the cap.
+- The audit holds' stand-in repeats the test's allowance and slack, so changing one alone could make the test flaky again. Go's tools skip `testdata/`, so the stand-in isn't linted. The kill at the stop timeout is no longer tested with a sender still writing, and a failure message prints the allowance without the slack.
+- The stream hold's timer stays armed after an early release, and its callback then does nothing. The spec's "only the path that resets first logs it" can read as if every reset is logged.
+- Only one of the seven places that now record first has a test of the order.
+- `TestDecideStreamDuringSend` stays on the wall clock, and the shell test's final read has no deadline.
+
+## Friction
+
+- **The report page broke the train's Docs check twice.** The manager's report commit `2dbafa66` had `xcode` in lower case, fixed in `e8582f2e`, and a short plural of "acknowledgment" that cspell rejects, fixed in `36e01d9e`. Wave 4's two pull requests were approved and mergeable but failed Docs on that page, so wave 4 merged nothing.
+- **`main` broke the train's checks twice.** The train's run at `36e01d9e` failed Docs on `main`'s S04-03-self-sandboxing at 304 lines, over the 300-line limit, from your attended run. Then the `Install` call on `main` made buf's breaking check fail every train pull request, until the manager merged `main` into the train at `eda987c9`.
+- **Closes and reopens for fresh checks.** A rerun reuses the old merge ref, so each open pull request needed a close and reopen for fresh checks: three for PR740 and two each for PR746 and PR747. Nine CI runs on those three failed on causes outside them.
+- **A rebase after the merge of `main`.** PR747 conflicted with I654's changes, and the manager rebased it onto the train at `876675c3`, with one more commit to add the `provisioning:` argument to the keeper tests. It got a new code and security review, and the bisect gap comes from it.
+- **PR740 ran out of rounds.** Its second round's new test depended on timing and failed on CI's macOS runner (run 42853548938), so the wave left it open, and you chose one more fix round.
+- **Hand work outside the waves.** PR740's fix round (`58cbad59`, `738557c8`) with code review rounds 3 and 4, and PR747's rebase with its two reviews, ran in the manager's session. The ledger's $118.60 for the four waves leaves out their spend. The manager also merged PR746, PR740 and PR747 after wave 4.
+- **Security reviews skipped, then run.** In wave 2 the manager's prompt to the lead wrongly said test-only changes could skip the security review, so PR733 and PR734 first went up for merge without one. Both were reviewed before they merged.
+- **A stale pick.** Wave 3 picked from a snapshot taken before the manager's changes to I498 and I648 between waves, so it skipped I648 as undecided and didn't pick PR613. Wave 4 built I648.
+- **Flaky tests and reruns.** In wave 1, two jobs on PR727 were rerun and passed: `TestShellOpenHeld` on macOS (I634, fixed by PR734) and `TestSyntheticPool` on Windows (I569, fixed by PR722). There were no unrecorded reruns on the train or its pull requests. The campaign filed flaky test issues: `TestChildServes` fails with a connection reset (I731), a Go module download timed out in `go:lint` (I723), a fuzz smoke shard hung for 26 minutes with no deadline (I724), and `TestProcessShimKilled` fails under load (I742).
+- **Review rounds.** 20 code reviews, 13 security reviews and 10 re-checks for 12 pull requests, with 7 must-fix findings, all fixed. The first code review approved 7 of the 12. PR740 took four code rounds, PR722, PR739 and PR746 two each, and PR747 two and a review of its rebase.
+
+## The run
+
+<details>
+<summary>Budget, pull requests, and waves</summary>
+
+Campaign I720, started 2026-11-10 12:34 UTC. Rendered by `scripts/campaign.mjs` (docs/agents/campaigns.md), with the body above from the `train-reporter` agent.
+
+| Limit | Spent | Of |
+|---|---|---|
+| Hours | 8.1 | 12 |
+| Dollars | $118.60 | $240.00 |
+| Issues | 12 | 50 |
+| Pull requests | 12 | 50 |
+
+| Pull request | Closes | Title | Where | Rounds | Specs and contracts | Files |
+|---|---|---|---|---|---|---|
+| PR722 | I569 | fix(netd): record a refusal before the guest can see it | on the train | 2 | none | 6 |
+| PR725 | I580 | test(swift): wait for wb-hostd's close before the hand-off send fails | on the train | 1 | none | 3 |
+| PR726 | I547 | test(guestlink): wait through CONNECTING before the drop in TestDialerRefusesSecondCall | on the train | 1 | none | 1 |
+| PR727 | I637 | fix(hostd): keep a passed hand-off socket until wb-proxyd holds it | on the train | 1 | S04-02, S07-05, `control.proto` | 14 |
+| PR733 | I589 | test(netd): decide TestAnswerFails slow cases with a synctest clock | on the train | 1 | none | 1 |
+| PR734 | I634 | test(hostd): TestShellOpenHeld waits for the handler's end before the kills | on the train | 1 | none | 1 |
+| PR735 | I577 | fix(proxyd): refuse a GitLab project id with an empty segment | on the train | 1 | S07-19 | 5 |
+| PR738 | I598 | fix(proxyd): check a pass stream's end in one step with its ClientHello send | on the train | 1 | none | 8 |
+| PR739 | I566 | feat(netd): drop DNS queries over the rate at once, not held | on the train | 2 | S07-02, S07-03, S07-04 | 9 |
+| PR740 | I541 | feat(hostd): hold back an event sender that ignores its budget | on the train | 4 | S04-08, S09-11 | 16 |
+| PR746 | I647 | fix(netd): keep a handed-off stream's end open until wb-proxyd holds it | on the train | 2 | S07-05 | 7 |
+| PR747 | I648 | fix(vmd): keep a passed descriptor until wb-hostd acknowledges it | on the train | 2 | S04, S04-02, S04-08, `vmd.proto` | 23 |
+
+- First code review approved: 7 of 12 pull requests.
+- Code review rounds per reviewed pull request: 1.6.
+- Follow-ups filed: 8.
+- Flaky tests filed: I731, I723, I724, I742.
+- The campaign manager's own session isn't metered. The 5 percent reserve of the dollar limit pays for it.
+
+| Wave | Length | Cost | Issues | Pull requests | Session ended |
+|---|---|---|---|---|---|
+| 1 | 76 min | $27.04 | 4 | 4 | success |
+| 2 | 74 min | $19.31 | 4 | 3 | success |
+| 3 | 121 min | $42.80 | 3 | 3 | success |
+| 4 | 72 min | $29.46 | 2 | 2 | success |
+
+</details>

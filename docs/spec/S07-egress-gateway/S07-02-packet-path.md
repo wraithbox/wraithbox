@@ -99,7 +99,8 @@ Every class of event the guest can trigger is rate-limited per rule.
 In `wb-netd` these are:
 
 - link filter drops and DHCP findings;
-- DNS refusals, and queries dropped with `dns-hold-full`;
+- DNS refusals, and queries dropped with `dns-hold-full` or
+  `dns-query-rate`;
 - approval events;
 - `handoff-send-failed`;
 - the build VM's `build-egress-refused` (S07-18-build-network).

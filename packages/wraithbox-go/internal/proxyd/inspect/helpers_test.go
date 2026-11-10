@@ -150,6 +150,7 @@ func (c *fakeCtl) Reset() bool { return c.end("reset") }
 
 func (c *fakeCtl) Close() bool                                                   { return c.end("close") }
 func (c *fakeCtl) Done() <-chan struct{}                                         { return c.done }
+func (c *fakeCtl) SendWhileOpen(send func() error) error                         { return send() }
 func (c *fakeCtl) AddCheck(func(*policy.Policy) egressmsg.Check) egressmsg.Check { return "" }
 func (c *fakeCtl) Policy() *policy.Policy                                        { return c.p }
 

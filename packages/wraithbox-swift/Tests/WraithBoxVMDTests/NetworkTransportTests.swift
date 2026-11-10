@@ -185,7 +185,11 @@ struct NetworkHandoffTests {
     @Test("a record that can't be sent refuses the start with handoff-send-failed")
     func sendFailed() async throws {
         let fixture = try ServiceFixture()
-        fixture.closeHostEnd()
+        // wb-vmd's end sees wb-hostd's close before the start, so the
+        // send fails whatever else the test process runs.
+        try #require(
+            await fixture.closeHostEnd(),
+            "wb-vmd's end did not see wb-hostd's close within 2 s")
         await #expect {
             try await fixture.supervisor.start(
                 generation: 1, cpuCount: 2, memoryMiB: 1024, macAddress: testMAC,

@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -17,6 +18,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/eventchan"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/audit/audittest"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/egress"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/hostd/events"
@@ -76,20 +79,42 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-// buildNetd builds wb-netd stamped with nt.Own, once per test binary.
-var buildNetd = sync.OnceValues(func() (string, error) {
+// makeBuildDir makes buildDir, once per test binary.
+var makeBuildDir = sync.OnceValues(func() (string, error) {
 	dir, err := os.MkdirTemp("", "netdproc")
+	buildDir = dir
+	return dir, err
+})
+
+// build builds the command in pkg as name, stamped with nt.Own, and with
+// each of set as a -X flag of the linker.
+func build(pkg, name string, set ...string) (string, error) {
+	dir, err := makeBuildDir()
 	if err != nil {
 		return "", err
 	}
-	buildDir = dir
-	out := filepath.Join(dir, "wb-netd")
-	cmd := exec.Command("go", "build", "-ldflags=-X "+version.StampVar+"="+nt.Own, "-o", out, "../../../cmd/wb-netd")
+	out := filepath.Join(dir, name)
+	ldflags := "-X " + version.StampVar + "=" + nt.Own
+	for _, v := range set {
+		ldflags += " -X " + v
+	}
+	cmd := exec.CommandContext(context.Background(), "go", "build", "-ldflags="+ldflags, "-o", out, pkg)
 	if b, err := cmd.CombinedOutput(); err != nil {
 		return "", errors.New(string(b))
 	}
 	return out, nil
-})
+}
+
+// buildNetd builds wb-netd, buildFlood testdata/flood-netd, and
+// buildIgnoreStop flood-netd in the mode that ignores the stop, once per
+// test binary.
+var (
+	buildNetd       = sync.OnceValues(func() (string, error) { return build("../../../cmd/wb-netd", "wb-netd") })
+	buildFlood      = sync.OnceValues(func() (string, error) { return build("./testdata/flood-netd", "flood-netd") })
+	buildIgnoreStop = sync.OnceValues(func() (string, error) {
+		return build("./testdata/flood-netd", "flood-netd-ignore-stop", "main.mode=ignore-stop")
+	})
+)
 
 type setup struct {
 	starter *netdproc.Starter
@@ -269,7 +294,13 @@ func TestLink(t *testing.T) {
 
 func waitFor(t *testing.T, b *syncBuffer, s string) {
 	t.Helper()
-	deadline := time.Now().Add(5 * time.Second)
+	waitWithin(t, b, s, 5*time.Second)
+}
+
+// waitWithin waits until b holds s, and fails the test after d.
+func waitWithin(t *testing.T, b *syncBuffer, s string, d time.Duration) {
+	t.Helper()
+	deadline := time.Now().Add(d)
 	for !strings.Contains(b.String(), s) {
 		if time.Now().After(deadline) {
 			t.Fatalf("no %q in\n%s", s, b)
@@ -287,14 +318,9 @@ func (s *setup) start(ctx context.Context, slot vm.Slot, generation uint64, mac 
 	return prep.Start(ctx, t)
 }
 
-// A wb-netd that doesn't exit once its control channel closed, here a
-// stopped one, is killed after StopTimeout with netd-stop-timeout.
-func TestNetdStopTimeoutKills(t *testing.T) {
-	s := newSetup(t, netd(t), func(c *netdproc.Config) { c.StopTimeout = 100 * time.Millisecond })
-	run, err := s.start(t.Context(), vm.SlotWork, 1, guestMAC, s.t)
-	if err != nil {
-		t.Fatalf("start: %v\n%s", err, s.netdLog)
-	}
+// pid is the process ID of the wb-netd that started, from the log.
+func (s *setup) pid(t *testing.T) int {
+	t.Helper()
 	m := regexp.MustCompile(`"msg":"wb-netd started".*"pid":(\d+)`).FindStringSubmatch(s.log.String())
 	if m == nil {
 		t.Fatalf("no pid logged\n%s", s.log)
@@ -303,12 +329,130 @@ func TestNetdStopTimeoutKills(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := syscall.Kill(pid, syscall.SIGSTOP); err != nil {
+	return pid
+}
+
+// A wb-netd that doesn't exit once its control channel closed, here a
+// stopped one, is killed after StopTimeout with netd-stop-timeout.
+func TestNetdStopTimeoutKills(t *testing.T) {
+	s := newSetup(t, netd(t), func(c *netdproc.Config) { c.StopTimeout = 100 * time.Millisecond })
+	run, err := s.start(t.Context(), vm.SlotWork, 1, guestMAC, s.t)
+	if err != nil {
+		t.Fatalf("start: %v\n%s", err, s.netdLog)
+	}
+	if err := syscall.Kill(s.pid(t), syscall.SIGSTOP); err != nil {
 		t.Fatal(err)
 	}
 	_ = run.Stop()
 	<-run.Exited()
 	if !strings.Contains(s.log.String(), `"rule":"netd-stop-timeout","decision":"kill"`) {
 		t.Errorf("the kill isn't logged\n%s", s.log)
+	}
+}
+
+// fullLog is an audit writer that holds its cap of records for good, as
+// one whose disk is slow or whose writes fail.
+type fullLog struct{ *audittest.Recorder }
+
+func (fullLog) Room() <-chan struct{} { return make(chan struct{}) }
+
+// TestStopReadsPastAFullQueue is S04-08-records-and-bounds, "Host work
+// the guest can cause": a wb-netd whose event channel is full while the
+// audit writer holds its cap still hands its open runs to the stop. The
+// stop lets the receiver read past its hold, so wb-netd's close drops no
+// record, and the stop doesn't wait for StopTimeout.
+func TestStopReadsPastAFullQueue(t *testing.T) {
+	const stopTimeout = 2 * time.Second
+	flood, err := buildFlood()
+	if err != nil {
+		t.Fatalf("build flood-netd: %v", err)
+	}
+	s := newSetup(t, flood, func(c *netdproc.Config) {
+		c.Events = events.NewHub(fullLog{&audittest.Recorder{}}, c.Log)
+		c.StopTimeout = stopTimeout
+	})
+	run, err := s.start(t.Context(), vm.SlotWork, 1, guestMAC, s.t)
+	if err != nil {
+		t.Fatalf("start: %v\n%s\n%s", err, s.log, s.netdLog)
+	}
+	waitFor(t, s.netdLog, "flood-netd blocked")
+	began := time.Now()
+	runs := run.Stop()
+	if took := time.Since(began); took >= stopTimeout || strings.Contains(s.log.String(), "netd-stop-timeout") {
+		t.Errorf("the stop took %s\n%s", took, s.log)
+	}
+	if !slices.ContainsFunc(runs, func(r audit.OpenRun) bool { return r.Rule == "frame-ethertype" }) {
+		t.Errorf("open runs %+v, want frame-ethertype", runs)
+	}
+	if strings.Contains(s.netdLog.String(), "event records not written at close") {
+		t.Errorf("flood-netd dropped records\n%s", s.netdLog)
+	}
+}
+
+// TestStopBoundsASenderThatIgnoresIt is S09-11-audit, "Telling the
+// senders": a wb-netd that keeps sending after its control channel
+// closed gets no more than the stop allowance read past the hold. Once
+// it has written past the allowance it is killed, the receiver logs the
+// records past the allowance with event-stop-allowance, and the stop
+// returns. The test kills it, not the stop at StopTimeout, so the
+// outcome doesn't depend on how fast it writes: TestNetdStopTimeoutKills
+// covers the stop's kill.
+func TestStopBoundsASenderThatIgnoresIt(t *testing.T) {
+	// The stop's own kill must not come first. The wait for the sender
+	// fails the test before it does.
+	const stopTimeout, waitSender = 2 * time.Minute, time.Minute
+	// The allowance is events.stopAllowance. The slack is the records
+	// read before the hold began, as flood-netd's pastAllowance counts.
+	const allowance, slack = 2 * eventchan.DefaultQueueCap, 2
+	program, err := buildIgnoreStop()
+	if err != nil {
+		t.Fatalf("build flood-netd: %v", err)
+	}
+	rec := &audittest.Recorder{}
+	s := newSetup(t, program, func(c *netdproc.Config) {
+		c.Events = events.NewHub(fullLog{rec}, c.Log)
+		c.StopTimeout = stopTimeout
+	})
+	run, err := s.start(t.Context(), vm.SlotWork, 1, guestMAC, s.t)
+	if err != nil {
+		t.Fatalf("start: %v\n%s\n%s", err, s.log, s.netdLog)
+	}
+	waitFor(t, s.netdLog, "flood-netd blocked")
+	pid := s.pid(t)
+	// A failed wait leaves the stand-in running until the backstop, so
+	// the cleanup kills it. Once it has exited it is reaped and its pid
+	// may belong to another process, so the cleanup leaves it alone, and
+	// a kill that finds it dead is ignored.
+	t.Cleanup(func() {
+		select {
+		case <-run.Exited():
+		default:
+			_ = syscall.Kill(pid, syscall.SIGKILL)
+		}
+	})
+	if n := len(rec.Records()); n > slack {
+		t.Fatalf("%d records read before the stop, more than the slack of %d", n, slack)
+	}
+	stopped := make(chan struct{})
+	go func() {
+		defer close(stopped)
+		run.Stop()
+	}()
+	// What it wrote and the receiver didn't read stays in the socket
+	// after the kill, so the drain finds a record past the allowance.
+	waitWithin(t, s.netdLog, "flood-netd wrote past the allowance", waitSender)
+	if err := syscall.Kill(pid, syscall.SIGKILL); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-stopped:
+	case <-time.After(10 * time.Second):
+		t.Fatalf("the stop didn't return\n%s", s.log)
+	}
+	if logged, want := s.log.String(), `"rule":"event-stop-allowance","decision":"drop"`; !strings.Contains(logged, want) {
+		t.Errorf("no %s in the log\n%s", want, logged)
+	}
+	if n := len(rec.Records()); n > allowance+slack {
+		t.Errorf("%d records read, more than the allowance of %d", n, allowance)
 	}
 }

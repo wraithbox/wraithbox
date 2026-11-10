@@ -11,6 +11,8 @@ import (
 	"sync"
 	"syscall"
 
+	"google.golang.org/protobuf/proto"
+
 	vmdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/vmd/v1"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/fdchan"
 )
@@ -267,11 +269,26 @@ func (r *Receiver) isClosed() bool {
 // descriptor of the record, is logged with its rule, and is returned:
 // a *Refusal, or fdchan's own *fdchan.Refusal for the transport checks.
 // io.EOF means wb-vmd closed its end.
+//
+// Every record that decodes is answered with a HandoffAck, accepted or
+// refused, once recvmsg has returned (S07-05-stream-hand-off,
+// "Transport").
 func (r *Receiver) Receive() error {
 	m, err := r.ch.Recv()
 	if err != nil {
 		return err
 	}
+	msg, accepted, err := r.decide(m)
+	if msg != nil {
+		r.acknowledge(msg, accepted)
+	}
+	return err
+}
+
+// decide checks a received record and hands its descriptor to its
+// request, or refuses it. It returns the message when the record
+// decoded, and whether the request got the descriptor.
+func (r *Receiver) decide(m *fdchan.Message) (*vmdv1.HandoffMessage, bool, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	// The record is decoded first, fdchan having bounded it at
@@ -285,14 +302,14 @@ func (r *Receiver) Receive() error {
 		if req != nil {
 			req.done <- result{err: ref}
 		}
-		return r.refuse(m, msg, ref)
+		return msg, false, r.refuse(m, msg, ref)
 	}
 	if msg.GetKind() == vmdv1.Kind_KIND_NETWORK {
 		// The request takes the record's file, so m isn't closed.
 		req.done <- result{transport: &Transport{f: m.File}}
 		r.log.LogAttrs(context.Background(), slog.LevelInfo, "packet transport handed off",
 			append([]slog.Attr{slog.String("decision", "accept")}, messageAttrs(msg)...)...)
-		return nil
+		return msg, true, nil
 	}
 	// FileConn takes a copy, so the record's file is closed either way.
 	conn, err := net.FileConn(m.File)
@@ -304,12 +321,30 @@ func (r *Receiver) Receive() error {
 		req.done <- result{err: err}
 		r.log.LogAttrs(context.Background(), slog.LevelWarn, "hand-off failed",
 			append([]slog.Attr{slog.String("error", err.Error())}, messageAttrs(msg)...)...)
-		return nil
+		return msg, false, nil
 	}
 	req.done <- result{conn: conn}
 	r.log.LogAttrs(context.Background(), slog.LevelInfo, "guest connection handed off",
 		append([]slog.Attr{slog.String("decision", "accept")}, messageAttrs(msg)...)...)
-	return nil
+	return msg, true, nil
+}
+
+// acknowledge sends the HandoffAck for msg. fdchan makes one attempt,
+// so a full channel can't hold the receiver up. A failed send is logged
+// with RuleAckSendFailed and the channel goes on: wb-vmd closes its
+// copy of the descriptor at its deadline instead.
+func (r *Receiver) acknowledge(msg *vmdv1.HandoffMessage, accepted bool) {
+	attrs := append([]slog.Attr{slog.Bool("accepted", accepted)}, messageAttrs(msg)...)
+	record, err := proto.Marshal(ack(msg, accepted))
+	if err == nil {
+		err = r.ch.Send(record, nil)
+	}
+	if err != nil {
+		r.log.LogAttrs(context.Background(), slog.LevelWarn, "hand-off acknowledgment failed",
+			append([]slog.Attr{slog.String("rule", string(RuleAckSendFailed)), slog.String("error", err.Error())}, attrs...)...)
+		return
+	}
+	r.log.LogAttrs(context.Background(), slog.LevelDebug, "hand-off acknowledged", attrs...)
 }
 
 // checkDescriptor refuses a record without a descriptor, or with one

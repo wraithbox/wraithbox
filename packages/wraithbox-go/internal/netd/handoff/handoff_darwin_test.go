@@ -38,8 +38,15 @@ var (
 // fake wb-proxyd at its far end, which hasn't read or sent anything.
 func setup(t *testing.T) (*handoff.Sender, *nt.Peer) {
 	t.Helper()
+	return setupWith(t, handoff.Config{})
+}
+
+// setupWith is setup with cfg, whose Own and Log it sets.
+func setupWith(t *testing.T, cfg handoff.Config) (*handoff.Sender, *nt.Peer) {
+	t.Helper()
 	ours, theirs := nt.ChanPair(t)
-	s := handoff.New(handoff.Config{Own: nt.Own, Log: quiet})
+	cfg.Own, cfg.Log = nt.Own, quiet
+	s := handoff.New(cfg)
 	s.Replace(ours, generation)
 	t.Cleanup(s.Close)
 	return s, nt.NewPeer(t, theirs)
@@ -172,6 +179,176 @@ func TestStreamEnds(t *testing.T) {
 			wait(t, done)
 			if got := s.Recorder().Count(netd.RuleStreamReset) == 1; got != tc.reset {
 				t.Errorf("stream-reset counted: %v, want %v", got, tc.reset)
+			}
+			// wb-proxyd's byte released wb-netd's copy of its end, so
+			// its close reached the guest long before StreamHoldTimeout.
+			if n := s.Recorder().Count(netd.RuleStreamHoldExpired); n != 0 {
+				t.Errorf("stream-hold-expired counted %d, want 0", n)
+			}
+		})
+	}
+}
+
+// TestStreamHold checks that wb-netd keeps its copy of the end it sent
+// until wb-proxyd holds it, bounded by the hold deadline
+// (S07-05-stream-hand-off, "Transport"; SEC13-bounded-resources). A
+// wb-proxyd that closes the stream without a byte or a StreamReset
+// gives the guest its FIN only once the deadline passed, logged with
+// stream-hold-expired. A StreamReset releases the copy at once: with a
+// deadline far beyond the test's wait, the guest still gets its RST.
+func TestStreamHold(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		hold    time.Duration
+		reset   bool
+		want    error
+		expired uint64
+	}{
+		{"close without a byte waits for the deadline", 300 * time.Millisecond, false, io.EOF, 1},
+		{"StreamReset releases the copy", time.Minute, true, syscall.ECONNRESET, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s, proxyd := setupWith(t, handoff.Config{StreamHold: tc.hold})
+			proxyd.Hello()
+			ours, guest := nt.TCPPair(t)
+			start := time.Now() // before the send, which starts the deadline
+			done := handOff(s, ours)
+			id, conn := takeStream(t, proxyd)
+			if tc.reset {
+				resetStream(proxyd, id)
+			}
+			_ = conn.Close()
+			if err := guestEnd(t, guest); !errors.Is(err, tc.want) {
+				t.Fatalf("the guest's end is %v, want %v", err, tc.want)
+			}
+			if elapsed := time.Since(start); tc.expired == 1 && elapsed < tc.hold {
+				t.Errorf("the guest's FIN came after %v, before the hold deadline %v", elapsed, tc.hold)
+			}
+			_ = guest.CloseWrite() // so the copy toward wb-proxyd ends too
+			wait(t, done)
+			if n := s.Recorder().Count(netd.RuleStreamHoldExpired); n != tc.expired {
+				t.Errorf("stream-hold-expired counted %d, want %d", n, tc.expired)
+			}
+		})
+	}
+}
+
+// failWrite is a guest connection whose every write fails with err.
+type failWrite struct {
+	nt.TCPConn
+	err error
+}
+
+func (c failWrite) Write([]byte) (int, error) { return 0, c.err }
+
+// stackTimeout is an error of the shape gonet's timeoutError has: a
+// net.Error whose Timeout is true, which isn't os.ErrDeadlineExceeded.
+type stackTimeout struct{}
+
+func (stackTimeout) Error() string   { return "i/o timeout" }
+func (stackTimeout) Timeout() bool   { return true }
+func (stackTimeout) Temporary() bool { return true }
+
+// TestGuestWriteFails checks that a write of wb-proxyd's bytes to the
+// guest that passes GuestWriteTimeout or fails resets the guest, and is
+// recorded first with its rule (SEC13-bounded-resources).
+func TestGuestWriteFails(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		err  error
+		rule netd.Rule
+	}{
+		{"deadline", os.ErrDeadlineExceeded, netd.RuleGuestWriteTimeout},
+		// The stack's connection (gonet) reports its write deadline so.
+		{"stack timeout", &net.OpError{Op: "write", Net: "tcp", Err: stackTimeout{}}, netd.RuleGuestWriteTimeout},
+		{"failure", syscall.EPIPE, netd.RuleGuestWriteFailed},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s, proxyd := setup(t)
+			proxyd.Hello()
+			ours, guest := nt.TCPPair(t)
+			done := handOff(s, failWrite{TCPConn: ours, err: tc.err})
+			_, conn := takeStream(t, proxyd)
+			write(t, conn, "pong")
+			if err := guestEnd(t, guest); !errors.Is(err, syscall.ECONNRESET) {
+				t.Fatalf("the guest's end is %v, want an RST", err)
+			}
+			wait(t, done)
+			if n := s.Recorder().Count(tc.rule); n != 1 {
+				t.Errorf("%s counted %d, want 1", tc.rule, n)
+			}
+		})
+	}
+}
+
+// tcpStreamPair is a StreamPair over a loopback TCP connection. Its
+// ends are stream sockets as the socketpair's are, and an end closed
+// with SO_LINGER 0 gives the other a read error other than end of file.
+func tcpStreamPair(t *testing.T) func() (*os.File, *os.File, error) {
+	return func() (*os.File, *os.File, error) {
+		a, b := nt.TCPPair(t)
+		fa, err := a.File()
+		if err != nil {
+			return nil, nil, err
+		}
+		fb, err := b.File()
+		if err != nil {
+			_ = fa.Close()
+			return nil, nil, err
+		}
+		_ = a.Close()
+		_ = b.Close()
+		return fa, fb, nil
+	}
+}
+
+// abort closes a TCP connection with an RST.
+func abort(t *testing.T, c net.Conn) {
+	t.Helper()
+	tcp, ok := c.(*net.TCPConn)
+	if !ok {
+		t.Fatalf("the connection is a %T, not TCP", c)
+	}
+	_ = tcp.SetLinger(0)
+	_ = tcp.Close()
+}
+
+// TestStreamReadFails checks that a read from wb-proxyd's end of a
+// stream that fails, other than at end of file, resets the guest
+// recorded with proxyd-stream-read-failed, and that a StreamReset read
+// before it still makes the reset stream-reset
+// (S07-05-stream-hand-off, "Resets").
+func TestStreamReadFails(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		reset bool
+		rule  netd.Rule
+		other netd.Rule
+	}{
+		{"read error", false, netd.RuleProxydStreamReadFailed, netd.RuleStreamReset},
+		{"StreamReset first", true, netd.RuleStreamReset, netd.RuleProxydStreamReadFailed},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s, proxyd := setupWith(t, handoff.Config{StreamPair: tcpStreamPair(t)})
+			proxyd.Hello()
+			ours, guest := nt.TCPPair(t)
+			done := handOff(s, ours)
+			id, conn := takeStream(t, proxyd)
+			write(t, conn, "x") // releases wb-netd's copy, so the RST below reaches it
+			readExactly(t, guest, "x")
+			if tc.reset {
+				resetStream(proxyd, id)
+			}
+			abort(t, conn)
+			if err := guestEnd(t, guest); !errors.Is(err, syscall.ECONNRESET) {
+				t.Fatalf("the guest's end is %v, want an RST", err)
+			}
+			wait(t, done)
+			if n := s.Recorder().Count(tc.rule); n != 1 {
+				t.Errorf("%s counted %d, want 1", tc.rule, n)
+			}
+			if n := s.Recorder().Count(tc.other); n != 0 {
+				t.Errorf("%s counted %d, want 0", tc.other, n)
 			}
 		})
 	}
@@ -354,11 +531,12 @@ func (c *slowClose) Close() error {
 // TestCloseOrder checks that wb-proxyd closing the hand-off socket and
 // then a stream's socket gives the guest an RST, not a FIN, also when
 // wb-netd reads the stream's end of file while the socket is ending
-// (S07-05-stream-hand-off, "Resets").
+// (S07-05-stream-hand-off, "Resets"). wb-proxyd sends no byte, so
+// wb-netd reads that end of file once a short hold deadline passed.
 func TestCloseOrder(t *testing.T) {
 	ch, theirs := nt.ChanPair(t)
 	ours := &slowClose{Channel: ch, entered: make(chan struct{}), release: make(chan struct{})}
-	s := handoff.New(handoff.Config{Own: nt.Own, Log: quiet})
+	s := handoff.New(handoff.Config{Own: nt.Own, Log: quiet, StreamHold: 100 * time.Millisecond})
 	s.Replace(ours, generation)
 	t.Cleanup(s.Close)
 	proxyd := nt.NewPeer(t, theirs)

@@ -62,6 +62,18 @@ func TestProjectSet(t *testing.T) {
 				// A repository that can't be read from the path.
 				{"PUT gitlab.com/api/v4/projects/42/repository/files/a", false, RuleWriteOutside},
 				{"PUT gitlab.com/api/v4/projects/group%2Fsub%2Fproj%3F/x", false, RuleWriteOutside},
+				// A GitLab id with an empty segment is malformed.
+				{"POST gitlab.com/api/v4/projects/group%2Fsub%2Fproj%2F", false, RuleWriteOutside},
+				{"PUT gitlab.com/api/v4/projects/group%2Fsub%2Fproj%2F/repository/files/a", false, RuleWriteOutside},
+				{"PUT gitlab.com/api/v4/projects/%2Fgroup%2Fsub%2Fproj/repository/files/a", false, RuleWriteOutside},
+				{"PUT gitlab.com/api/v4/projects/group%2F%2Fsub%2Fproj/repository/files/a", false, RuleWriteOutside},
+				{"PUT gitlab.com/api/v4/projects/group%2Fsub%2F%2Fproj/repository/files/a", false, RuleWriteOutside},
+				{"PUT gitlab.com/api/v4/projects/%2Fgroup%2Fsub%2Fproj%2F/repository/files/a", false, RuleWriteOutside},
+				{"PUT gitlab.com/api/v4/projects/%2F/repository/files/a", false, RuleWriteOutside},
+				{"PUT gitlab.com/api/v4/projects/%2F%2F/repository/files/a", false, RuleWriteOutside},
+				{"PUT gitlab.com/api/v4/projects/group%2Fsub%2Fproj%2F%2F/repository/files/a", false, RuleWriteOutside},
+				{"PUT gitlab.com/api/v4/projects/group%2Fsub%2Fproj.git%2F/repository/files/a", false, RuleWriteOutside},
+				{"PUT gitlab.com/api/v4/projects/group%2Fsub%2Fproj%2f/repository/files/a", false, RuleWriteOutside},
 				{"POST api.github.com/user/keys", false, RuleWriteOutside},
 				{"POST github.com/acme/app/issues", false, RuleWriteOutside},
 				{"POST github.com/repos/acme/app/issues", false, RuleWriteOutside},

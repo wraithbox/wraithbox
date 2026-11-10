@@ -304,6 +304,11 @@ func (p *proc) Exited() <-chan struct{} { return p.exited }
 // ended (events.Hub.End) and its accounting stopped.
 func (p *proc) Stop() []audit.OpenRun {
 	p.stopping.Store(true)
+	// wb-netd flushes its open runs at close and waits for them to be
+	// read, so a receiver held by a full audit queue or a budget reads a
+	// bounded allowance past its holds from here on
+	// (S04-08-records-and-bounds, "Host work the guest can cause").
+	p.receiver.Stopping()
 	_ = p.control.Close()
 	select {
 	case <-p.exited:
@@ -314,6 +319,9 @@ func (p *proc) Stop() []audit.OpenRun {
 		_ = p.cmd.Process.Kill()
 		<-p.exited
 	}
+	// The receiver reads what wb-netd left, up to what is left of the
+	// allowance, and stops, so the stop doesn't wait for a hold.
+	p.receiver.SenderGone()
 	<-p.receiver.Done()
 	<-p.reader.Done()
 	runs := p.s.cfg.Events.End(p.vm)

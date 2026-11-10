@@ -112,6 +112,10 @@ func (p *ProcessShim) Start(ctx context.Context, slot string) (Session, error) {
 	if err != nil {
 		return nil, err
 	}
+	// theirs goes to wb-diskfmt by inheritance, never in a message, and
+	// procgroup.Start returns once the child holds it. So the rule of a
+	// passed socket's sender, S07-05-stream-hand-off ("Transport"), holds
+	// when this closes it.
 	defer func() { _ = theirs.Close() }()
 	ch, err := fdchan.New(ours, diskfmt.MaxRecord)
 	if err != nil {

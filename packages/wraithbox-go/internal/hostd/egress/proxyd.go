@@ -37,6 +37,8 @@ const (
 	checkPayloadWrite    = "payload-write"
 	checkNotStarted      = "vm-not-started"
 	checkPending         = "pending"
+	checkHandoffClosed   = "handoff-closed"
+	checkNotServed       = "handoff-not-served"
 )
 
 // SetupError is the error of a VM start's message to wb-proxyd that
@@ -61,6 +63,16 @@ type waitKey struct {
 	n      uint64 // the generation or the sequence
 }
 
+// waiter is one call's wait for an acknowledgment. Its done channel
+// closes when the acknowledgment comes, or when a HandoffSocketClosed
+// for the socket it waits on comes first, which sets check and cause
+// before the close.
+type waiter struct {
+	done  chan struct{}
+	check string
+	cause error
+}
+
 // ProxydConfig is what NewProxyd needs.
 type ProxydConfig struct {
 	// Conn is wb-hostd's end of wb-proxyd's control channel.
@@ -72,6 +84,8 @@ type ProxydConfig struct {
 	// Proxyd ends wb-proxyd.
 	Proxyd Ender
 	// Netd returns the Ender of the VM's wb-netd, and nil when none runs.
+	// A wb-netd that holds its hand-off socket's end is returned from the
+	// time the caller calls Confirm for that socket.
 	Netd func(vm string) Ender
 	// State is where an acknowledged hand-off socket is marked.
 	State *State
@@ -98,7 +112,7 @@ type Proxyd struct {
 	done   chan struct{}
 
 	mu      sync.Mutex
-	waiters map[waitKey]chan struct{}
+	waiters map[waitKey]*waiter
 	// abandoned counts, per key, the messages whose call gave up before
 	// their acknowledgment came. wb-proxyd acknowledges in order, so
 	// the next acknowledgments of the key are theirs.
@@ -122,7 +136,7 @@ func NewProxyd(cfg ProxydConfig) (*Proxyd, error) {
 	}
 	p := &Proxyd{
 		cfg: cfg, log: cfg.Log, done: make(chan struct{}),
-		waiters: map[waitKey]chan struct{}{}, abandoned: map[waitKey]int{},
+		waiters: map[waitKey]*waiter{}, abandoned: map[waitKey]int{},
 	}
 	if err := cfg.Conn.Send(hostversion.Record(cfg.Own), nil); err != nil {
 		return nil, fmt.Errorf("egress: send the version record to wb-proxyd: %w", err)
@@ -249,7 +263,7 @@ func (p *Proxyd) ack(k waitKey) error {
 		p.log.Info("late acknowledgment ignored", "vm", k.vm, "number", k.n, "policy", k.policy)
 		return nil
 	case ok:
-		close(w)
+		close(w.done)
 		return nil
 	}
 	return p.endProxyd(RuleControlRefused, "unexpected-ack",
@@ -261,11 +275,24 @@ func (p *Proxyd) ack(k waitKey) error {
 // message, so wb-hostd ends that VM's wb-netd, which counts toward its
 // restart limit. A notice for an older socket, or a second one for the
 // same socket, is logged and ignored.
+//
+// A notice for a generation whose Handoff still waits fails that
+// Handoff, and one for the current socket while no wb-netd runs fails
+// the start at Confirm. Either way wb-hostd gives no wb-netd a socket
+// wb-proxyd closed (S07-05-stream-hand-off, "One hand-off socket per
+// VM"). A notice for an awaited generation is taken as the new
+// socket's, also when it may be for an older socket of the same
+// generation that a replacement Handoff sends again: the strict reading.
 func (p *Proxyd) closed(m *egressv1.HandoffSocketClosed) {
 	vm, gen := m.GetVm(), m.GetGeneration()
 	attrs := []slog.Attr{
 		slog.String("vm", vm), slog.Uint64("generation", gen),
 		slog.String("proxyd_rule", m.GetRule()), slog.String("check", m.GetCheck()),
+	}
+	if p.failWait(waitKey{vm: vm, n: gen}) {
+		p.log.LogAttrs(context.Background(), slog.LevelError, "hand-off notice before its acknowledgment",
+			append(attrs, slog.String("rule", RuleSetupFailed), slog.String("decision", "fail-start"))...)
+		return
 	}
 	if !p.cfg.State.endOnce(vm, gen) {
 		p.log.LogAttrs(context.Background(), slog.LevelWarn, "hand-off notice ignored",
@@ -274,13 +301,32 @@ func (p *Proxyd) closed(m *egressv1.HandoffSocketClosed) {
 	}
 	end := p.cfg.Netd(vm)
 	if end == nil {
-		p.log.LogAttrs(context.Background(), slog.LevelWarn, "hand-off notice ignored, no wb-netd runs",
-			append(attrs, slog.String("rule", RuleNoticeStale), slog.String("decision", "ignore"))...)
+		// endOnce marked the generation ended, so Confirm refuses it.
+		p.log.LogAttrs(context.Background(), slog.LevelWarn, "hand-off socket closed, no wb-netd runs for the VM",
+			append(attrs, slog.String("rule", egressmsg.RuleNameReportMalformed), slog.String("decision", "mark-ended"))...)
 		return
 	}
 	p.log.LogAttrs(context.Background(), slog.LevelError, "wb-netd ended",
 		append(attrs, slog.String("rule", egressmsg.RuleNameReportMalformed), slog.String("decision", "end-sender"))...)
 	end.End(egressmsg.RuleNameReportMalformed)
+}
+
+// failWait fails the Handoff that waits on k, when one does, and counts
+// its message abandoned, so an acknowledgment that comes after the
+// notice is logged and ignored.
+func (p *Proxyd) failWait(k waitKey) bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	w, ok := p.waiters[k]
+	if !ok {
+		return false
+	}
+	delete(p.waiters, k)
+	p.abandoned[k]++
+	w.check = checkHandoffClosed
+	w.cause = errors.New("wb-proxyd closed the hand-off socket before it acknowledged it")
+	close(w.done)
+	return true
 }
 
 // endProxyd logs why wb-proxyd ends and ends it, once.
@@ -360,8 +406,13 @@ func (p *Proxyd) Handoff(ctx context.Context, vm string, gen uint64) (*os.File, 
 	m := &egressv1.HostdToProxyd{Kind: &egressv1.HostdToProxyd_HandoffSocket{
 		HandoffSocket: &egressv1.HandoffSocket{Vm: vm, Generation: gen, Fresh: fresh},
 	}}
+	// wb-hostd keeps its copy of wb-proxyd's end until the wait ends:
+	// the ack shows wb-proxyd holds it. On macOS the kernel's collector
+	// of sockets in flight can take a socket whose every reference is in
+	// a message, and wb-proxyd would then read a 0-byte record on it
+	// (S07-05-stream-hand-off, "Transport").
+	defer func() { _ = proxydEnd.Close() }()
 	err = p.send(vm, m, proxydEnd)
-	_ = proxydEnd.Close()
 	if err == nil {
 		err = p.wait(ctx, k, w)
 	} else {
@@ -372,6 +423,23 @@ func (p *Proxyd) Handoff(ctx context.Context, vm string, gen uint64) (*os.File, 
 		return nil, err
 	}
 	return netdEnd, nil
+}
+
+// Confirm is the last step of a hand-off socket's setup, after the
+// caller gave the end Handoff returned to vm's wb-netd and that wb-netd
+// is what ProxydConfig.Netd returns for vm. It passes only for the VM's
+// current socket: the VM is started, gen is the generation wb-proxyd
+// acknowledged last, and no HandoffSocketClosed ended it. Otherwise it
+// fails the start with a *SetupError. A notice that came while no
+// wb-netd ran ended no process, and the VM would have no network
+// (S07-05-stream-hand-off, "One hand-off socket per VM", step 4). A
+// notice after Confirm ends that wb-netd.
+func (p *Proxyd) Confirm(vm string, gen uint64) error {
+	check := p.cfg.State.confirmCheck(vm, gen)
+	if check == "" {
+		return nil
+	}
+	return p.setupFailed(vm, check, fmt.Errorf("the hand-off socket of generation %d isn't the VM's current one", gen))
 }
 
 // NewActivePeriod starts vm's new active period (S07-01-per-vm-policy,
@@ -398,10 +466,10 @@ func (p *Proxyd) NewActivePeriod(vm string) error {
 // expect registers a call's wait before its message is sent, so the
 // acknowledgment can't come first. A second call for a key that a call
 // waits for is refused: their acknowledgments couldn't be told apart.
-func (p *Proxyd) expect(k waitKey) (chan struct{}, error) {
+func (p *Proxyd) expect(k waitKey) (*waiter, error) {
 	p.mu.Lock()
 	_, pending := p.waiters[k]
-	w := make(chan struct{})
+	w := &waiter{done: make(chan struct{})}
 	if !pending {
 		p.waiters[k] = w
 	}
@@ -413,7 +481,7 @@ func (p *Proxyd) expect(k waitKey) (chan struct{}, error) {
 }
 
 // forget drops the wait w of a call whose message wasn't sent.
-func (p *Proxyd) forget(k waitKey, w chan struct{}) {
+func (p *Proxyd) forget(k waitKey, w *waiter) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.waiters[k] == w {
@@ -423,15 +491,16 @@ func (p *Proxyd) forget(k waitKey, w chan struct{}) {
 
 // wait waits for the acknowledgment of k within the ack timeout. A call
 // that gives up counts its message abandoned, so its late
-// acknowledgment is ignored and not taken for a later call's.
-func (p *Proxyd) wait(ctx context.Context, k waitKey, w chan struct{}) error {
+// acknowledgment is ignored and not taken for a later call's. A
+// HandoffSocketClosed that came first fails the call (failWait).
+func (p *Proxyd) wait(ctx context.Context, k waitKey, w *waiter) error {
 	timer := time.NewTimer(p.cfg.AckTimeout)
 	defer timer.Stop()
 	var check string
 	var cause error
 	select {
-	case <-w:
-		return nil
+	case <-w.done:
+		return p.answered(k, w)
 	case <-timer.C:
 		check, cause = checkAckTimeout, fmt.Errorf("no acknowledgment within %v", p.cfg.AckTimeout)
 	case <-p.done:
@@ -447,10 +516,20 @@ func (p *Proxyd) wait(ctx context.Context, k waitKey, w chan struct{}) error {
 	}
 	p.mu.Unlock()
 	if !waiting {
-		// The acknowledgment came as the call gave up.
-		return nil
+		// The acknowledgment or a notice came as the call gave up.
+		<-w.done
+		return p.answered(k, w)
 	}
 	return p.setupFailed(k.vm, check, cause)
+}
+
+// answered returns the result of a wait whose done channel closed: nil
+// for an acknowledgment, and a *SetupError for a notice that came first.
+func (p *Proxyd) answered(k waitKey, w *waiter) error {
+	if w.cause != nil {
+		return p.setupFailed(k.vm, w.check, w.cause)
+	}
+	return nil
 }
 
 // sendPayload sends m with the read end of a payload pipe, then writes

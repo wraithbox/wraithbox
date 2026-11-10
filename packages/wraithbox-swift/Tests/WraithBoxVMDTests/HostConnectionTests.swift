@@ -165,6 +165,8 @@ final class ServerFixture: Sendable {
     let lookups = Counter()
     private let task: Task<Void, any Error>
     private let keep: TemporaryDirectory
+    private let handoffPair: (Int32, Int32)
+    private let keeper: HandoffKeeper
 
     /// `refuseLookups` makes the first that many peer lookups return
     /// another user ID.
@@ -189,13 +191,15 @@ final class ServerFixture: Sendable {
         }
         let handshake = HostHandshake(
             ownVersion: version, lookup: lookup, timeout: timeout, log: log)
-        // No test here calls Start or ConnectGuest, so the hand-off
-        // channel is none.
+        // No test here calls Start or ConnectGuest, so nothing reads the
+        // hand-off channel's other end.
+        handoffPair = try makeSocketPair(SOCK_DGRAM)
+        let handoff = HandoffKeeper(channel: HandoffChannel(fd: handoffPair.0), log: log)
+        keeper = handoff
         let supervisor = VMSupervisor(
             engine: FakeEngine(), slot: .work, bundlePath: "/nonexistent",
-            restoreImagePath: nil, handoff: HandoffChannel(fd: -1), log: log)
-        let connector = GuestConnector(
-            supervisor: supervisor, handoff: HandoffChannel(fd: -1), log: log)
+            restoreImagePath: nil, handoff: handoff, log: log)
+        let connector = GuestConnector(supervisor: supervisor, handoff: handoff, log: log)
         let service = VMServiceHandler(supervisor: supervisor, connector: connector, log: log)
         task = Task {
             try await VMDaemon.serveGRPC(
@@ -206,6 +210,14 @@ final class ServerFixture: Sendable {
 
     deinit {
         task.cancel()
+        // The keeper's read source runs on the main queue, so it is
+        // cancelled there before the channel's descriptors are closed.
+        let keeper = keeper
+        let pair = handoffPair
+        Task { @MainActor in
+            keeper.close()
+            closeAll([pair.0, pair.1])
+        }
     }
 
     /// Calls GetState as a client of `version`.

@@ -140,6 +140,24 @@ const (
 	// RuleStreamResetUnknown: a StreamReset that names no open stream.
 	// It is logged and ignored.
 	RuleStreamResetUnknown Rule = "stream-reset-unknown"
+	// RuleStreamHoldExpired: the hold deadline (handoff.StreamHoldTimeout)
+	// passed before wb-proxyd's first byte or a StreamReset on a stream,
+	// so wb-netd closes its copy of the end it sent. It is routine on a
+	// stream whose client speaks first and is idle, and no fault of
+	// wb-proxyd. It is logged, not refused, and the stream goes on.
+	RuleStreamHoldExpired Rule = "stream-hold-expired"
+	// RuleGuestWriteTimeout: the guest took none of a stream's bytes
+	// within handoff.GuestWriteTimeout (SEC13-bounded-resources). The
+	// guest gets an RST.
+	RuleGuestWriteTimeout Rule = "guest-write-timeout"
+	// RuleGuestWriteFailed: a write of a stream's bytes to the guest
+	// failed. The guest gets an RST. The guest may have reset the
+	// connection itself just before, while wb-netd hadn't read that yet.
+	RuleGuestWriteFailed Rule = "guest-write-failed"
+	// RuleProxydStreamReadFailed: a read from wb-proxyd's end of a
+	// stream failed with an error other than end of file. The guest gets
+	// an RST.
+	RuleProxydStreamReadFailed Rule = "proxyd-stream-read-failed"
 	// RuleControlMessageRefused: a control message from wb-hostd of the
 	// wrong form or order, a policy change wb-netd can't apply, or a
 	// record on the accounting channel, where wb-hostd sends none after
@@ -159,7 +177,9 @@ const (
 	// RuleDNSNameForm: a name that fails the name form rule
 	// (internal/dnsname).
 	RuleDNSNameForm Rule = dnsname.RuleForm
-	// RuleDNSQueryRate: a query over the VM's query rate.
+	// RuleDNSQueryRate: a query over the VM's query rate. It is dropped
+	// without an answer and isn't held (S07-04-dns-refusals, "Over the
+	// rate").
 	RuleDNSQueryRate Rule = "dns-query-rate"
 	// RuleDNSHoldFull: a refused query over Caps.HeldQueries. It is
 	// dropped without an answer.

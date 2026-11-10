@@ -77,6 +77,12 @@ func (k *socket) end(why error) {
 		drains := k.drains
 		k.drains = nil
 		k.mu.Unlock()
+		// Noted before any stream's reset reaches the guest: the resets
+		// below come after it, and a stream that asks isEnded waits for
+		// done, closed after it (SEC10-audit).
+		k.s.rec.Note(netd.RuleHandoffSocketEnded,
+			slog.Uint64("generation", k.generation), slog.Int("streams_reset", len(streams)),
+			slog.String("reason", why.Error()))
 		close(k.done)
 		_ = k.conn.Close()
 		for _, st := range streams {
@@ -85,17 +91,22 @@ func (k *socket) end(why error) {
 		for _, ch := range drains {
 			close(ch)
 		}
-		k.s.rec.Note(netd.RuleHandoffSocketEnded,
-			slog.Uint64("generation", k.generation), slog.Int("streams_reset", len(streams)),
-			slog.String("reason", why.Error()))
 	})
 }
 
-// isEnded reports whether the socket ended.
+// isEnded reports whether the socket ended. When it did, it first waits
+// for done, which end closes after it noted handoff-socket-ended, so a
+// stream that resets its guest on the answer does so after the note
+// (SEC10-audit). end never waits on a stream, so the wait can't
+// deadlock.
 func (k *socket) isEnded() bool {
 	k.mu.Lock()
-	defer k.mu.Unlock()
-	return k.ended
+	ended := k.ended
+	k.mu.Unlock()
+	if ended {
+		<-k.done
+	}
+	return ended
 }
 
 // isReady reports whether wb-proxyd's version record passed.
@@ -246,7 +257,10 @@ func (k *socket) version(m *fdchan.Message) bool {
 }
 
 // streamReset marks the stream a StreamReset names, so its end of file
-// becomes a reset of the guest connection.
+// becomes a reset of the guest connection. wb-proxyd sends it only for a
+// stream whose end it holds, so wb-netd closes its copy of that end
+// (StreamHoldTimeout), and wb-proxyd's close then reaches it as end of
+// file.
 func (k *socket) streamReset(m *fdchan.Message) bool {
 	hasFD := m.File != nil
 	_ = m.Close()
@@ -263,6 +277,7 @@ func (k *socket) streamReset(m *fdchan.Message) bool {
 		return true
 	}
 	st.resetByProxyd.Store(true)
+	st.release()
 	return true
 }
 

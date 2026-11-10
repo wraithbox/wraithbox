@@ -455,13 +455,13 @@
 	},
 	"70": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S08-workspace-and-git: risky-path flagger evasion (case, symlinks, missing files)",
 		"summary": "The security review of #69 found that the X07-git-round-trip flagger prototype (spikes/x07-git-round-trip/flagger/flagger.go on spike/x07-git-round-trip) can be evaded."
 	},
 	"71": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-hostd: harden the push command-list filter",
 		"summary": "X07-git-round-trip proposed a Go pkt-line filter in front of receive-pack, and S08-workspace-and-git now names it as the push ref restriction."
 	},
@@ -854,7 +854,7 @@
 	},
 	"135": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S06-vm-lifecycle: check claude --continue and the trust prompt across session worktrees",
 		"summary": "The spec change for #46 (S06-vm-lifecycle, \"Projects and sessions inside a VM\") gives each session a new worktree at <home/sessions/<session-id."
 	},
@@ -1440,7 +1440,7 @@
 	},
 	"231": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S06-vm-lifecycle: make git and Claude Code state in the guest flush to the data disk",
 		"summary": "- git in the guest."
 	},
@@ -3085,13 +3085,13 @@
 	},
 	"504": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-credset and wb cred: write, delete and list binding secrets through the helper, with the value on its standard input only",
 		"summary": "Package M3.8 of docs/implementation-plan.md, part 2 of 3 (M3.8b)."
 	},
 	"505": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "platform: Keychain item calls in the cgo shim, run in a team-signed test bundle and through wb cred on the maintainer's Mac",
 		"summary": "Package M3.8 of docs/implementation-plan.md, part 3 of 3 (M3.8c)."
 	},
@@ -3307,7 +3307,7 @@
 	},
 	"541": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Audit event channel: bound the receiver and the writer queue against a sender that ignores its budget",
 		"summary": "The event channel receiver of #540 (#477) reads records as fast as a sender writes them, and the audit writer appends each one to a queue with no cap (internal/hostd/events/events.go:148-161,210,…"
 	},
@@ -3339,13 +3339,13 @@
 	},
 	"546": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Implementation plan: refresh its status and package sizes, fix the M4.1 edge, add the secret scanner package and the V1-M6 dependencies",
 		"summary": "Follow-up of X32-project-metrics (#543)."
 	},
 	"547": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Investigate the flaky CI runs of the week of 2026-10-26 (7.4%)",
 		"summary": "Follow-up of X32-project-metrics (#543)."
 	},
@@ -3459,7 +3459,7 @@
 	},
 	"566": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S07-04-dns-refusals: decide whether rate refusals are held",
 		"summary": "Raised in round 1 of #563 (#486)."
 	},
@@ -3477,7 +3477,7 @@
 	},
 	"569": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "fix(netd): record a refusal before the reset reaches the guest (TestSyntheticPool flake)",
 		"summary": "Main CI run 42081852685 (01d58e8) failed in Go (windows-2025):"
 	},
@@ -3525,7 +3525,7 @@
 	},
 	"577": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "httppolicy: FuzzHTTPDecision fails on main for a GitLab project id with a trailing %2F",
 		"summary": "FuzzHTTPDecision (internal/proxyd/httppolicy/fuzz_test.go) fails on main at 5adc7c3."
 	},
@@ -3543,7 +3543,7 @@
 	},
 	"580": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-vmd: ConnectGuest sendFailed test is flaky in CI",
 		"summary": "The Swift test \"a send that fails is refused with handoff-send-failed, and the connection is closed\" (packages/wraithbox-swift/Tests/WraithBoxVMDTests/ConnectGuestTests.swift, sendFailed) failed in CI on #579, a pull…"
 	},
@@ -3597,7 +3597,7 @@
 	},
 	"589": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-netd: TestAnswerFails/report_slow answers instead of timing out (flaky on macOS)",
 		"summary": "TestAnswerFails/report_slow (packages/wraithbox-go/internal/netd/synth/pool_test.go:161) failed on Go (xcode-27) in CI on #588, a pull request that doesn't change internal/netd or any package its tests build:"
 	},
@@ -3651,7 +3651,7 @@
 	},
 	"598": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-proxyd: a reset between the post-dial check and the ClientHello send still lets the ClientHello out",
 		"summary": "S07-15 says a connection opened after a stream reset is closed before any byte goes upstream."
 	},
@@ -3705,7 +3705,7 @@
 	},
 	"607": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Claude Code layer: install the managed guest instructions CLAUDE.md (S14-04 Guest instructions)",
 		"summary": "S14-04-commands-and-endpoints, \"Guest instructions\" (#224) specifies a managed CLAUDE.md that the Claude Code layer installs at /Library/Application Support/ClaudeCode/CLAUDE.md in a macOS guest: owned by root, mode…"
 	},
@@ -3852,7 +3852,7 @@
 	},
 	"631": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Campaign waves end when the wave lead waits on its own background work: claude -p exits on its interim result",
 		"summary": "Wave 1 of campaign #622 ran claude -p \"/wave ..."
 	},
@@ -3870,7 +3870,7 @@
 	},
 	"634": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Flaky: TestShellOpenHeld reads kills = [] on Linux",
 		"summary": "Two intermittent failures in the CI of train/622 (campaign #622), in code the train doesn't change:"
 	},
@@ -3888,7 +3888,7 @@
 	},
 	"637": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Descriptor senders close their copy before the receiver holds it (darwin socket GC)",
 		"summary": "Found while fixing #633."
 	},
@@ -3948,14 +3948,632 @@
 	},
 	"647": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-netd: keep a handed-off stream's end open until wb-proxyd holds it (macOS socket GC)",
 		"summary": "wb-netd closes the stream end it hands to wb-proxyd right after the send: internal/netd/handoff/stream.go:98 (defer theirs.Close()), as the comment on StreamPair (internal/platform/fdchan/fdchan_darwin.go, around line…"
 	},
 	"648": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "wb-vmd: keep a passed descriptor open until wb-hostd holds it (macOS socket GC)",
 		"summary": "wb-vmd hands descriptors to wb-hostd and closes its copy at once: VMSupervisor.swift (the handoff.send(record, descriptor: transport.hostEnd) call, around line 219) and GuestConnector.swift (send(:descriptor:), which…"
+	},
+	"649": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spikes): add X33-restore-downgrade to the spike index",
+		"summary": "Triage of #618 made it a spike."
+	},
+	"650": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-download: the program, its two entries, confinement, host checks, deadlines, the fetches and its records",
+		"summary": "Package IMG.1 of docs/implementation-plan.md, part 1 of 4 (IMG.1a)."
+	},
+	"651": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-hostd: the restore image download: the run, its records and audit, free space, resume, the hash, the floor and the rollback check",
+		"summary": "Package IMG.1 of docs/implementation-plan.md, part 2 of 4 (IMG.1b)."
+	},
+	"652": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-hostd: the Claude Code release download: the channel and release runs, the files in downloads, and exit before check",
+		"summary": "Package IMG.1 of docs/implementation-plan.md, part 3 of 4 (IMG.1c)."
+	},
+	"653": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-download and wb-hostd: the Command Line Tools entry",
+		"summary": "Package IMG.1 of docs/implementation-plan.md, part 4 of 4 (IMG.1d)."
+	},
+	"654": {
+		"kind": "issue",
+		"state": "closed",
+		"title": "wb-vmd-install: the build slot, the install rules, the restore image check, the Install call and the provisioning input",
+		"summary": "Package IMG.2 of docs/implementation-plan.md, part 1 of 5 (IMG.2a)."
+	},
+	"655": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-hostd: the image build: build bundle, wb-vmd-install start, the restore image, taking the sealed image and the image records",
+		"summary": "Package IMG.2 of docs/implementation-plan.md, part 2 of 5 (IMG.2b)."
+	},
+	"656": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-hostd: maintenance VM admission and the lend of the isolated VM's slot",
+		"summary": "Package IMG.2 of docs/implementation-plan.md, part 3 of 5 (IMG.2c)."
+	},
+	"657": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb image build: the command, its wb-hostd contract and progress, and the build on a VM through the install",
+		"summary": "Package IMG.2 of docs/implementation-plan.md, part 4 of 5 (IMG.2d)."
+	},
+	"658": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-vmd-install and wb-hostd: check the restore image's own version against the catalog entry, as X33-restore-downgrade answers",
+		"summary": "Package IMG.2 of docs/implementation-plan.md, part 5 of 5 (IMG.2e)."
+	},
+	"659": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-netd: build mode, no egress, and the one connection to the build guest's port 22",
+		"summary": "Package IMG.3 of docs/implementation-plan.md, part 1 of 3 (IMG.3a)."
+	},
+	"660": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-build-ssh: the build's one SSH session, its profile, deadlines and log, and wb-hostd's receiver of the build socket",
+		"summary": "Package IMG.3 of docs/implementation-plan.md, part 2 of 3 (IMG.3b)."
+	},
+	"661": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Image build: the build VM's network device and wb-netd, the provisioning boot, and the SSH session on a VM",
+		"summary": "Package IMG.3 of docs/implementation-plan.md, part 3 of 3 (IMG.3c)."
+	},
+	"662": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-guestadmin: the build, rotate and cleanup runs, their requests, confinement and store calls",
+		"summary": "Package IMG.4 of docs/implementation-plan.md, part 1 of 5 (IMG.4a)."
+	},
+	"663": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-guestd: the rotation port, wbadmin's enable, reset and disable, and the result on the control link",
+		"summary": "Package IMG.4 of docs/implementation-plan.md, part 2 of 5 (IMG.4b)."
+	},
+	"664": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-hostd: the first-contact gate, the system disk record and wbadmin rotation in each fresh clone",
+		"summary": "Package IMG.4 of docs/implementation-plan.md, part 3 of 5 (IMG.4c)."
+	},
+	"665": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Image build: the build password, the build and layer rotations, and wb-guestadmin-cleanup at start and at each build's end",
+		"summary": "Package IMG.4 of docs/implementation-plan.md, part 4 of 5 (IMG.4d)."
+	},
+	"666": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-hostd: a VM's system disk as a checked clone of its image, its replacement, and its project users recreated",
+		"summary": "Package IMG.4 of docs/implementation-plan.md, part 5 of 5 (IMG.4e)."
+	},
+	"667": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-guestd: named provisioning operations for the build's second stage (Remote Login and automatic login off, wbadmin retired, SSH host keys removed)",
+		"summary": "Package IMG.5 of docs/implementation-plan.md, part 1 of 5 (IMG.5a)."
+	},
+	"668": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Image build: install wb-guestroot and its LaunchDaemon from the guest tools disk",
+		"summary": "Package IMG.5 of docs/implementation-plan.md, part 2 of 5 (IMG.5b)."
+	},
+	"669": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Image build: terminfo for Ghostty, kitty, WezTerm, Alacritty and foot from ncurses, and TERMINFO_DIRS for project users",
+		"summary": "Package IMG.5 of docs/implementation-plan.md, part 3 of 5 (IMG.5c)."
+	},
+	"670": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Image build: the sealing scan's account, login, launchd and file checks in wb-guestd, and the build's refusal on any finding",
+		"summary": "Package IMG.5 of docs/implementation-plan.md, part 4 of 5 (IMG.5d)."
+	},
+	"671": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Image build: the sealing scan's secret scan, with the secret scanner over the guest's files",
+		"summary": "Package IMG.5 of docs/implementation-plan.md, part 5 of 5 (IMG.5e)."
+	},
+	"672": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Base layer: install the host-fetched Command Line Tools, create the toolchain user and its prefix, and write the guest's npm configuration",
+		"summary": "Package IMG.6 of docs/implementation-plan.md, part 1 of 4 (IMG.6a)."
+	},
+	"673": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-guestd: run Homebrew as the toolchain user, write the formula data snapshot, and install a formula closure from bottles",
+		"summary": "Package IMG.6 of docs/implementation-plan.md, part 2 of 4 (IMG.6b)."
+	},
+	"674": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Named images from recipes: recipe loader, the derived build on a clone of the base, provenance, and wb image build <name>",
+		"summary": "Package IMG.6 of docs/implementation-plan.md, part 3 of 4 (IMG.6c)."
+	},
+	"675": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Base layer and a named image in a VM: Command Line Tools, the toolchain prefix, and a recipe build through the build policy",
+		"summary": "Package IMG.6 of docs/implementation-plan.md, part 4 of 4 (IMG.6d)."
+	},
+	"676": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-release-check and the agent interface: check a Claude Code release's signed manifest",
+		"summary": "Package IMG.7 of docs/implementation-plan.md, part 1 of 5 (IMG.7a)."
+	},
+	"677": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Claude Code install: run wb-release-check, stream the checked bytes, and install the binary and the guest instructions",
+		"summary": "Package IMG.7 of docs/implementation-plan.md, part 2 of 5 (IMG.7b)."
+	},
+	"678": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-vmd-layer: serve the layer slot, with no network device and no install rules",
+		"summary": "Package IMG.7 of docs/implementation-plan.md, part 3 of 5 (IMG.7c)."
+	},
+	"679": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Claude Code layer build in wb-hostd: version choice and floor, parents, the layer-only path, and wb image list",
+		"summary": "Package IMG.7 of docs/implementation-plan.md, part 4 of 5 (IMG.7d)."
+	},
+	"680": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Claude Code layer in a VM: full build, layer-only rebuild, and the installed binary and guest instructions",
+		"summary": "Package IMG.7 of docs/implementation-plan.md, part 5 of 5 (IMG.7e)."
+	},
+	"681": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-diskfmt-xcode: check the host's Xcode and runtimes and build the read-only Xcode disk",
+		"summary": "Package IMG.8 of docs/implementation-plan.md, part 1 of 4 (IMG.8a)."
+	},
+	"682": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-vmd: the Xcode flag, attaching xcode.img read-only in the layer slot only",
+		"summary": "Package IMG.8 of docs/implementation-plan.md, part 2 of 4 (IMG.8b)."
+	},
+	"683": {
+		"kind": "issue",
+		"state": "open",
+		"title": "The Xcode step: install-xcode in the guest, the step in the named image build, and its records in the layer-only decision",
+		"summary": "Package IMG.8 of docs/implementation-plan.md, part 3 of 4 (IMG.8c)."
+	},
+	"684": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Xcode image on the maintainer's Mac: build a named image with the host's Xcode and a runtime, and check it in a session",
+		"summary": "Package IMG.8 of docs/implementation-plan.md, part 4 of 4 (IMG.8d)."
+	},
+	"685": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Secret scanner: a Go matcher over gitleaks' vendored default rules, for the image seal and the carry-ins",
+		"summary": "Package SCAN of docs/implementation-plan.md (the secret scanner package that #546 adds to the plan)."
+	},
+	"686": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-git: the shim, its launcher entries, its repository profiles and the GIT_ALLOC_LIMIT probe",
+		"summary": "Package M4.1 of docs/implementation-plan.md, part 1 of 3 (M4.1a)."
+	},
+	"687": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-hostd: the export lock and its contract, the landing repository, and the landing lock",
+		"summary": "Package M4.1 of docs/implementation-plan.md, part 2 of 3 (M4.1b)."
+	},
+	"688": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb: the export.git writer, its layout check, the export update at session start, and the project settings file",
+		"summary": "Package M4.1 of docs/implementation-plan.md, part 3 of 3 (M4.1c)."
+	},
+	"689": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Git transport, host side: the guest request contract, the request checks and upload-pack from export.git",
+		"summary": "Package M4.2 of docs/implementation-plan.md, part 1 of 3 (M4.2a)."
+	},
+	"690": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Git transport, guest side: git-remote-wb, wb-guestd's request socket with UID attribution, and the relay",
+		"summary": "Package M4.2 of docs/implementation-plan.md, part 2 of 3 (M4.2b)."
+	},
+	"691": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Guest git: the project clone, the cleaned remotes and their withheld-URL records, git's fsync settings, and the transport in a VM",
+		"summary": "Package M4.2 of docs/implementation-plan.md, part 3 of 3 (M4.2c)."
+	},
+	"692": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-hostd: the push command-list filter, with its caps and fuzz properties",
+		"summary": "Package M4.3 of docs/implementation-plan.md, part 1 of 2 (M4.3a)."
+	},
+	"693": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-hostd: the push path into landing.git, with receive-pack's settings, the size cap, bounds, standard error and the cleanup after a failed push",
+		"summary": "Package M4.3 of docs/implementation-plan.md, part 2 of 2 (M4.3b)."
+	},
+	"694": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-hostd: the pack scanner, with its fuzz target and a differential test against index-pack",
+		"summary": "Package M4.4 of docs/implementation-plan.md, part 1 of 2 (M4.4a)."
+	},
+	"695": {
+		"kind": "issue",
+		"state": "open",
+		"title": "The pre-receive check, the bundled hooks directory, and the scanner and check in the push path",
+		"summary": "Package M4.4 of docs/implementation-plan.md, part 2 of 2 (M4.4b)."
+	},
+	"696": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Risky-path flagger: the matching rules in S08-09 and the Go flagger, with fuzz properties",
+		"summary": "Package M4.5 of docs/implementation-plan.md, part 1 of 3 (M4.5a)."
+	},
+	"697": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb diff and wb land: the landing checks, the checked fetch, the scratch repository, and the returned-work record in wb-hostd",
+		"summary": "Package M4.5 of docs/implementation-plan.md, part 2 of 3 (M4.5b)."
+	},
+	"698": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb discard: end a lost session, delete its landing refs, remove its guest worktree, and clean landing.git",
+		"summary": "Package M4.5 of docs/implementation-plan.md, part 3 of 3 (M4.5c)."
+	},
+	"699": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-hostd sessions: the session contract, the session record in state.db, admission, and the start-to-end path with a fake guest",
+		"summary": "Package M4.6 of docs/implementation-plan.md, part 1 of 3 (M4.6a)."
+	},
+	"700": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-hostd sessions: link drops, the reconnect list and its answers, the pause limit, deadlines, lost sessions and recovery",
+		"summary": "Package M4.6 of docs/implementation-plan.md, part 2 of 3 (M4.6b)."
+	},
+	"701": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb sessions and wb status: the session list, the host process health table, and the processes-left notice",
+		"summary": "Package M4.6 of docs/implementation-plan.md, part 3 of 3 (M4.6c)."
+	},
+	"702": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-guestd sessions: reports kept on the data disk, the recorded POSIX session, the reconnect list, attach, finish and end",
+		"summary": "Package M4.7 of docs/implementation-plan.md, part 1 of 3 (M4.7a)."
+	},
+	"703": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-guestd sessions: the worktree per session, the history link, the WIP commit and push, and a fresh home for --isolated",
+		"summary": "Package M4.7 of docs/implementation-plan.md, part 2 of 3 (M4.7b)."
+	},
+	"704": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Sessions in a VM: the C09 session lifecycle cases with wb-hostd and wb-guestd, and the launchd domain check",
+		"summary": "Package M4.7 of docs/implementation-plan.md, part 3 of 3 (M4.7c)."
+	},
+	"705": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Carry-in on the host: wb collects and scans the uncommitted changes, and wb-hostd carries them to the guest",
+		"summary": "Package M4.8 of docs/implementation-plan.md, part 1 of 2 (M4.8a)."
+	},
+	"706": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Carry-in in the guest: wb-guestd applies the changes to the new worktree as the project user, with the VM run",
+		"summary": "Package M4.8 of docs/implementation-plan.md, part 2 of 2 (M4.8b)."
+	},
+	"707": {
+		"kind": "issue",
+		"state": "open",
+		"title": "~/.claude carry-in on the host: wb reads the allowlist, follows the link rules, filters, caps and scans the user's Claude Code configuration",
+		"summary": "Package M4.9 of docs/implementation-plan.md, part 1 of 2 (M4.9a)."
+	},
+	"708": {
+		"kind": "issue",
+		"state": "open",
+		"title": "~/.claude carry-in in the guest: wb-guestd writes the copy as the project user, replaces and removes entries, with the VM run",
+		"summary": "Package M4.9 of docs/implementation-plan.md, part 2 of 2 (M4.9b)."
+	},
+	"709": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Model credential placeholders: wb-proxyd draws them, wb-hostd keeps each VM's set and puts the newest in the session's environment",
+		"summary": "Package M4.10 of docs/implementation-plan.md, part 1 of 2 (M4.10a)."
+	},
+	"710": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-proxyd: inject bound credentials on their named places, git transport only on project remotes, and scan whole requests for placeholders as they stream",
+		"summary": "Package M4.10 of docs/implementation-plan.md, part 2 of 2 (M4.10b)."
+	},
+	"711": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Terminal filter records: wb reports links and drop counts, wb-hostd checks them, keeps them with the session and writes the findings and end records once",
+		"summary": "Package M4.11 of docs/implementation-plan.md, part 1 of 2 (M4.11a)."
+	},
+	"712": {
+		"kind": "issue",
+		"state": "open",
+		"title": "The session summary: returned work, flags, skipped paths and daemon downtime at exit and in wb sessions",
+		"summary": "Package M4.11 of docs/implementation-plan.md, part 2 of 2 (M4.11b)."
+	},
+	"713": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb claude: the command, the agent interface's Command and Launch parts, and wb-guestd starting Claude Code with its environment",
+		"summary": "Package M4.12 of docs/implementation-plan.md, part 1 of 3 (M4.12a), the launch part that the plan puts first in V1-M4."
+	},
+	"714": {
+		"kind": "issue",
+		"state": "open",
+		"title": "The first prompt: wb claude answers in a VM from a sealed image with a real long-lived token, the C06 cases that need one, and what Claude Code flushes",
+		"summary": "Package M4.12 of docs/implementation-plan.md, part 2 of 3 (M4.12b)."
+	},
+	"715": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Claude Code across session worktrees and C06 end to end on a sealed image: --continue, --resume, the trust prompt, job control, and both passes of the event log check",
+		"summary": "Package M4.12 of docs/implementation-plan.md, part 3 of 3 (M4.12c)."
+	},
+	"716": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Host setup H4: the wbtest account with a model token",
+		"summary": "Host setup H4 of docs/implementation-plan.md (\"Lanes\", host)."
+	},
+	"717": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Host setup H5: allow notifications for Wraith Box.app on the maintainer's Mac",
+		"summary": "Approvals reach the user as native notifications, through the platform's notification helper (S09-09-approvals, \"Delivery\")."
+	},
+	"718": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs: bring the implementation plan up to date with V1-M3 and the new cuts",
+		"summary": "- Status and \"Where things stand\", last written in V1-M1 times: - V1-M1 and V1-M2 are closed, and V1-M3 is in progress with #498, #505, #509, #512 and #513 left."
+	},
+	"719": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "fix(agents): a campaign wave's dispatcher keeps a wait of its own",
+		"summary": "In campaign mode, claude -p with CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0 (the #609 fix) waits only for background tasks of the main thread."
+	},
+	"720": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Campaign 2026-11-10 (V1-M3-network-floor, lane mac)",
+		"summary": "/campaign --lane mac --vm-slots 2"
+	},
+	"721": {
+		"kind": "pr",
+		"state": "open",
+		"title": "Train 720: Campaign 2026-11-10 (V1-M3-network-floor, lane mac)",
+		"summary": "Train of campaign #720."
+	},
+	"722": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "fix(netd): record a refusal before the guest can see it",
+		"summary": "When the network stack refused a guest connection, it sent the guest the reset first and counted and logged the refusal afterwards."
+	},
+	"723": {
+		"kind": "issue",
+		"state": "open",
+		"title": "ci: Go jobs fetch every module from proxy.golang.org on each run, and a fetch timeout failed go:lint",
+		"summary": "Follow-up of #547 (flaky CI runs of the week of 2026-10-26)."
+	},
+	"724": {
+		"kind": "issue",
+		"state": "open",
+		"title": "ci: a fuzz smoke shard hung for 26 minutes, and neither the job nor fuzzsmoke has a deadline",
+		"summary": "Follow-up of #547 (flaky CI runs of the week of 2026-10-26)."
+	},
+	"725": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "test(swift): wait for wb-hostd's close before the hand-off send fails",
+		"summary": "Two wb-vmd tests check that a hand-off send to a wb-hostd that is gone is refused."
+	},
+	"726": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "test(guestlink): wait through CONNECTING before the drop in TestDialerRefusesSecondCall",
+		"summary": "One of the fifteen flaky CI runs in the week of 2026-10-26 came from a test of the guest link's dialer that has no issue of its own."
+	},
+	"727": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "fix(hostd): keep a passed hand-off socket until wb-proxyd holds it",
+		"summary": "On macOS, a socket that one process passes to another and closes at once can arrive dead: the kernel's cleanup of sockets in flight flushes it, and the receiver reads an empty record."
+	},
+	"728": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Hand-off socket contract: a per-socket number, and wb-netd acknowledges its end (with #729)",
+		"summary": "Follow-up from the security review of #727 (F1, parts c and d), for #637."
+	},
+	"729": {
+		"kind": "issue",
+		"state": "closed",
+		"title": "wb-netd can't acknowledge that it holds its end of the hand-off socket",
+		"summary": "Follow-up from the security review of #727 (F2), for #637."
+	},
+	"730": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-netd's hand-off refusals never reach the audit log (Sender has no Events)",
+		"summary": "Follow-up from the security review of #722 (F1), for #569."
+	},
+	"731": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Flaky: wb-netd TestChildServes fails with fdchan: send: connection reset by peer",
+		"summary": "Seen once by the builder of #722 (#569) in a local mise run ci on macOS: packages/wraithbox-go/cmd/wb-netd TestChildServes failed with fdchan: send: connection reset by peer."
+	},
+	"732": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Renovate: vulnerability fixes skip the 7-day release-age wait",
+		"summary": "Renovate's built-in vulnerabilityAlerts config sets minimumReleaseAge: null."
+	},
+	"733": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "test(netd): decide TestAnswerFails slow cases with a synctest clock",
+		"summary": "A test that checks the address pool refuses a name when the proxy or host answers too slowly sometimes passed the answer through on a busy CI machine."
+	},
+	"734": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "test(hostd): TestShellOpenHeld waits for the handler's end before the kills",
+		"summary": "TestShellOpenHeld sometimes failed on Linux with kills = []."
+	},
+	"735": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "fix(proxyd): refuse a GitLab project id with an empty segment",
+		"summary": "The proxy reads the repository a GitLab API write names from the project id in its path, which spells each / as %2F."
+	},
+	"736": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-netd: Pool.within misses a call that returns after the deadline before the timer fires",
+		"summary": "Pool.within (packages/wraithbox-go/internal/netd/synth/pool.go:390) decides whether an accounting write or a name report was late by reading ctx.Err() after the call returns."
+	},
+	"737": {
+		"kind": "issue",
+		"state": "open",
+		"title": "httppolicy: repoKey trims request-derived repository paths like policy input",
+		"summary": "repoKey (packages/wraithbox-go/internal/proxyd/httppolicy/hosts.go:170 and :174) trims a trailing / and .git."
+	},
+	"738": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "fix(proxyd): check a pass stream's end in one step with its ClientHello send",
+		"summary": "A pass stream that the policy reset just after its upstream connection opened could still send its ClientHello upstream, because the check that the stream was still open and the write were two separate steps."
+	},
+	"739": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(netd): drop DNS queries over the rate at once, not held",
+		"summary": "A DNS query over the VM's query rate is now dropped at once, with no answer, instead of being held for 4 seconds like the other refusals."
+	},
+	"740": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(hostd): hold back an event sender that ignores its budget",
+		"summary": "A compromised network daemon could send well-formed audit records as fast as it liked and ignore every budget notice, and the host daemon would queue them all in memory."
+	},
+	"741": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Audit event holds: one VM's budget can hold the shared wb-proxyd channel for every VM",
+		"summary": "Follow-up from the reviews of #740 (#541): code review F3, security review F1."
+	},
+	"742": {
+		"kind": "issue",
+		"state": "open",
+		"title": "datadisk: TestProcessShimKilled can fail under load with child.pid holds \"\"",
+		"summary": "Seen in the round 2 code review of #740 (#541)."
+	},
+	"743": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(go): Keychain item calls in the secret store's cgo shim",
+		"summary": "The macOS secret store can now really write, read, update, delete and list items in the Keychain, where until now every call stopped before it reached it."
+	},
+	"744": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(wb): wb cred set, list and rm through wb-credset",
+		"summary": "wb cred set, wb cred list and wb cred rm now manage the binding secrets in the store."
+	},
+	"745": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "feat(vmd): serve the build slot with the install rules, Install and the build password pipe",
+		"summary": "wb-vmd can now run in the build slot and install macOS from the restore image into the build bundle."
+	},
+	"746": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "fix(netd): keep a handed-off stream's end open until wb-proxyd holds it",
+		"summary": "The network daemon used to close its own copy of each connection's socket the moment it passed that socket to the proxy."
+	},
+	"747": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "fix(vmd): keep a passed descriptor until wb-hostd acknowledges it",
+		"summary": "On the newest macOS the kernel can throw away a socket that is in transit between two processes once the sender has closed its copy, so a guest connection or the VM's network link could reach the host daemon already…"
+	},
+	"748": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spec): measure the Xcode export, signatures and offline import",
+		"summary": "The Xcode image design held back the build until a real Mac showed how Xcode and its simulator runtimes are exported, signed, licensed and imported."
+	},
+	"749": {
+		"kind": "pr",
+		"state": "open",
+		"title": "feat(go): Secure Enclave CA key kept as its wrapped form, with host tests",
+		"summary": "On a Mac, the inspection CA's private key is now made inside the Secure Enclave and never leaves it."
+	},
+	"750": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "docs(spec): move \"How wb-vmd is started\" out of S04-03 to keep it under 300 lines",
+		"summary": "A spec page on main grew past the 300-line limit, which broke the docs deploy and every pull request's mise run ci."
+	},
+	"751": {
+		"kind": "issue",
+		"state": "open",
+		"title": "wb-vmd: one bad hand-off ack ends the ack reader, so later hand-offs hold their slot for 5 s",
+		"summary": "Follow-up from the code re-review of #747 (#648), on the design it added."
 	}
 }

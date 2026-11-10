@@ -12,12 +12,22 @@
 // rule, ends the sender through its Ender and reads no more. The guest
 // can shape what a sender reports, so every record is treated as
 // adversarial.
+//
+// A sender that ignores its budget notices is held back, never dropped
+// (S04-08-records-and-bounds, "Host work the guest can cause";
+// SEC13-bounded-resources). The receiver stops reading its channel while
+// the audit writer holds its cap of records, and while the VM of the
+// last record is past a budget by a margin. The sender's writes then
+// fail, and it refuses new work with event-channel-blocked. Once the
+// sender's stop begins, the receiver reads a bounded allowance past the
+// holds, so the stop record gets the runs the sender flushes.
 package events
 
 import (
 	"errors"
 	"io"
 	"log/slog"
+	"os"
 	"sync"
 	"time"
 
@@ -38,7 +48,31 @@ const (
 	// RuleChannelFailed: reading the channel failed with an error that is
 	// neither a refusal nor the sender's exit.
 	RuleChannelFailed = "event-channel-failed"
+	// RuleQueueFull: the receiver stopped reading while the audit
+	// writer's queue is at its cap.
+	RuleQueueFull = "event-queue-full"
+	// RuleBudgetIgnored: the receiver stopped reading while a VM is past
+	// its budget by the margin, so its sender ignored the notice.
+	RuleBudgetIgnored = "event-budget-ignored"
+	// RuleStopAllowance: the receiver read past its holds for a sender
+	// whose stop began, up to stopAllowance records.
+	RuleStopAllowance = "event-stop-allowance"
 )
+
+// The margins past a VM's budget at which its sender counts as one that
+// ignores the notice, and the receiver stops reading it
+// (S04-08-records-and-bounds, "Host work the guest can cause"). A sender
+// that heeds the notice still sends the records of work it admitted
+// before, at most a full queue of them (eventchan.DefaultQueueCap), so
+// the margins leave room for that.
+const (
+	eventsMargin = eventchan.DefaultQueueCap
+	bytesMargin  = 2 * eventchan.DefaultQueueCap * eventchan.MaxRecord
+)
+
+// recheckEvery is how often a receiver held for a VM's budget checks
+// the budget again.
+const recheckEvery = time.Second
 
 // maxOpenRuns bounds the open runs the hub holds for one VM's stop
 // record. A run past it is written as its own record.
@@ -48,6 +82,8 @@ const maxOpenRuns = 64
 type Log interface {
 	Record(r audit.Record)
 	Budget(slot string) audit.Budget
+	// Room is closed while the writer's queue is below its cap.
+	Room() <-chan struct{}
 }
 
 // Ender ends a sender process: wb-hostd's restart rules decide what
@@ -76,6 +112,10 @@ func (s Source) serves(vm eventchan.VM) bool { return s.VM == nil || *s.VM == vm
 type Hub struct {
 	log    Log
 	logger *slog.Logger
+	// recheck is recheckEvery, shorter in tests, and allowance is
+	// stopAllowance, smaller in tests.
+	recheck   time.Duration
+	allowance int
 
 	mu        sync.Mutex
 	live      map[eventchan.VM]bool
@@ -86,7 +126,7 @@ type Hub struct {
 // NewHub returns a hub that writes to log.
 func NewHub(log Log, logger *slog.Logger) *Hub {
 	return &Hub{
-		log: log, logger: logger,
+		log: log, logger: logger, recheck: recheckEvery, allowance: stopAllowance,
 		live: map[eventchan.VM]bool{}, openRuns: map[eventchan.VM][]audit.OpenRun{}, receivers: map[*Receiver]bool{},
 	}
 }
@@ -124,11 +164,24 @@ func (h *Hub) isLive(vm eventchan.VM) bool {
 // Receiver reads one sender's channel.
 type Receiver struct {
 	hub  *Hub
-	conn eventchan.Conn
+	conn Conn
 	src  Source
 	end  Ender
 	last uint64
 	done chan struct{}
+	// gone is closed once the sender has exited, see SenderGone, and
+	// stopping once its stop began, see Stopping.
+	gone     chan struct{}
+	goneOnce sync.Once
+	stopping chan struct{}
+	stopOnce sync.Once
+	// spent is the records read since the sender's stop began, against
+	// stopAllowance. The loop's own, as are the hold logs.
+	spent               int
+	queueLog, budgetLog holdLog
+	// over is the VM of the last record when it was past a budget by
+	// the margin, read by the next hold. The loop's own.
+	over *eventchan.VM
 
 	// sent is the last notice sent for each VM, guarded by hub.mu.
 	sent map[eventchan.VM]audit.Budget
@@ -136,8 +189,12 @@ type Receiver struct {
 
 // Attach starts a receiver of src on conn. end ends the sender when a
 // record is refused.
-func (h *Hub) Attach(conn eventchan.Conn, src Source, end Ender) *Receiver {
-	r := &Receiver{hub: h, conn: conn, src: src, end: end, done: make(chan struct{}), sent: map[eventchan.VM]audit.Budget{}}
+func (h *Hub) Attach(conn Conn, src Source, end Ender) *Receiver {
+	r := &Receiver{
+		hub: h, conn: conn, src: src, end: end, done: make(chan struct{}),
+		gone: make(chan struct{}), stopping: make(chan struct{}),
+		sent: map[eventchan.VM]audit.Budget{},
+	}
 	h.mu.Lock()
 	h.receivers[r] = true
 	h.mu.Unlock()
@@ -153,10 +210,23 @@ func (r *Receiver) loop() {
 	defer close(r.done)
 	defer r.detach()
 	for {
+		r.holdBudget()
+		r.holdQueue()
+		if r.isGone() {
+			r.drain()
+			return
+		}
 		m, err := r.conn.Recv()
+		if errors.Is(err, os.ErrDeadlineExceeded) && r.isGone() {
+			r.drain()
+			return
+		}
 		if err != nil {
 			r.failed(err)
 			return
+		}
+		if r.isStopping() {
+			r.spent++
 		}
 		if !r.accept(m) {
 			return
@@ -213,8 +283,16 @@ func (r *Receiver) accept(m *fdchan.Message) bool {
 	} else {
 		r.hub.log.Record(audit.EventFromChannel(from, channelEvent(rec.GetEvent())))
 	}
-	r.hub.notify(vm, from.Slot)
+	if b := r.hub.notify(vm, from.Slot); pastMargin(b) {
+		r.over = &vm
+	}
 	return true
+}
+
+// pastMargin reports whether a VM is past one of its budgets by the
+// margin.
+func pastMargin(b audit.Budget) bool {
+	return b.EventsThisMinute >= b.EventsPerMinute+eventsMargin || b.BytesToday >= b.BytesPerDay+bytesMargin
 }
 
 // writeRun writes a run, or holds an open one for the VM's stop record.
@@ -252,11 +330,12 @@ func channelEvent(e *auditv1.Event) audit.ChannelEvent {
 
 // notify sends each sender of vm a BudgetNotice when vm is over a budget
 // and the sender hasn't had this one yet (S09-11-audit, "Budgets"). A
-// send that fails is logged and tried again with the next record.
-func (h *Hub) notify(vm eventchan.VM, slot string) {
+// send that fails is logged and tried again with the next record. It
+// returns the VM's budget.
+func (h *Hub) notify(vm eventchan.VM, slot string) audit.Budget {
 	b := h.log.Budget(slot)
 	if b.Rule == "" {
-		return
+		return b
 	}
 	msg := &auditv1.BudgetNotice{Vm: &auditv1.VM{Slot: vm.Slot, Generation: vm.Generation}, UntilUnix: b.Until.Unix()}
 	msg.Rule = auditv1.BudgetRule_BUDGET_RULE_EVENTS_PER_MINUTE
@@ -266,7 +345,7 @@ func (h *Hub) notify(vm eventchan.VM, slot string) {
 	data, err := proto.Marshal(msg)
 	if err != nil {
 		h.logger.Error("budget notice not sent", "rule", b.Rule, "decision", "skip", "error", err.Error())
-		return
+		return b
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -285,4 +364,5 @@ func (h *Hub) notify(vm eventchan.VM, slot string) {
 			"sender", r.src.Sender, "vm", vm.String(), "until", b.Until.UTC().Format(time.RFC3339),
 			"events_this_minute", b.EventsThisMinute, "bytes_today", b.BytesToday)
 	}
+	return b
 }

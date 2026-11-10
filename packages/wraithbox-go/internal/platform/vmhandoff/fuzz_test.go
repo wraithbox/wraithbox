@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"google.golang.org/protobuf/encoding/protowire"
+	"google.golang.org/protobuf/proto"
 
 	vmdv1 "github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/vmd/v1"
 )
@@ -25,6 +26,11 @@ import (
 // request ID, direction or port, closes the transport request, and the
 // same record checked again is refused: a generation gets one
 // (S07-02-packet-path, "Packet transport").
+//
+// Every record that decodes, accepted or refused, has a HandoffAck that
+// names its kind, request ID and generation, says whether it was
+// accepted, and fits in MaxRecord bytes (S07-05-stream-hand-off,
+// "Transport").
 func FuzzHandoffMessage(f *testing.F) {
 	f.Add([]byte{})
 	f.Add(marshal(f, good()))
@@ -52,6 +58,9 @@ func FuzzHandoffMessage(f *testing.F) {
 			t.Fatal(ref)
 		}
 		msg, got, ref := tb.check(record)
+		if msg != nil {
+			requireAckOf(t, msg, ref == nil)
+		}
 		switch {
 		case ref != nil:
 			requireRefused(t, tb, ref, got)
@@ -107,5 +116,25 @@ func requireNetworkAccepted(t *testing.T, tb *table, record []byte, msg *vmdv1.H
 	}
 	if _, _, ref := tb.check(record); ref == nil || ref.Rule != RuleNetwork {
 		t.Fatalf("the same record again = %v, want %s", ref, RuleNetwork)
+	}
+}
+
+// requireAckOf checks the HandoffAck that answers msg.
+func requireAckOf(t *testing.T, msg *vmdv1.HandoffMessage, accepted bool) {
+	t.Helper()
+	record, err := proto.Marshal(ack(msg, accepted))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(record) > MaxRecord {
+		t.Fatalf("acknowledgment of %d bytes", len(record))
+	}
+	got := &vmdv1.HandoffAck{}
+	if err := proto.Unmarshal(record, got); err != nil {
+		t.Fatal(err)
+	}
+	if got.GetKind() != msg.GetKind() || got.GetRequestId() != msg.GetRequestId() ||
+		got.GetGeneration() != msg.GetGeneration() || got.GetAccepted() != accepted {
+		t.Fatalf("acknowledgment %v of %v, accepted %v", got, msg, accepted)
 	}
 }

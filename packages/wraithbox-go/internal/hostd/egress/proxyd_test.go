@@ -83,6 +83,12 @@ func servedGen(s *State, vm string) uint64 {
 // isClosed reports whether wb-hostd closed f.
 func isClosed(f *os.File) bool { return errors.Is(f.Close(), os.ErrClosed) }
 
+// isOpen reports whether wb-hostd still holds f, without closing it.
+func isOpen(f *os.File) bool {
+	_, err := f.Stat()
+	return err == nil
+}
+
 type proxydHarness struct {
 	t      *testing.T
 	p      *Proxyd
@@ -202,9 +208,9 @@ func (h *proxydHarness) expectServeEnded() {
 }
 
 // TestHandoffAfterAck: wb-netd's end is returned only after wb-proxyd
-// acknowledged its end, and wb-hostd closes its copy of wb-proxyd's end
-// once it is sent (S07-05-stream-hand-off, "One hand-off socket per
-// VM").
+// acknowledged its end. wb-hostd keeps its copy of wb-proxyd's end until
+// the ack shows wb-proxyd holds it, and then closes it
+// (S07-05-stream-hand-off, "Transport", "One hand-off socket per VM").
 func TestHandoffAfterAck(t *testing.T) {
 	h := newProxyd(t, wait)
 	res := h.handoff("work", 4)
@@ -213,6 +219,9 @@ func TestHandoffAfterAck(t *testing.T) {
 	case r := <-res:
 		t.Fatalf("Handoff returned %v before the ack", r)
 	case <-time.After(50 * time.Millisecond):
+	}
+	if !isOpen(proxydEnd) {
+		t.Fatal("wb-hostd closed its copy of wb-proxyd's end before the ack")
 	}
 	h.conn.pushMsg(t, ackOf("work", 4))
 	r := result(t, res)
@@ -380,6 +389,111 @@ func TestHandoffSocketClosed(t *testing.T) {
 	}
 	if got := h.netd["isolated"].got(); len(got) != 0 {
 		t.Fatalf("wb-netd of isolated ended with %q", got)
+	}
+	if got := h.proxyd.got(); len(got) != 0 {
+		t.Fatalf("wb-proxyd ended with %q", got)
+	}
+}
+
+// TestHandoffNoticeBeforeAck: a HandoffSocketClosed for the generation
+// a Handoff waits on fails that Handoff with proxyd-setup-failed and
+// closes both ends, so wb-netd never gets a socket wb-proxyd closed. No
+// wb-netd is ended, and the acknowledgment that comes after the notice
+// is logged and ignored (S07-05-stream-hand-off, "One hand-off socket
+// per VM").
+func TestHandoffNoticeBeforeAck(t *testing.T) {
+	h := newProxyd(t, wait)
+	res := h.handoff("work", 1)
+	h.conn.pushMsg(t, noticeOf("work", 1))
+	r := result(t, res)
+	expectSetupError(t, r.err, checkHandoffClosed)
+	if r.f != nil {
+		t.Fatal("Handoff returned wb-netd's end")
+	}
+	proxydEnd, netdEnd := h.pipes.last(t)
+	if !isClosed(proxydEnd) || !isClosed(netdEnd) {
+		t.Fatal("an end is still open")
+	}
+	expectLog(t, h.logs, "hand-off notice before its acknowledgment", `"rule":"proxyd-setup-failed"`,
+		`"decision":"fail-start"`, `"vm":"work"`, `"generation":1`)
+	h.conn.pushMsg(t, ackOf("work", 1))
+	expectLog(t, h.logs, "late acknowledgment ignored")
+	if got := servedGen(h.state, "work"); got != 0 {
+		t.Fatalf("an ack after the notice marked generation %d served", got)
+	}
+	h.acknowledge("work", 2)
+	if got := h.netd["work"].got(); len(got) != 0 {
+		t.Fatalf("wb-netd of work ended with %q", got)
+	}
+	if got := h.proxyd.got(); len(got) != 0 {
+		t.Fatalf("wb-proxyd ended with %q", got)
+	}
+}
+
+// TestConfirm: a HandoffSocketClosed for a VM's acknowledged socket
+// while no wb-netd runs for it ends no process, and Confirm then fails
+// the start with proxyd-setup-failed. Confirm passes only for the VM's
+// current socket, and refuses a VM that isn't started and a generation
+// wb-proxyd didn't acknowledge last (S07-05-stream-hand-off, "One
+// hand-off socket per VM", step 4).
+func TestConfirm(t *testing.T) {
+	h := newProxyd(t, wait)
+	// No wb-netd runs for isolated.
+	delete(h.netd, "isolated")
+	expectSetupError(t, h.p.Confirm("isolated", 1), checkNotServed)
+	h.acknowledge("isolated", 1)
+	if err := h.p.Confirm("isolated", 1); err != nil {
+		t.Fatalf("Confirm before a notice: %v", err)
+	}
+	h.conn.pushMsg(t, noticeOf("isolated", 1))
+	expectLog(t, h.logs, "hand-off socket closed, no wb-netd runs for the VM", `"rule":"name-report-malformed"`,
+		`"decision":"mark-ended"`, `"vm":"isolated"`)
+	expectSetupError(t, h.p.Confirm("isolated", 1), checkHandoffClosed)
+	expectLog(t, h.logs, `"check":"handoff-closed"`, `"vm":"isolated"`)
+
+	h.acknowledge("isolated", 2)
+	if err := h.p.Confirm("isolated", 2); err != nil {
+		t.Fatalf("Confirm of a new socket: %v", err)
+	}
+	expectSetupError(t, h.p.Confirm("isolated", 1), checkNotServed)
+	expectSetupError(t, h.p.Confirm("isolated", 3), checkNotServed)
+	expectSetupError(t, h.p.Confirm("isolated", 0), checkNotServed)
+	expectSetupError(t, h.p.Confirm("build", 1), checkNotStarted)
+
+	h.state.Stop("isolated")
+	expectSetupError(t, h.p.Confirm("isolated", 2), checkNotStarted)
+	h.state.Start("isolated", false)
+	expectSetupError(t, h.p.Confirm("isolated", 2), checkNotServed)
+	h.acknowledge("isolated", 3)
+	if err := h.p.Confirm("isolated", 3); err != nil {
+		t.Fatalf("Confirm after a new start: %v", err)
+	}
+	if got := h.proxyd.got(); len(got) != 0 {
+		t.Fatalf("wb-proxyd ended with %q", got)
+	}
+}
+
+// TestReplacementAfterNotice: a replacement socket of the same
+// generation, as at a wb-netd restart, is acted on again. After a
+// notice ended the old socket, the replacement's acknowledgment clears
+// the mark, Confirm passes, and a notice for the replacement ends the
+// new wb-netd (S07-06-name-mapping, "Malformed reports").
+func TestReplacementAfterNotice(t *testing.T) {
+	h := newProxyd(t, wait)
+	h.acknowledge("work", 1)
+	h.conn.pushMsg(t, noticeOf("work", 1))
+	h.netd["work"].expect(t, "name-report-malformed")
+	h.acknowledge("work", 1)
+	if err := h.p.Confirm("work", 1); err != nil {
+		t.Fatalf("Confirm of the replacement: %v", err)
+	}
+	h.conn.pushMsg(t, noticeOf("work", 1))
+	deadline := time.Now().Add(wait)
+	for len(h.netd["work"].got()) < 2 {
+		if time.Now().After(deadline) {
+			t.Fatalf("wb-netd of work ended %d times, want 2", len(h.netd["work"].got()))
+		}
+		time.Sleep(5 * time.Millisecond)
 	}
 	if got := h.proxyd.got(); len(got) != 0 {
 		t.Fatalf("wb-proxyd ended with %q", got)

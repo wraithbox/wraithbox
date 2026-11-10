@@ -59,6 +59,7 @@ func FuzzHTTPDecision(f *testing.F) {
 		{"POST", "/repos/acme/app/forks", "", 1, 443, false},
 		{"POST", "/GraphQL;x", "", 1, 443, false},
 		{"POST", "/api/v4/projects/group%2Fsub%2Fproj/fork", "", 5, 443, false},
+		{"POST", "/api/v4/projects/group%2Fsub%2Fproj%2F", "", 5, 443, false},
 		{"POST", "/api/event_logging/v2/batch", "", 7, 443, false},
 		{"POST", "/v1/%6Dessages", "", 7, 443, false},
 		{"PUT", "/left-pad", "", 9, 443, false},

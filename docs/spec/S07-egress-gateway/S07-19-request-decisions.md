@@ -80,7 +80,9 @@ in the project set:
   `uploads.github.com`;
 - Gitea and Forgejo: `/api/v1/repos/<owner>/<repo>`;
 - GitLab: `/api/v4/projects/<id>`, where the id is the path with each
-  `/` as `%2F`. The proxy can't read a repository from a numeric id.
+  `/` as `%2F`. The proxy can't read a repository from a numeric id,
+  or from an id with an empty segment, such as a leading, trailing or
+  doubled `%2F`.
 
 Any other write, such as a web form `POST` or a request under
 `/user/`, is refused with `git-write-outside-project-set`, whatever

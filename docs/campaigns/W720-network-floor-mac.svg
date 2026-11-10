@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 740" role="img" aria-label="The components the train touches. On the host, wb-hostd changed in code to hold back an audit event sender that ignores its budget and to keep a hand-off socket until wb-proxyd acknowledges it. It also acknowledges each socket wb-vmd passes, and wb-vmd keeps its copy until then, for 5 seconds at most. wb-netd records a refusal before the reset and drops DNS queries over the rate at once. It keeps a stream's end until wb-proxyd's first byte. wb-proxyd acknowledges a hand-off socket before it reads it and sends a ClientHello upstream only while its stream is open. A strict HTTP/1.1 request reader for wb-proxyd is open beside the train. The guest processes and the upstream hosts are unchanged.">
+<style>
+svg { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 15px; }
+.box { fill: #ffffff; stroke: #77767b; stroke-width: 1.5; }
+.change-code { fill: #fde7c4; stroke: #c64600; stroke-width: 2.5; }
+.change-open { fill: #f6f5f4; stroke: #77767b; stroke-width: 2; stroke-dasharray: 3 3; }
+.region { fill: none; stroke: #9a9996; stroke-width: 1.5; }
+.boundary { fill: none; stroke: #c01c28; stroke-width: 2; stroke-dasharray: 6 4; }
+.edge { fill: none; stroke: #5e5c64; stroke-width: 1.5; }
+.arrow { fill: #5e5c64; }
+.label { fill: #242428; font-weight: 600; }
+.note { fill: #3d3846; font-size: 12.5px; }
+.region-label { fill: #5e5c64; font-size: 13px; font-weight: 600; }
+@media (prefers-color-scheme: dark) {
+.box { fill: #343437; stroke: #9a9996; }
+.change-code { fill: #4a3214; stroke: #ffa348; }
+.change-open { fill: #2e2e31; stroke: #9a9996; }
+.region { stroke: #77767b; }
+.boundary { stroke: #ff7b7b; }
+.edge { stroke: #c0bfbc; }
+.arrow { fill: #c0bfbc; }
+.label { fill: #ffffff; }
+.note { fill: #deddda; }
+.region-label { fill: #c0bfbc; }
+}
+</style>
+<defs>
+<marker id="w720-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z" /></marker>
+</defs>
+<rect class="region" x="15" y="30" width="725" height="510" rx="10" />
+<text class="region-label" x="30" y="52">host, runs as the user</text>
+<rect class="region" x="760" y="30" width="225" height="160" rx="10" />
+<text class="region-label" x="775" y="52">internet</text>
+<rect class="boundary" x="15" y="560" width="725" height="105" rx="10" />
+<text class="region-label" x="30" y="582">macOS guest VM</text>
+<rect class="change-code" x="30" y="66" width="695" height="92" rx="6" />
+<text class="label" x="45" y="90">wb-hostd</text>
+<text class="note" x="45" y="110">code: stops reading an audit event sender that ignores its budget, 1,384 lines</text>
+<text class="note" x="45" y="126">keeps wb-proxyd's end of a hand-off socket until wb-proxyd acknowledges it, 271 lines</text>
+<text class="note" x="45" y="142">acknowledges each socket wb-vmd passes, 250 lines, all counts with tests</text>
+<rect class="change-code" x="30" y="250" width="210" height="104" rx="6" />
+<text class="label" x="45" y="274">wb-vmd</text>
+<text class="note" x="45" y="294">code: keeps a passed socket</text>
+<text class="note" x="45" y="310">until wb-hostd acknowledges</text>
+<text class="note" x="45" y="326">it, 5 s at most, 1,060 lines</text>
+<text class="note" x="45" y="342">of Swift with tests</text>
+<rect class="change-code" x="272" y="250" width="210" height="104" rx="6" />
+<text class="label" x="287" y="274">wb-netd</text>
+<text class="note" x="287" y="294">code: records, then resets,</text>
+<text class="note" x="287" y="310">drops DNS over the rate,</text>
+<text class="note" x="287" y="326">keeps a stream end 10 s,</text>
+<text class="note" x="287" y="342">767 lines with tests</text>
+<rect class="change-code" x="515" y="250" width="210" height="104" rx="6" />
+<text class="label" x="530" y="274">wb-proxyd</text>
+<text class="note" x="530" y="294">code: acknowledges a socket</text>
+<text class="note" x="530" y="310">before it reads, sends the</text>
+<text class="note" x="530" y="326">ClientHello while open only,</text>
+<text class="note" x="530" y="342">390 lines with tests</text>
+<rect class="change-open" x="515" y="430" width="210" height="88" rx="6" />
+<text class="label" x="530" y="454">HTTP/1.1 reader</text>
+<text class="note" x="530" y="474">in wb-proxyd, open beside</text>
+<text class="note" x="530" y="490">the train, not merged,</text>
+<text class="note" x="530" y="506">1,613 lines with tests</text>
+<rect class="box" x="775" y="66" width="195" height="88" rx="6" />
+<text class="label" x="790" y="90">upstream hosts</text>
+<text class="note" x="790" y="110">unchanged: get a pass</text>
+<text class="note" x="790" y="126">stream's ClientHello only</text>
+<text class="note" x="790" y="142">while the stream is open</text>
+<rect class="box" x="30" y="592" width="450" height="60" rx="6" />
+<text class="label" x="45" y="616">guest processes</text>
+<text class="note" x="45" y="638">unchanged: packets and DNS to wb-netd, connections to wb-vmd</text>
+<path class="edge" d="M135,160 L135,248" marker-start="url(#w720-arrow)" marker-end="url(#w720-arrow)" />
+<text class="note" x="145" y="198">sockets passed,</text>
+<text class="note" x="145" y="214">acknowledgments back</text>
+<path class="edge" d="M377,248 L377,160" marker-end="url(#w720-arrow)" />
+<text class="note" x="387" y="198">audit events, held</text>
+<text class="note" x="387" y="214">past the budget</text>
+<path class="edge" d="M560,160 L560,248" marker-end="url(#w720-arrow)" />
+<text class="note" x="570" y="198">hand-off socket,</text>
+<text class="note" x="570" y="214">kept until acknowledged</text>
+<path class="edge" d="M482,302 L513,302" marker-end="url(#w720-arrow)" />
+<text class="note" x="400" y="380">stream ends, kept until</text>
+<text class="note" x="400" y="396">wb-proxyd's first byte</text>
+<path class="edge" d="M725,302 L750,302 L750,110 L773,110" marker-end="url(#w720-arrow)" />
+<path class="edge" d="M190,592 L190,356" marker-end="url(#w720-arrow)" />
+<text class="note" x="200" y="478">connections over vsock</text>
+<path class="edge" d="M377,592 L377,356" marker-end="url(#w720-arrow)" />
+<text class="note" x="387" y="478">packets and DNS</text>
+<rect class="change-code" x="20" y="690" width="22" height="16" rx="3" />
+<text class="note" x="50" y="703">code changed on the train</text>
+<rect class="change-open" x="250" y="690" width="22" height="16" rx="3" />
+<text class="note" x="280" y="703">open beside the train</text>
+<rect class="box" x="460" y="690" width="22" height="16" rx="3" />
+<text class="note" x="490" y="703">unchanged, for context</text>
+<path class="edge" d="M690,698 L712,698" marker-end="url(#w720-arrow)" />
+<text class="note" x="720" y="703">a flow the changes touch</text>
+</svg>
