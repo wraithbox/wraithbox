@@ -1,0 +1,93 @@
+name: CodeQL Swift
+
+# CodeQL code scanning of the Swift package, advanced setup
+# (docs/github-settings.md, "Code scanning"). The other languages are in
+# codeql.yml. Swift has its own workflow because it needs a macOS runner
+# and about 15 minutes, and macOS runners are where CI waits (#752).
+#
+# A push to main runs it only when it changes a Swift input. The paths
+# are those scripts/ci-changes.mjs gives the `swift` output, kept in
+# step by hand. Unlike ci-changes.mjs, a path no rule matches doesn't
+# run it, and the weekly run, which `paths` doesn't filter, scans the
+# Swift code whatever changed. So does workflow_dispatch.
+on:
+  push:
+    branches: [main]
+    paths:
+      # The Swift package and its lint configuration.
+      - 'packages/wraithbox-swift/**'
+      - '.swiftlint.yml'
+      - '.swift-format'
+      # The gRPC contracts have a Swift side.
+      - '**/*.proto'
+      - '**/buf*.yaml'
+      # swift:build stamps the release number with a Go tool.
+      - 'VERSION'
+      - 'packages/wraithbox-go/internal/tools/buildversion/**'
+      - 'packages/wraithbox-go/internal/version/**'
+      - 'packages/wraithbox-go/go.mod'
+      - 'packages/wraithbox-go/go.sum'
+      - 'go.work'
+      - 'go.work.sum'
+      # The toolchain, the workflows and the scripts they run.
+      - '.mise.toml'
+      - 'mise.lock'
+      - '.github/workflows/**'
+      - '.github/actions/**'
+      - 'renovate.json'
+      - 'scripts/**'
+  schedule:
+    # Once a week, Monday, off the hour, with codeql.yml.
+    - cron: '41 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Never cancel a run on main: each push's results stay in the history.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  analyze:
+    name: CodeQL (swift)
+    # The Swift job's runner in ci.yml: macOS 27 with Xcode 27, whose
+    # Swift builds the package (S02-toolchain).
+    runs-on: xcode-27
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      # Uploads the results to code scanning.
+      security-events: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Go for version:stamp and the stamp check, which swift:build runs.
+      - name: Set up mise
+        uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
+        with:
+          install: true
+          install_args: go
+          cache: true
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@1fc58d04a4d4374f921bdac573c3811c240f9c26 # v4.39.2
+        with:
+          languages: swift
+          build-mode: manual
+
+      # The build CI and `mise run ci` run, so CodeQL sees what ships.
+      # No restored .build cache, unlike ci.yml: CodeQL extracts only what
+      # the compiler compiles, and a cached object is not compiled.
+      - name: Build
+        run: mise run swift:build
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@1fc58d04a4d4374f921bdac573c3811c240f9c26 # v4.39.2
+        with:
+          # Default setup's category, so the alerts it raised carry over.
+          category: /language:swift

@@ -48,7 +48,7 @@
       "enabled": false
     },
     {
-      "description": "A new Ubuntu runner image (24.04 -> 26.04) is proposed as soon as GitHub marks it stable, without automerge: PR CI only exercises ci.yml, not fuzz.yml, deploy.yml or this repository's renovate.yml, so the maintainer merges it after a manual run of those.",
+      "description": "A new Ubuntu runner image (24.04 -> 26.04) is proposed as soon as GitHub marks it stable, without automerge: PR CI only exercises ci.yml, not fuzz.yml, deploy.yml, codeql.yml or this repository's renovate.yml, so the maintainer merges it after a manual run of those.",
       "matchDatasources": [
         "github-runners"
       ],

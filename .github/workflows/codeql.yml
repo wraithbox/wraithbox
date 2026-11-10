@@ -1,0 +1,73 @@
+name: CodeQL
+
+# CodeQL code scanning, advanced setup (docs/github-settings.md, "Code
+# scanning"), for Go, JavaScript/TypeScript and the workflows
+# themselves. Swift is in codeql-swift.yml, which runs only when Swift
+# inputs change (#752).
+#
+# Only main is scanned, not pull requests: a pull request's alerts show
+# up after it merges, on the next push to main (#752). The weekly run
+# scans the same code again, so a new query pack finds what the last
+# push's run could not.
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Once a week, Monday, off the hour.
+    - cron: '41 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Never cancel a run on main: each push's results stay in the history.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  analyze:
+    name: CodeQL (${{ matrix.language }})
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      # Uploads the results to code scanning.
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Autobuild extracts every package of the Go module, with the
+          # Go that mise pins on the PATH, as default setup did.
+          - language: go
+            build-mode: autobuild
+          - language: javascript-typescript
+            build-mode: none
+          - language: actions
+            build-mode: none
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up mise
+        if: ${{ matrix.language == 'go' }}
+        uses: jdx/mise-action@f5be966e4a917d54244728e6a5fdcd1d93a35e6c # v5.2.6
+        with:
+          install: true
+          install_args: go
+          cache: true
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@1fc58d04a4d4374f921bdac573c3811c240f9c26 # v4.39.2
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@1fc58d04a4d4374f921bdac573c3811c240f9c26 # v4.39.2
+        with:
+          # Default setup's category, so the alerts it raised carry over.
+          category: /language:${{ matrix.language }}
