@@ -31,8 +31,8 @@ public typealias GuestConnectHandler = @MainActor (Result<any GuestConnection, V
 /// Opens guest connections for ConnectGuest and passes them on.
 @MainActor
 public final class GuestConnector {
-    /// The most connects in flight: started, and not yet passed or
-    /// failed. A value in code (S04-02-vm-provider, "Caps and closing";
+    /// The most connects in flight: started and not yet failed, or passed
+    /// and wb-vmd's copy not yet closed. A value in code (S04-02-vm-provider, "Caps and closing";
     /// SEC13-bounded-resources). The caps per VM and per project are
     /// wb-hostd's.
     nonisolated static let maxInFlight = 8
@@ -167,9 +167,7 @@ public final class GuestConnector {
             self?.inFlight -= 1
         }
         if let failed = sent {
-            throw VMRefusal(
-                .handoffSendFailed, .failedPrecondition,
-                "sendmsg: \(String(cString: strerror(failed)))")
+            throw VMRefusal(.handoffSendFailed, .failedPrecondition, failed.detail)
         }
         log.info(
             "guest-connection-passed",

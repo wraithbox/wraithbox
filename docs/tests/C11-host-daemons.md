@@ -128,7 +128,14 @@ S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-0
   comes late, names another request or generation, is of the wrong form,
   is empty, over 256 bytes, or carries a descriptor is refused with
   `handoff-ack-unexpected` or `handoff-ack-malformed`, and the right
-  one still closes the copy.
+  one still closes the copy. A descriptor that comes with an
+  acknowledgment is closed. A receive that fails after `wb-hostd`
+  closed its end logs `handoff-ack-channel-ended` once, and the kept
+  copy closes at its deadline. Closing the keeper closes every kept
+  copy at once and refuses later sends. `closeRights` closes the
+  descriptors of one or two `SCM_RIGHTS` messages and none of a message
+  whose length is under the header's or past the end, or of another
+  type or level.
 - **Packet transport** (S07-02-packet-path, "Packet transport", "MTU";
   `NetworkTransportTests`). Both ends of the socketpair are `AF_UNIX`
   datagram sockets, close-on-exec, with `SO_RCVBUF` at least twice
