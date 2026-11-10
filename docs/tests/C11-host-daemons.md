@@ -43,18 +43,61 @@ S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-0
 - **Host.** On a macOS older than 27, `wb-vmd` is refused with
   `vmd-host-unsupported` before `sandbox_init`, whatever its slot.
 - **Slot.** Start `wb-vmd` with `WB_VMD_SLOT` unset, with an unknown
-  value, with the `build` slot, with the `layer` slot, with its bundle a
-  symbolic link to the other slot's bundle, and with its bundle missing.
-  See `vmd-slot-missing`, `vmd-slot-unknown`,
-  `vmd-slot-build-unsupported`, `vmd-slot-layer-unsupported`,
+  value, with the `layer` slot, with its bundle a symbolic link to the
+  other slot's bundle, and with its bundle missing. See
+  `vmd-slot-missing`, `vmd-slot-unknown`, `vmd-slot-layer-unsupported`,
   `vmd-slot-bundle-mismatch` and `vmd-bundle-missing` logged before
   `sandbox_init`.
+- **Build slot** (S04-04-vm-processes, "`wb-vmd-install`", "The
+  restore image"; `BuildSlotTests`). The `build` slot resolves to the
+  build bundle and the real path of the restore image. The `work`
+  slot resolves without one. A restore image that is missing, a
+  directory, or a symbolic link is refused with
+  `vmd-restore-image-mismatch` before `sandbox_init`. The build profile
+  is the `wb-vmd` profile plus the three install rules with `IPSW`, and
+  the `work`, `isolated` and `layer` profiles are the `wb-vmd` profile
+  and mention neither `IPSW` nor the installation service. Only the build
+  slot passes `IPSW`, and a build slot without a restore image path is refused
+  with `vmd-sandbox-param-invalid`.
 - **Start interface** (S04-03-self-sandboxing, "How `wb-vmd` is
   started"). An argument is refused with `vmd-arguments`, and a missing
   descriptor or one of the wrong kind with `vmd-descriptor-invalid`.
   Closing the lifeline stops the VM. Unconfined, the deny probe refuses.
   An empty sandbox parameter, or one with a NUL byte, is refused with
-  `vmd-sandbox-param-invalid` before confinement.
+  `vmd-sandbox-param-invalid` before confinement. In the build slot,
+  descriptor 5 is accepted as a pipe, and a missing one, a socket, or a
+  file is refused with `vmd-descriptor-invalid`. In every other slot
+  an open descriptor 5 is refused with `vmd-descriptor-invalid`
+  (`BuildSlotTests`). `vmdspawn` in Go starts the build slot
+  with the password pipe as descriptor 5 and no other descriptor
+  (`TestSpawnBuild`), and refuses a build slot without the pipe and any
+  other slot with one before it makes anything (`TestConfigRefused`).
+- **Build password input** (S15-04-guest-admin, "Build";
+  `ProvisioningInputTests`). A printable ASCII password of up to 256
+  bytes is read to end of file. An empty, a 257-byte, and a non-ASCII
+  password, one with a control byte, one whose writer doesn't close the
+  pipe within the deadline, and a second read are each refused with
+  `vmd-provisioning-password-invalid`, and no refusal holds the
+  password's bytes. The pipe is closed after the read.
+- **Install** (S04-04-vm-processes, "The install call";
+  `InstallTests`, with a fake engine). In the `work`, `isolated` and
+  `layer` slots `Install` is refused with `vmd-install-refused`, with
+  no file created and the restore image not read. A build bundle that
+  already holds `hw.bin`, `mid.bin`, `aux.wbstore` or `sys.wbdisk` is
+  refused with `vmd-install-refused` and left unchanged. Resources
+  outside the host's range are refused with `vm-resources` before any
+  file. An image the host can't run is refused with
+  `vmd-restore-image-unsupported`, with no file created. An install
+  creates the four files, with the image's hardware model in `hw.bin`
+  and a 64 GiB sparse `sys.wbdisk`, installs from the fixed restore
+  image path with the build slot's fixed set and no network device,
+  and streams rising whole percents that end at 100. A second install,
+  and one while the VM runs, are refused with `vmd-install-refused`. A
+  framework failure ends the stream with a message that holds its
+  `VMError`, and the call is refused with `vm-install-failed`. `Start`
+  in the build slot boots the build slot's fixed set. A `Start` with
+  `provisioning` set is refused in every slot with
+  `vmd-provisioning-refused`, before the engine gets a request.
 - **Peer check and version record** (S04-architecture, "The version
   record"). A peer of another user ID is closed with
   `ipc-peer-uid` and doesn't get a byte, and the next connection is
@@ -103,6 +146,20 @@ S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-0
   the test reads the `KIND_NETWORK` record from the hand-off channel and
   waits up to 300 s for a DHCPDISCOVER from the VM's MAC address on the
   transport.
+- **Install** (`VMInstallTests`, needs-vm and needs-host). With
+  `WB_VM_TEST_RESTORE_IMAGE` naming a restore image in the spike
+  cache, `mise run swift:test-vm` clones it to
+  `<data>/images/macos-restore.ipsw`, makes the build bundle with
+  `tools.img` and an empty sparse 8 GiB `data.wbdisk` in it, and starts
+  the signed `wb-vmd` in the build slot with descriptor 5 a pipe. The
+  test refuses to run when the bundle or the image is already there.
+  See `Install` stream rising percents that end at 100 and no error,
+  the bundle hold the six bundle files, the bundle boot to `RUNNING`
+  with the build slot's fixed set, a forced stop reach `STOPPED`, and a
+  closed lifeline end the process with status 0. The install's time is
+  logged with `measure:`. The test deletes the bundle, the clone, and
+  the directories it made. The install calls Apple's signing server
+  over the host's network (X30-installer-trust).
 - **`wb-hostd` on a VM** (`TestC11HostdVM` in `cmd/wb-hostd`, needs-vm
   and needs-host). With `WB_VM_TEST_BUNDLE` naming a provisioned test
   bundle, `mise run go:test-vm` builds the bundle and runs the test
@@ -137,7 +194,8 @@ S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-0
     hello 19.4 s. The other times were within 10 ms of the run above.
 - **Restore image.** A `wb-vmd-install` whose restore image is a
   symbolic link, or not at the fixed path, logs
-  `vmd-restore-image-mismatch` before `sandbox_init`.
+  `vmd-restore-image-mismatch` before `sandbox_init` (`BuildSlotTests`
+  checks the slot resolution without a VM).
 - **Provisioning.** An instance in the `work`, `isolated` or `layer`
   slot refuses provisioning options with `vmd-provisioning-refused`,
   and the `build` slot accepts them (`ProvisioningCheckTests`).

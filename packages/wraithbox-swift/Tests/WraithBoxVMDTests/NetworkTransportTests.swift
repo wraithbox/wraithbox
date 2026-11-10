@@ -151,7 +151,8 @@ struct NetworkHandoffTests {
         let supervisor = fixture.supervisor
         let start = Task {
             try await supervisor.start(
-                generation: 1, cpuCount: 2, memoryMiB: 1024, macAddress: testMAC)
+                generation: 1, cpuCount: 2, memoryMiB: 1024, macAddress: testMAC,
+                provisioning: false)
         }
         let machine = try await heldMachine(fixture.engine)
         // The VM hasn't started, and the record is there.
@@ -187,7 +188,8 @@ struct NetworkHandoffTests {
         fixture.closeHostEnd()
         await #expect {
             try await fixture.supervisor.start(
-                generation: 1, cpuCount: 2, memoryMiB: 1024, macAddress: testMAC)
+                generation: 1, cpuCount: 2, memoryMiB: 1024, macAddress: testMAC,
+                provisioning: false)
         } throws: { error in
             (error as? VMRefusal)?.rule == VMRule.handoffSendFailed.rawValue
         }

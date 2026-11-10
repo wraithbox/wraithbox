@@ -290,7 +290,15 @@ type StartRequest struct {
 	// generation (S06-06-devices-and-warm-start, "MAC address").
 	// wb-vmd refuses any other length, and an address that isn't a
 	// locally administered unicast one, with the rule `vmd-mac-invalid`.
-	MacAddress    []byte `protobuf:"bytes,4,opt,name=mac_address,json=macAddress,proto3" json:"mac_address,omitempty"`
+	MacAddress []byte `protobuf:"bytes,4,opt,name=mac_address,json=macAddress,proto3" json:"mac_address,omitempty"`
+	// Asks for a start with the macOS provisioning options, which create
+	// the guest's admin user with the build password (S15-04-guest-admin,
+	// "Build"). wb-vmd reads the password from its descriptor 5, never
+	// from a request (S04-03-self-sandboxing, "How `wb-vmd` is started").
+	// Every slot refuses it with `vmd-provisioning-refused` until the
+	// provisioning check is in the start path (#629). Only the build slot
+	// will accept it.
+	Provisioning  bool `protobuf:"varint,5,opt,name=provisioning,proto3" json:"provisioning,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -351,6 +359,13 @@ func (x *StartRequest) GetMacAddress() []byte {
 		return x.MacAddress
 	}
 	return nil
+}
+
+func (x *StartRequest) GetProvisioning() bool {
+	if x != nil {
+		return x.Provisioning
+	}
+	return false
 }
 
 type StartResponse struct {
@@ -880,6 +895,118 @@ func (*ConnectGuestResponse) Descriptor() ([]byte, []int) {
 	return file_wraithbox_vmd_v1_vmd_proto_rawDescGZIP(), []int{11}
 }
 
+type InstallRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Number of virtual CPUs of the install's VM, as in StartRequest.
+	CpuCount uint32 `protobuf:"varint,1,opt,name=cpu_count,json=cpuCount,proto3" json:"cpu_count,omitempty"`
+	// Memory of the install's VM in MiB, as in StartRequest.
+	MemoryMib     uint64 `protobuf:"varint,2,opt,name=memory_mib,json=memoryMib,proto3" json:"memory_mib,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InstallRequest) Reset() {
+	*x = InstallRequest{}
+	mi := &file_wraithbox_vmd_v1_vmd_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InstallRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InstallRequest) ProtoMessage() {}
+
+func (x *InstallRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_vmd_v1_vmd_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InstallRequest.ProtoReflect.Descriptor instead.
+func (*InstallRequest) Descriptor() ([]byte, []int) {
+	return file_wraithbox_vmd_v1_vmd_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *InstallRequest) GetCpuCount() uint32 {
+	if x != nil {
+		return x.CpuCount
+	}
+	return 0
+}
+
+func (x *InstallRequest) GetMemoryMib() uint64 {
+	if x != nil {
+		return x.MemoryMib
+	}
+	return 0
+}
+
+// InstallResponse is one message of the install's progress stream.
+// wb-vmd sends at most one per whole percent, in rising order, and 100
+// once the install has finished.
+type InstallResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The whole percent done, 0 to 100.
+	Percent uint32 `protobuf:"varint,1,opt,name=percent,proto3" json:"percent,omitempty"`
+	// Set only in the last message of a failed install: the framework's
+	// error. The call then ends with the rule `vm-install-failed`.
+	Error         *VMError `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InstallResponse) Reset() {
+	*x = InstallResponse{}
+	mi := &file_wraithbox_vmd_v1_vmd_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InstallResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InstallResponse) ProtoMessage() {}
+
+func (x *InstallResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_wraithbox_vmd_v1_vmd_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InstallResponse.ProtoReflect.Descriptor instead.
+func (*InstallResponse) Descriptor() ([]byte, []int) {
+	return file_wraithbox_vmd_v1_vmd_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *InstallResponse) GetPercent() uint32 {
+	if x != nil {
+		return x.Percent
+	}
+	return 0
+}
+
+func (x *InstallResponse) GetError() *VMError {
+	if x != nil {
+		return x.Error
+	}
+	return nil
+}
+
 // HandoffMessage is not part of any RPC. wb-vmd sends one for each
 // descriptor it hands to wb-hostd, as one record on the hand-off
 // channel: an AF_UNIX SOCK_DGRAM socketpair with no path that wb-hostd
@@ -933,7 +1060,7 @@ type HandoffMessage struct {
 
 func (x *HandoffMessage) Reset() {
 	*x = HandoffMessage{}
-	mi := &file_wraithbox_vmd_v1_vmd_proto_msgTypes[12]
+	mi := &file_wraithbox_vmd_v1_vmd_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -945,7 +1072,7 @@ func (x *HandoffMessage) String() string {
 func (*HandoffMessage) ProtoMessage() {}
 
 func (x *HandoffMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_wraithbox_vmd_v1_vmd_proto_msgTypes[12]
+	mi := &file_wraithbox_vmd_v1_vmd_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -958,7 +1085,7 @@ func (x *HandoffMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HandoffMessage.ProtoReflect.Descriptor instead.
 func (*HandoffMessage) Descriptor() ([]byte, []int) {
-	return file_wraithbox_vmd_v1_vmd_proto_rawDescGZIP(), []int{12}
+	return file_wraithbox_vmd_v1_vmd_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *HandoffMessage) GetRequestId() uint64 {
@@ -1007,7 +1134,7 @@ var File_wraithbox_vmd_v1_vmd_proto protoreflect.FileDescriptor
 
 const file_wraithbox_vmd_v1_vmd_proto_rawDesc = "" +
 	"\n" +
-	"\x1awraithbox/vmd/v1/vmd.proto\x12\x10wraithbox.vmd.v1\"\x8b\x01\n" +
+	"\x1awraithbox/vmd/v1/vmd.proto\x12\x10wraithbox.vmd.v1\"\xaf\x01\n" +
 	"\fStartRequest\x12\x1e\n" +
 	"\n" +
 	"generation\x18\x01 \x01(\x04R\n" +
@@ -1016,7 +1143,8 @@ const file_wraithbox_vmd_v1_vmd_proto_rawDesc = "" +
 	"\n" +
 	"memory_mib\x18\x03 \x01(\x04R\tmemoryMib\x12\x1f\n" +
 	"\vmac_address\x18\x04 \x01(\fR\n" +
-	"macAddress\"\x0f\n" +
+	"macAddress\x12\"\n" +
+	"\fprovisioning\x18\x05 \x01(\bR\fprovisioning\"\x0f\n" +
 	"\rStartResponse\"]\n" +
 	"\vStopRequest\x12\x1e\n" +
 	"\n" +
@@ -1049,7 +1177,14 @@ const file_wraithbox_vmd_v1_vmd_proto_rawDesc = "" +
 	"request_id\x18\x02 \x01(\x04R\trequestId\x12\x1d\n" +
 	"\n" +
 	"guest_port\x18\x03 \x01(\rR\tguestPort\"\x16\n" +
-	"\x14ConnectGuestResponse\"\x82\x02\n" +
+	"\x14ConnectGuestResponse\"L\n" +
+	"\x0eInstallRequest\x12\x1b\n" +
+	"\tcpu_count\x18\x01 \x01(\rR\bcpuCount\x12\x1d\n" +
+	"\n" +
+	"memory_mib\x18\x02 \x01(\x04R\tmemoryMib\"\\\n" +
+	"\x0fInstallResponse\x12\x18\n" +
+	"\apercent\x18\x01 \x01(\rR\apercent\x12/\n" +
+	"\x05error\x18\x02 \x01(\v2\x19.wraithbox.vmd.v1.VMErrorR\x05error\"\x82\x02\n" +
 	"\x0eHandoffMessage\x12\x1d\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\x04R\trequestId\x12\x1e\n" +
@@ -1084,14 +1219,15 @@ const file_wraithbox_vmd_v1_vmd_proto_rawDesc = "" +
 	"\x04Kind\x12\x14\n" +
 	"\x10KIND_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fKIND_CONNECTION\x10\x01\x12\x10\n" +
-	"\fKIND_NETWORK\x10\x022\xa9\x03\n" +
+	"\fKIND_NETWORK\x10\x022\xfb\x03\n" +
 	"\tVMService\x12H\n" +
 	"\x05Start\x12\x1e.wraithbox.vmd.v1.StartRequest\x1a\x1f.wraithbox.vmd.v1.StartResponse\x12E\n" +
 	"\x04Stop\x12\x1d.wraithbox.vmd.v1.StopRequest\x1a\x1e.wraithbox.vmd.v1.StopResponse\x12Q\n" +
 	"\bGetState\x12!.wraithbox.vmd.v1.GetStateRequest\x1a\".wraithbox.vmd.v1.GetStateResponse\x12Y\n" +
 	"\n" +
 	"WatchState\x12#.wraithbox.vmd.v1.WatchStateRequest\x1a$.wraithbox.vmd.v1.WatchStateResponse0\x01\x12]\n" +
-	"\fConnectGuest\x12%.wraithbox.vmd.v1.ConnectGuestRequest\x1a&.wraithbox.vmd.v1.ConnectGuestResponseB\xdc\x01\n" +
+	"\fConnectGuest\x12%.wraithbox.vmd.v1.ConnectGuestRequest\x1a&.wraithbox.vmd.v1.ConnectGuestResponse\x12P\n" +
+	"\aInstall\x12 .wraithbox.vmd.v1.InstallRequest\x1a!.wraithbox.vmd.v1.InstallResponse0\x01B\xdc\x01\n" +
 	"\x14com.wraithbox.vmd.v1B\bVmdProtoP\x01ZXgithub.com/wraithbox/wraithbox/packages/wraithbox-go/internal/gen/wraithbox/vmd/v1;vmdv1\xa2\x02\x03WVX\xaa\x02\x10Wraithbox.Vmd.V1\xca\x02\x10Wraithbox\\Vmd\\V1\xe2\x02\x1cWraithbox\\Vmd\\V1\\GPBMetadata\xea\x02\x12Wraithbox::Vmd::V1b\x06proto3"
 
 var (
@@ -1107,7 +1243,7 @@ func file_wraithbox_vmd_v1_vmd_proto_rawDescGZIP() []byte {
 }
 
 var file_wraithbox_vmd_v1_vmd_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_wraithbox_vmd_v1_vmd_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_wraithbox_vmd_v1_vmd_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_wraithbox_vmd_v1_vmd_proto_goTypes = []any{
 	(StopMode)(0),                // 0: wraithbox.vmd.v1.StopMode
 	(State)(0),                   // 1: wraithbox.vmd.v1.State
@@ -1125,7 +1261,9 @@ var file_wraithbox_vmd_v1_vmd_proto_goTypes = []any{
 	(*VMError)(nil),              // 13: wraithbox.vmd.v1.VMError
 	(*ConnectGuestRequest)(nil),  // 14: wraithbox.vmd.v1.ConnectGuestRequest
 	(*ConnectGuestResponse)(nil), // 15: wraithbox.vmd.v1.ConnectGuestResponse
-	(*HandoffMessage)(nil),       // 16: wraithbox.vmd.v1.HandoffMessage
+	(*InstallRequest)(nil),       // 16: wraithbox.vmd.v1.InstallRequest
+	(*InstallResponse)(nil),      // 17: wraithbox.vmd.v1.InstallResponse
+	(*HandoffMessage)(nil),       // 18: wraithbox.vmd.v1.HandoffMessage
 }
 var file_wraithbox_vmd_v1_vmd_proto_depIdxs = []int32{
 	0,  // 0: wraithbox.vmd.v1.StopRequest.mode:type_name -> wraithbox.vmd.v1.StopMode
@@ -1133,23 +1271,26 @@ var file_wraithbox_vmd_v1_vmd_proto_depIdxs = []int32{
 	12, // 2: wraithbox.vmd.v1.WatchStateResponse.state:type_name -> wraithbox.vmd.v1.VMState
 	1,  // 3: wraithbox.vmd.v1.VMState.state:type_name -> wraithbox.vmd.v1.State
 	13, // 4: wraithbox.vmd.v1.VMState.error:type_name -> wraithbox.vmd.v1.VMError
-	2,  // 5: wraithbox.vmd.v1.HandoffMessage.direction:type_name -> wraithbox.vmd.v1.Direction
-	3,  // 6: wraithbox.vmd.v1.HandoffMessage.kind:type_name -> wraithbox.vmd.v1.Kind
-	4,  // 7: wraithbox.vmd.v1.VMService.Start:input_type -> wraithbox.vmd.v1.StartRequest
-	6,  // 8: wraithbox.vmd.v1.VMService.Stop:input_type -> wraithbox.vmd.v1.StopRequest
-	8,  // 9: wraithbox.vmd.v1.VMService.GetState:input_type -> wraithbox.vmd.v1.GetStateRequest
-	10, // 10: wraithbox.vmd.v1.VMService.WatchState:input_type -> wraithbox.vmd.v1.WatchStateRequest
-	14, // 11: wraithbox.vmd.v1.VMService.ConnectGuest:input_type -> wraithbox.vmd.v1.ConnectGuestRequest
-	5,  // 12: wraithbox.vmd.v1.VMService.Start:output_type -> wraithbox.vmd.v1.StartResponse
-	7,  // 13: wraithbox.vmd.v1.VMService.Stop:output_type -> wraithbox.vmd.v1.StopResponse
-	9,  // 14: wraithbox.vmd.v1.VMService.GetState:output_type -> wraithbox.vmd.v1.GetStateResponse
-	11, // 15: wraithbox.vmd.v1.VMService.WatchState:output_type -> wraithbox.vmd.v1.WatchStateResponse
-	15, // 16: wraithbox.vmd.v1.VMService.ConnectGuest:output_type -> wraithbox.vmd.v1.ConnectGuestResponse
-	12, // [12:17] is the sub-list for method output_type
-	7,  // [7:12] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	13, // 5: wraithbox.vmd.v1.InstallResponse.error:type_name -> wraithbox.vmd.v1.VMError
+	2,  // 6: wraithbox.vmd.v1.HandoffMessage.direction:type_name -> wraithbox.vmd.v1.Direction
+	3,  // 7: wraithbox.vmd.v1.HandoffMessage.kind:type_name -> wraithbox.vmd.v1.Kind
+	4,  // 8: wraithbox.vmd.v1.VMService.Start:input_type -> wraithbox.vmd.v1.StartRequest
+	6,  // 9: wraithbox.vmd.v1.VMService.Stop:input_type -> wraithbox.vmd.v1.StopRequest
+	8,  // 10: wraithbox.vmd.v1.VMService.GetState:input_type -> wraithbox.vmd.v1.GetStateRequest
+	10, // 11: wraithbox.vmd.v1.VMService.WatchState:input_type -> wraithbox.vmd.v1.WatchStateRequest
+	14, // 12: wraithbox.vmd.v1.VMService.ConnectGuest:input_type -> wraithbox.vmd.v1.ConnectGuestRequest
+	16, // 13: wraithbox.vmd.v1.VMService.Install:input_type -> wraithbox.vmd.v1.InstallRequest
+	5,  // 14: wraithbox.vmd.v1.VMService.Start:output_type -> wraithbox.vmd.v1.StartResponse
+	7,  // 15: wraithbox.vmd.v1.VMService.Stop:output_type -> wraithbox.vmd.v1.StopResponse
+	9,  // 16: wraithbox.vmd.v1.VMService.GetState:output_type -> wraithbox.vmd.v1.GetStateResponse
+	11, // 17: wraithbox.vmd.v1.VMService.WatchState:output_type -> wraithbox.vmd.v1.WatchStateResponse
+	15, // 18: wraithbox.vmd.v1.VMService.ConnectGuest:output_type -> wraithbox.vmd.v1.ConnectGuestResponse
+	17, // 19: wraithbox.vmd.v1.VMService.Install:output_type -> wraithbox.vmd.v1.InstallResponse
+	14, // [14:20] is the sub-list for method output_type
+	8,  // [8:14] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_wraithbox_vmd_v1_vmd_proto_init() }
@@ -1163,7 +1304,7 @@ func file_wraithbox_vmd_v1_vmd_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_wraithbox_vmd_v1_vmd_proto_rawDesc), len(file_wraithbox_vmd_v1_vmd_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   13,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

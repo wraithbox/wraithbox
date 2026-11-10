@@ -193,7 +193,7 @@ final class ServerFixture: Sendable {
         // channel is none.
         let supervisor = VMSupervisor(
             engine: FakeEngine(), slot: .work, bundlePath: "/nonexistent",
-            handoff: HandoffChannel(fd: -1), log: log)
+            restoreImagePath: nil, handoff: HandoffChannel(fd: -1), log: log)
         let connector = GuestConnector(
             supervisor: supervisor, handoff: HandoffChannel(fd: -1), log: log)
         let service = VMServiceHandler(supervisor: supervisor, connector: connector, log: log)

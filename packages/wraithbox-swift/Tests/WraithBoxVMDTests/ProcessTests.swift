@@ -1,5 +1,5 @@
 // C11-host-daemons, "Slot": the built wb-vmd, started with WB_VMD_SLOT
-// unset, unknown, or the build or layer slot, logs the rule before it confines
+// unset, unknown, or the layer slot, logs the rule before it confines
 // itself and exits 1. None of these cases reads host state but the macOS
 // version. wb-vmd refuses a macOS older than 27 first, so on such a host
 // only that refusal is tested (HostRequirement).
@@ -32,7 +32,6 @@ struct ProcessTests {
         arguments: [
             ([String](), StartupRule.slotMissing),
             (["WB_VMD_SLOT=nope"], .slotUnknown),
-            (["WB_VMD_SLOT=build"], .slotBuildUnsupported),
             (["WB_VMD_SLOT=layer"], .slotLayerUnsupported),
         ])
     func refusedSlot(environment: [String], rule: StartupRule) throws {

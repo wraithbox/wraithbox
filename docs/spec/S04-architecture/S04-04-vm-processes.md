@@ -54,12 +54,12 @@ and exits:
 So it never confines itself to a bundle its slot doesn't own
 (SEC08-proj-isolation). C11-host-daemons tests each rule.
 
-Until the image build is built (V1-M7-image-build), `wb-vmd` also
-refuses the `build` slot (`vmd-slot-build-unsupported`) and the `layer`
-slot (`vmd-slot-layer-unsupported`). `wb-vmd-install` serves `build`. It
-has the install rules and the restore image check ("`wb-vmd-install`",
-below). `wb-vmd-layer` alone serves `layer`. It has no install rules and
-no restore image check, and it uses the build bundle too ("`wb-vmd-layer`", below).
+`wb-vmd-install` serves `build`. It has the install rules and the
+restore image check ("`wb-vmd-install`", below). Until the layer build
+is built (V1-M7-image-build), `wb-vmd` refuses the `layer` slot
+(`vmd-slot-layer-unsupported`). `wb-vmd-layer` alone serves `layer`. It
+has no install rules and no restore image check, and it uses the build
+bundle too ("`wb-vmd-layer`", below).
 
 ### Reaching an instance
 
@@ -144,9 +144,48 @@ is one, because one maintenance VM runs at a time
 
 Only this entry accepts provisioning options. An instance whose slot
 isn't `build`, `layer` included, refuses them and logs `vmd-provisioning-refused`
-(S15-04-guest-admin, "Refused outside the path"). A start call with
+(S15-04-guest-admin, "Refused outside the path"). Until I629 puts the
+provisioning check in the start path, the build slot refuses them too,
+with the same rule. A start call with
 the Xcode flag in any slot but `layer` is refused before any device is
 created, and logs `vmd-xcode-disk-refused` (S06-14-xcode-image).
+
+### The install call
+
+`Install` installs macOS from the restore image into the build bundle.
+Its request holds the CPU count and memory, as a start's does. It
+doesn't name a path or an image. The call streams the install's
+progress in whole percents, one message per step at most. The last
+message says 100 once the install is done. Only
+the build slot serves it. Every other slot refuses it before it touches
+a file, and logs `vmd-install-refused`.
+
+In the build slot, the call:
+
+1. refuses a call while an install runs or a VM starts or runs
+   (`vmd-install-refused`);
+2. checks the CPU count and memory against the host's range
+   (`vm-resources`);
+3. refuses a second install in the same instance, and a bundle that
+   already holds `hw.bin`, `mid.bin`, `aux.wbstore` or `sys.wbdisk`
+   (`vmd-install-refused`);
+4. reads the restore image at the fixed path, and refuses one this
+   host can't run with `vmd-restore-image-unsupported`;
+5. creates `hw.bin` with the image's hardware model, `mid.bin` with a
+   new machine identifier, `aux.wbstore`, and a sparse 64 GiB
+   `sys.wbdisk`, each with `O_EXCL`;
+6. installs with the build slot's fixed set, which has no network
+   device. `wb-hostd` puts `tools.img` and an empty `data.wbdisk` in
+   the bundle first. With them, the set passes its check
+   (S04-02-vm-provider, "The device set is fixed and checked").
+
+A framework error ends the stream with a message that holds its
+`VMError`, and the call is refused with `vm-install-failed`. The
+instance then serves boots of the bundle with `Start`, each a new
+generation, as the other slots do. A closed lifeline during an
+install ends `wb-vmd` within its exit deadline, and the install with
+it. The build then fails, and `wb-hostd` deletes the build bundle
+(S06-02-image-build, "The build bundle").
 
 ### `wb-diskfmt`
 

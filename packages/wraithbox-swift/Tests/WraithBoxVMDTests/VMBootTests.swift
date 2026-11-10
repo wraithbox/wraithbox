@@ -90,32 +90,33 @@ struct VMBootTests {
         #expect(state.state.state == .stopped)
         try slot.restoreDataDisk()
     }
+}
 
-    private func waitForState(
-        _ client: Wraithbox_Vmd_V1_VMService.Client<HTTP2ClientTransport.Posix>,
-        _ wanted: Wraithbox_Vmd_V1_State
-    ) async throws {
-        let seen = try await client.watchState(Wraithbox_Vmd_V1_WatchStateRequest()) { response in
-            for try await message in response.messages where message.state.state == wanted {
-                return true
-            }
-            return false
+/// Watches the state until it is `wanted`.
+func waitForState(
+    _ client: Wraithbox_Vmd_V1_VMService.Client<HTTP2ClientTransport.Posix>,
+    _ wanted: Wraithbox_Vmd_V1_State
+) async throws {
+    let seen = try await client.watchState(Wraithbox_Vmd_V1_WatchStateRequest()) { response in
+        for try await message in response.messages where message.state.state == wanted {
+            return true
         }
-        #expect(seen, "never saw \(wanted)")
+        return false
     }
+    #expect(seen, "never saw \(wanted)")
+}
 
-    /// The ad-hoc signed wb-vmd that `mise run swift:sign` writes.
-    private func signedBinary() throws -> String {
-        if let path = ProcessInfo.processInfo.environment["WB_VMD_BINARY"] {
-            return path
-        }
-        let package = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
-        let path = package.appendingPathComponent(".build/signed/wb-vmd").path
-        try #require(
-            FileManager.default.isExecutableFile(atPath: path), "run mise run swift:sign first")
+/// The ad-hoc signed wb-vmd that `mise run swift:sign` writes.
+func signedBinary() throws -> String {
+    if let path = ProcessInfo.processInfo.environment["WB_VMD_BINARY"] {
         return path
     }
+    let package = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+        .deletingLastPathComponent().deletingLastPathComponent()
+    let path = package.appendingPathComponent(".build/signed/wb-vmd").path
+    try #require(
+        FileManager.default.isExecutableFile(atPath: path), "run mise run swift:sign first")
+    return path
 }
 
 /// The work slot's bundle, an APFS clone of a spike bundle with its
@@ -213,15 +214,20 @@ final class SpawnedDaemon: Sendable {
     /// ends.
     let handoffEnd: Int32
 
-    init(binary: String) throws {
+    /// Starts `binary` in `slot`. `provisioning`, the read end of the build
+    /// password pipe, becomes descriptor 5, and the caller closes its own.
+    init(binary: String, slot: VMSlot = .work, provisioning: Int32? = nil) throws {
         directory = try TemporaryDirectory()
         socketPath = directory.path + "/vmd.sock"
         let listening = try listeningSocket(at: socketPath)
         let lifelinePipe = try makePipe()
         let logPipe = try makePipe()
         let handoff = try makeSocketPair(SOCK_DGRAM)
+        let passed =
+            [lifelinePipe.0, logPipe.1, listening, handoff.1] + [provisioning].compactMap { $0 }
         pid = try Self.spawn(
-            binary, descriptors: [lifelinePipe.0, logPipe.1, listening, handoff.1])
+            binary, descriptors: passed,
+            environment: ["\(SlotResolution.variable)=\(slot.rawValue)"])
         closeAll([lifelinePipe.0, logPipe.1, listening, handoff.1])
         lifeline.withLock { $0 = lifelinePipe.1 }
         handoffEnd = handoff.0
@@ -233,8 +239,8 @@ final class SpawnedDaemon: Sendable {
         thread.start()
     }
 
-    /// Spawns `binary` with no arguments, WB_VMD_SLOT=work, and the given
-    /// descriptors as 0, 2, 3 and 4. Nothing else is inherited.
+    /// Spawns `binary` with no arguments, `environment`, and the given
+    /// descriptors as 0, 2, 3, 4 and 5. Nothing else is inherited.
     static func spawn(
         _ binary: String, descriptors: [Int32], environment: [String] = ["WB_VMD_SLOT=work"]
     ) throws -> pid_t {

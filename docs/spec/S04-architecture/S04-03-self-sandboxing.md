@@ -90,7 +90,7 @@ confines itself.
 ### How `wb-vmd` is started
 
 `wb-vmd` takes no arguments, and refuses any with `vmd-arguments`. It
-inherits four descriptors:
+inherits four descriptors, and in the `build` slot a fifth:
 
 | Descriptor | What it is |
 |---|---|
@@ -98,6 +98,18 @@ inherits four descriptors:
 | 2 | the log pipe ("Daemon logs") |
 | 3 | a listening `AF_UNIX` stream socket for gRPC |
 | 4 | the hand-off socket: `AF_UNIX`, `SOCK_DGRAM` (S04-02-vm-provider, "Hand-off on macOS") |
+| 5 | `build` slot only: the read end of the build password pipe, which `wb-guestadmin-build` writes (S15-04-guest-admin, "Build") |
+
+Descriptor 5 is the one exception of S12-01-platform-interfaces,
+"Rules". `wb-vmd` reads the password from it only for a start with
+provisioning set. The password is read to end of file within a
+deadline, and must be 1 to 256 bytes of printable ASCII. Anything else
+refuses the start with `vmd-provisioning-password-invalid`. `wb-vmd`
+reads the pipe once and closes it. The password never reaches a log,
+an error, or a file (SEC04-no-guest-secrets). Until I629 puts the
+provisioning check in the start path, every slot refuses a start with
+provisioning set (`vmd-provisioning-refused`), and `wb-vmd` leaves
+the pipe unread.
 
 Its profile allows no path outside its bundle, so it can't bind a
 socket. The spawner binds it in `<data>/run/` (S04-architecture,
@@ -155,7 +167,10 @@ never serves on a descriptor its spawner didn't mean.
 The profile's parameters are:
 
 - the bundle path, from the fixed platform path (S12-01-platform-interfaces, "Paths") resolved to its real path;
-- the cache directory from `confstr`.
+- the cache directory from `confstr`;
+- in the `build` slot only, `IPSW`: the real path of the restore image
+  at its fixed path (S04-04-vm-processes, "The restore image"), for
+  the install rules the build slot's profile adds.
 
 The gRPC contract carries no path.
 

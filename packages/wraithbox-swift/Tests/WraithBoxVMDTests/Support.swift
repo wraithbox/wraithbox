@@ -81,6 +81,51 @@ final class FakeEngine: VMEngine {
         machines.append(machine)
         return machine
     }
+
+    /// What the fake restore image holds. A nil hardware model is an image
+    /// this host can't run.
+    var restoreImage = RestoreImageInfo(buildVersion: "26B123", hardwareModel: [0x68, 0x77])
+    var restoreImageFailure: VMFailure?
+    /// The fractions an install reports, in order.
+    var installFractions: [Double] = [0, 0.004, 0.01, 0.019, 0.5, 0.3, 0.999, 1, 1.5]
+    var installFailure: VMFailure?
+    let machineIdentifier: [UInt8] = [0x6d, 0x69, 0x64]
+    private(set) var restoreImageReads: [String] = []
+    private(set) var installs: [(BootRequest, String)] = []
+
+    func restoreImage(at path: String) async throws(VMFailure) -> RestoreImageInfo {
+        restoreImageReads.append(path)
+        if let restoreImageFailure {
+            throw restoreImageFailure
+        }
+        return restoreImage
+    }
+
+    func newMachineIdentifier() -> [UInt8] {
+        machineIdentifier
+    }
+
+    /// Creates the file as the framework does, and fails when one is there.
+    func createAuxiliaryStorage(at path: String, hardwareModel: [UInt8]) throws(VMFailure) {
+        let fd = open(path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0o600)
+        guard fd >= 0 else {
+            throw VMFailure(errno: errno, description: "aux exists")
+        }
+        close(fd)
+    }
+
+    func install(
+        _ request: BootRequest, restoreImagePath: String,
+        progress: @escaping InstallProgressHandler
+    ) async throws(VMFailure) {
+        installs.append((request, restoreImagePath))
+        for fraction in installFractions {
+            progress(fraction)
+        }
+        if let installFailure {
+            throw installFailure
+        }
+    }
 }
 
 /// A VM that changes state when asked, and records the stops.
@@ -291,20 +336,30 @@ final class TemporaryDirectory: Sendable {
     }
 }
 
-/// A slot bundle with every bundle file, under `<data>` in a temporary
-/// home.
+/// A slot bundle under `<data>` in a temporary home, with the bundle
+/// files `files`, every one unless named.
 final class BundleFixture {
     let home: TemporaryDirectory
     let path: String
 
-    init() throws {
+    init(slot: VMSlot = .work, files: [BundleFile] = BundleFile.allCases) throws {
         home = try TemporaryDirectory()
-        path = HostPaths.data(home: home.path) + "/" + HostPaths.bundle(of: .work)
+        path = HostPaths.data(home: home.path) + "/" + HostPaths.bundle(of: slot)
         try FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true)
-        for file in BundleFile.allCases {
+        for file in files {
             FileManager.default.createFile(
                 atPath: path + "/" + file.rawValue, contents: Data("x".utf8))
         }
+    }
+
+    /// The names in the bundle directory, sorted.
+    var contents: [String] {
+        ((try? FileManager.default.contentsOfDirectory(atPath: path)) ?? []).sorted()
+    }
+
+    /// The fixed restore image path under `<data>`.
+    var restoreImagePath: String {
+        HostPaths.data(home: home.path) + "/" + HostPaths.restoreImage
     }
 }
 

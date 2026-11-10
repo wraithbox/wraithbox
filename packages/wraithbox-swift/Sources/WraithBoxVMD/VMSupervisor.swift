@@ -64,8 +64,23 @@ public enum VMRule: String, Sendable, CaseIterable {
     /// (S07-02-packet-path, "Packet transport").
     case networkFailed = "vm-network-failed"
     /// Provisioning options in a slot that isn't `build`
-    /// (ProvisioningCheck).
+    /// (ProvisioningCheck), and for now a Start with `provisioning` set in
+    /// any slot: no slot sets provisioning options until the check is in
+    /// the start path (SEC12-least-privilege).
     case provisioningRefused = "vmd-provisioning-refused"
+    /// The build password on descriptor 5 is empty, over
+    /// ProvisioningInput.maxBytes, not printable ASCII, or late
+    /// (ProvisioningInput).
+    case provisioningPasswordInvalid = "vmd-provisioning-password-invalid"
+    /// An Install in a slot that isn't `build`, a second Install in an
+    /// instance, an Install while the VM runs, or one into a bundle that
+    /// holds a file the install creates. Refused before any file is
+    /// touched (S04-04-vm-processes, "`wb-vmd-install`").
+    case installRefused = "vmd-install-refused"
+    /// The restore image holds no configuration this host can run.
+    case restoreImageUnsupported = "vmd-restore-image-unsupported"
+    /// The framework failed a step of the install.
+    case installFailed = "vm-install-failed"
 }
 
 /// A refused request.
@@ -74,15 +89,19 @@ public struct VMRefusal: Error, Sendable, Equatable {
     public let rule: String
     public let code: RPCError.Code
     public let detail: String
+    /// The framework error behind a failed install, which the Install
+    /// stream returns as its last message's VMError.
+    public let failure: VMFailure?
 
-    init(_ rule: VMRule, _ code: RPCError.Code, _ detail: String) {
-        self.init(rule: rule.rawValue, code: code, detail: detail)
+    init(_ rule: VMRule, _ code: RPCError.Code, _ detail: String, failure: VMFailure? = nil) {
+        self.init(rule: rule.rawValue, code: code, detail: detail, failure: failure)
     }
 
-    init(rule: String, code: RPCError.Code, detail: String) {
+    init(rule: String, code: RPCError.Code, detail: String, failure: VMFailure? = nil) {
         self.rule = rule
         self.code = code
         self.detail = detail
+        self.failure = failure
     }
 }
 
@@ -131,6 +150,9 @@ public final class VMSupervisor {
     private let log: EventLog
     private var vm: (any EngineVM)?
     private var starting = false
+    /// The build slot's install steps, nil in every other slot.
+    private let installer: BuildInstaller?
+    private var installing = false
     private var lastGeneration: UInt64 = 0
     private var watchers: [UInt64: AsyncStream<VMStatus>.Continuation] = [:]
     private var nextWatcher: UInt64 = 0
@@ -139,23 +161,45 @@ public final class VMSupervisor {
     /// The current state. Before the first start: generation 0, stopped.
     public private(set) var status = VMStatus(generation: 0, state: .stopped, failure: nil)
 
+    /// `restoreImagePath` is the restore image's real path in the build
+    /// slot, and nil in every other one. Only the build slot with a
+    /// restore image installs.
     public init(
-        engine: any VMEngine, slot: VMSlot, bundlePath: String, handoff: HandoffChannel,
-        log: EventLog
+        engine: any VMEngine, slot: VMSlot, bundlePath: String, restoreImagePath: String?,
+        handoff: HandoffChannel, log: EventLog
     ) {
         self.engine = engine
         self.slot = slot
         self.bundlePath = bundlePath
         self.handoff = handoff
         self.log = log
+        installer =
+            switch (slot, restoreImagePath) {
+            case (.build, .some(let path)):
+                BuildInstaller(
+                    engine: engine, bundlePath: bundlePath, restoreImagePath: path, log: log)
+            default:
+                nil
+            }
     }
 
     /// Starts the VM, after every check. Returns once the framework has
     /// started it. When the slot's set has a network device, wb-hostd
     /// has the host end of its packet transport before the VM starts.
     public func start(
-        generation: UInt64, cpuCount: UInt32, memoryMiB: UInt64, macAddress: [UInt8]
+        generation: UInt64, cpuCount: UInt32, memoryMiB: UInt64, macAddress: [UInt8],
+        provisioning: Bool
     ) async throws(VMRefusal) {
+        // SEC12-least-privilege: no slot sets provisioning options until
+        // ProvisioningCheck is in this path, so every slot refuses them.
+        guard !provisioning else {
+            throw VMRefusal(
+                .provisioningRefused, .permissionDenied,
+                "the \(slot.rawValue) slot sets no provisioning options")
+        }
+        guard !installing else {
+            throw VMRefusal(.alreadyRunning, .failedPrecondition, "an install runs")
+        }
         guard !starting, !status.state.isActive else {
             throw VMRefusal(
                 .alreadyRunning, .failedPrecondition, "the VM is \(status.state.rawValue)")
@@ -237,6 +281,40 @@ public final class VMSupervisor {
             ])
     }
 
+    /// Installs macOS from the restore image into the build bundle, and
+    /// calls `percent` with each whole percent as it rises, and with 100
+    /// once the install succeeded (S04-04-vm-processes, "`wb-vmd-install`").
+    /// Every refusal before the restore image is read touches no file.
+    public func install(
+        cpuCount: UInt32, memoryMiB: UInt64, percent: @escaping @MainActor (UInt32) -> Void
+    ) async throws(VMRefusal) {
+        // SEC12-least-privilege: only the build slot installs.
+        guard let installer else {
+            throw VMRefusal(
+                .installRefused, .failedPrecondition,
+                "the \(slot.rawValue) slot does not install")
+        }
+        guard !installing, !starting, !status.state.isActive else {
+            let what = installing ? "an install runs" : "the VM is \(status.state.rawValue)"
+            throw VMRefusal(.installRefused, .failedPrecondition, what)
+        }
+        _ = try checkResources(cpuCount: cpuCount, memoryMiB: memoryMiB)
+        installing = true
+        defer { installing = false }
+        log.info(
+            "install-start", ["cpu_count": .uint(UInt64(cpuCount)), "memory_mib": .uint(memoryMiB)])
+        try await installer.prepare()
+        let request = try bootRequest(cpuCount: cpuCount, memoryMiB: memoryMiB, mac: .unused)
+        var reported = InstallPercent()
+        try await installer.install(request) { fraction in
+            if let next = reported.next(fraction) {
+                percent(next)
+            }
+        }
+        percent(100)
+        log.info("install-done", [:])
+    }
+
     /// Stops the VM of `generation`. A mode of nil is the contract's
     /// STOP_MODE_UNSPECIFIED, which is refused.
     public func stop(generation: UInt64, mode: StopMode?) async throws(VMRefusal) {
@@ -307,6 +385,12 @@ public final class VMSupervisor {
 
     /// Stops the VM at once for wb-vmd's exit, whatever its generation.
     public func stopForExit() async {
+        // An install's VM ends with the process. When wb-vmd-install exits
+        // during a build, wb-hostd deletes the build bundle
+        // (S06-02-image-build, "The build bundle").
+        guard !installing else {
+            return
+        }
         // A start in progress finishes first, so the stop reaches the VM.
         // wb-vmd's exit deadline bounds the wait.
         while starting {
@@ -352,18 +436,7 @@ public final class VMSupervisor {
     private func bootRequest(cpuCount: UInt32, memoryMiB: UInt64, mac: MACAddress)
         throws(VMRefusal) -> BootRequest
     {
-        let limits = engine.limits
-        let mib: UInt64 = 1 << 20
-        guard limits.cpuCount.contains(Int(cpuCount)) else {
-            throw VMRefusal(
-                .resources, .invalidArgument, "cpu_count \(cpuCount) is outside \(limits.cpuCount)")
-        }
-        guard memoryMiB <= UInt64.max / mib, limits.memoryBytes.contains(memoryMiB * mib) else {
-            throw VMRefusal(
-                .resources, .invalidArgument,
-                "memory_mib \(memoryMiB) is outside \(limits.memoryBytes.lowerBound / mib)...\(limits.memoryBytes.upperBound / mib)"
-            )
-        }
+        let memoryBytes = try checkResources(cpuCount: cpuCount, memoryMiB: memoryMiB)
         let description = VMDescription.fixedSet(bundlePath: bundlePath, slot: slot)
         let check = DeviceSetCheck(slot: slot, bundlePath: bundlePath) { [log] line in
             log.info("device-set-check", ["detail": .string(line)])
@@ -377,7 +450,25 @@ public final class VMSupervisor {
         log.info("vm-devices", ["devices": .strings(description.devices.map(\.logName))])
         return BootRequest(
             description: description, bundlePath: bundlePath, cpuCount: Int(cpuCount),
-            memoryBytes: memoryMiB * mib, macAddress: mac)
+            memoryBytes: memoryBytes, macAddress: mac)
+    }
+
+    /// Refuses a CPU count or memory size outside the host's range, and
+    /// returns the memory size in bytes.
+    private func checkResources(cpuCount: UInt32, memoryMiB: UInt64) throws(VMRefusal) -> UInt64 {
+        let limits = engine.limits
+        let mib: UInt64 = 1 << 20
+        guard limits.cpuCount.contains(Int(cpuCount)) else {
+            throw VMRefusal(
+                .resources, .invalidArgument, "cpu_count \(cpuCount) is outside \(limits.cpuCount)")
+        }
+        guard memoryMiB <= UInt64.max / mib, limits.memoryBytes.contains(memoryMiB * mib) else {
+            throw VMRefusal(
+                .resources, .invalidArgument,
+                "memory_mib \(memoryMiB) is outside \(limits.memoryBytes.lowerBound / mib)...\(limits.memoryBytes.upperBound / mib)"
+            )
+        }
+        return memoryMiB * mib
     }
 
     private func engineState(_ state: VMRunState, _ failure: VMFailure?, generation: UInt64) {
