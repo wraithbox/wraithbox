@@ -246,8 +246,8 @@ not part of `ci`. They are the conformance suite and the benchmarks
 
 ### Renovate instead of Dependabot
 
-- **Decided:** by the maintainer, when the `.mise.toml` tools were
-  brought under automated updates (they were refreshed by hand before).
+- **Decided:** PR639. The `.mise.toml` tools were refreshed by hand
+  before.
 - **Why:** Renovate covers the tools, `mise.lock` and the `go`
   directive that Dependabot doesn't, groups updates into one pull
   request, and merges them once CI passes. The policy follows the
