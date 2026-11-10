@@ -305,3 +305,21 @@ func TestC05CredLockedFix(t *testing.T) {
 		}
 	}
 }
+
+// TestCredStatusOnce sees wb print the store's status of a failed call
+// once, whether or not the reason already names it.
+func TestCredStatusOnce(t *testing.T) {
+	for _, reason := range []string{
+		"secretstore: wb-credset write binding/github (status -25308): store-locked: locked",
+		"the store is locked",
+	} {
+		var stderr bytes.Buffer
+		r := result{exit: 1, hasDecision: true, decision: credset.Decision{Decision: credset.DecisionRefuse, Rule: string(storeitem.RuleLocked), Status: -25308, Reason: reason}}
+		if code := report(t.Context(), Env{Stderr: &stderr}, command{op: credset.OpWrite, binding: "github"}, "", r); code != exitFailure {
+			t.Errorf("exit %d, want %d", code, exitFailure)
+		}
+		if n := strings.Count(stderr.String(), "(status -25308)"); n != 1 {
+			t.Errorf("the status is printed %d times: %q", n, stderr.String())
+		}
+	}
+}

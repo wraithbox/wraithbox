@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/appbundle"
@@ -65,9 +66,11 @@ func report(ctx context.Context, env Env, c command, helper string, r result) in
 	case !r.hasDecision:
 		return fail(env, RuleHelperFailed, fmt.Sprintf("%s exited with %d during the %s, and logged no decision", helperName, r.exit, what), setupFix)
 	case r.exit != 0 || r.decision.Decision != credset.DecisionAccept:
+		// A failed store call's reason is the store's error, which already
+		// names the status.
 		reason := r.decision.Reason
-		if r.decision.Status != 0 {
-			reason += fmt.Sprintf(" (status %d)", r.decision.Status)
+		if status := fmt.Sprintf(" (status %d)", r.decision.Status); r.decision.Status != 0 && !strings.Contains(reason, status) {
+			reason += status
 		}
 		return fail(env, r.decision.Rule, fmt.Sprintf("%s refused the %s: %s", helperName, what, reason), fixOf(r.decision.Rule))
 	}
