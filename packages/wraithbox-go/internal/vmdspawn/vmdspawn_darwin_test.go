@@ -62,8 +62,11 @@ func checkStartInterface() error {
 	firstUnused := 5
 	if env[0] == "WB_VMD_SLOT=build" {
 		var st syscall.Stat_t
-		if err := syscall.Fstat(5, &st); err != nil || uint32(st.Mode)&syscall.S_IFMT != syscall.S_IFIFO {
-			return fmt.Errorf("fd 5: mode %#o: %w", st.Mode, err)
+		if err := syscall.Fstat(5, &st); err != nil {
+			return fmt.Errorf("fd 5: %w", err)
+		}
+		if uint32(st.Mode)&syscall.S_IFMT != syscall.S_IFIFO {
+			return fmt.Errorf("fd 5: mode %#o, not a pipe", st.Mode)
 		}
 		firstUnused = 6
 	}
@@ -287,9 +290,12 @@ func TestSpawnBuild(t *testing.T) {
 	cfg := config(t, dir, "build", own, log)
 	cfg.ProvisioningPipe = pipeRead
 	p, err := vmdspawn.Start(t.Context(), cfg)
-	_ = pipeRead.Close()
 	if err != nil {
 		t.Fatal(err)
+	}
+	// Start owns the read end and closes the parent's copy.
+	if _, err := pipeRead.Stat(); !errors.Is(err, os.ErrClosed) {
+		t.Errorf("Start left the parent's read end open: %v", err)
 	}
 	t.Cleanup(func() { _ = p.Close() })
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
