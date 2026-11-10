@@ -168,3 +168,91 @@ func TestProxydHoldEndsWithTheVM(t *testing.T) {
 		t.Fatalf("ends %v", end.got())
 	}
 }
+
+// TestStoppingReadsTheAllowance: once the sender's stop begins, a
+// receiver held by a full queue reads up to the allowance, holds again
+// past it, and after the sender is gone reads no more, with a log line
+// of the records left. A sender that ignores the stop can't send past
+// the allowance.
+func TestStoppingReadsTheAllowance(t *testing.T) {
+	s := newSetup()
+	s.hub.allowance = 2
+	s.log.setFull(make(chan struct{}))
+	conn, end := newFakeConn(), &ender{}
+	for seq := range uint64(3) {
+		conn.push(marshal(t, eventRecord(seq+1, work, validEvent())))
+	}
+	r := s.hub.Attach(conn, Netd(work), end)
+	stillQueued(t, conn, 3)
+	r.Stopping()
+	r.Stopping()
+	waitFor(t, func() bool { return len(s.log.got()) == 2 })
+	stillQueued(t, conn, 1)
+	r.SenderGone()
+	waitDone(t, r)
+	if n := len(s.log.got()); n != 2 || len(end.got()) != 0 {
+		t.Fatalf("%d records written, ends %v", n, end.got())
+	}
+	if !strings.Contains(s.logText(), "rule="+RuleStopAllowance+" decision=drop") {
+		t.Fatalf("log has no drop past the allowance:\n%s", s.logText())
+	}
+}
+
+// TestStoppingReleasesBudgetHold: a stop doesn't wait for the budget's
+// turn either.
+func TestStoppingReleasesBudgetHold(t *testing.T) {
+	s := newSetup()
+	s.log.setBudget(overMargin())
+	conn, end := newFakeConn(), &ender{}
+	r := s.hub.Attach(conn, Netd(work), end)
+	conn.push(marshal(t, eventRecord(1, work, validEvent())))
+	conn.push(marshal(t, eventRecord(2, work, validEvent())))
+	stillQueued(t, conn, 1)
+	r.Stopping()
+	waitFor(t, func() bool { return len(s.log.got()) == 2 })
+	close(conn.in)
+	waitDone(t, r)
+	if len(end.got()) != 0 {
+		t.Fatalf("ends %v", end.got())
+	}
+}
+
+// TestSenderGoneWakesRecv: a receiver that waits in Recv on a sender
+// that is gone but whose channel never closed stops all the same.
+func TestSenderGoneWakesRecv(t *testing.T) {
+	s := newSetup()
+	conn, end := newFakeConn(), &ender{}
+	r := s.hub.Attach(conn, Netd(work), end)
+	conn.push(marshal(t, eventRecord(1, work, validEvent())))
+	waitFor(t, func() bool { return len(s.log.got()) == 1 })
+	r.SenderGone()
+	waitDone(t, r)
+	if !conn.isClosed() || len(end.got()) != 0 {
+		t.Fatalf("closed %v, ends %v", conn.isClosed(), end.got())
+	}
+}
+
+// TestHoldLogLimited: a hold that repeats is logged once, then at most
+// once a second with the holds since the last line.
+func TestHoldLogLimited(t *testing.T) {
+	var l holdLog
+	at := time.Unix(1000, 0)
+	steps := []struct {
+		after time.Duration
+		holds int
+		log   bool
+	}{
+		{0, 1, true},
+		{100 * time.Millisecond, 0, false},
+		{200 * time.Millisecond, 0, false},
+		{time.Second, 3, true},
+		{holdLogEvery, 1, true},
+	}
+	for i, step := range steps {
+		at = at.Add(step.after)
+		n, ok := l.due(at)
+		if n != step.holds || ok != step.log {
+			t.Fatalf("step %d: due = %d, %v, want %d, %v", i, n, ok, step.holds, step.log)
+		}
+	}
+}

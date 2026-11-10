@@ -111,6 +111,7 @@ func (w *Writer) write(it *item) bool {
 	w.file.off += int64(n)
 	w.file.dirty = false
 	w.unsynced = append(w.unsynced, it)
+	w.setUnsynced()
 	if it.done != nil {
 		it.done <- nil
 		it.done = nil
@@ -133,7 +134,17 @@ func (w *Writer) syncAll() bool {
 	w.file.synced = w.file.off
 	clear(w.unsynced)
 	w.unsynced = w.unsynced[:0]
+	w.setUnsynced()
 	return true
+}
+
+// setUnsynced copies len(unsynced) to unsyncedN, which Room reads, and
+// wakes Room's waiters when that made room.
+func (w *Writer) setUnsynced() {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.unsyncedN = len(w.unsynced)
+	w.roomLocked()
 }
 
 // failWrite handles a failed write of it: the bytes it left are cut, and
@@ -156,6 +167,7 @@ func (w *Writer) failSync(err error) {
 	w.cutTo(w.file.synced)
 	w.mu.Lock()
 	w.queue = append(items, w.queue...)
+	w.unsyncedN = 0
 	w.mu.Unlock()
 	w.failed(err, items)
 }

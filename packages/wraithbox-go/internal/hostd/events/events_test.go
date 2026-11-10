@@ -23,13 +23,16 @@ import (
 )
 
 // fakeConn hands Recv the queued messages, then io.EOF once closed for
-// input. It records what is sent.
+// input. It records what is sent. A read deadline set to now or before
+// ends a Recv that waits.
 type fakeConn struct {
-	in      chan received
-	mu      sync.Mutex
-	sent    [][]byte
-	sendErr error
-	closed  bool
+	in       chan received
+	mu       sync.Mutex
+	sent     [][]byte
+	sendErr  error
+	closed   bool
+	deadline chan struct{}
+	dlOnce   sync.Once
 }
 
 type received struct {
@@ -37,16 +40,41 @@ type received struct {
 	err error
 }
 
-func newFakeConn() *fakeConn { return &fakeConn{in: make(chan received, 16)} }
+func newFakeConn() *fakeConn {
+	return &fakeConn{in: make(chan received, 16), deadline: make(chan struct{})}
+}
 
 func (c *fakeConn) push(record []byte) { c.in <- received{m: &fdchan.Message{Record: record}} }
 
 func (c *fakeConn) Recv() (*fdchan.Message, error) {
-	r, ok := <-c.in
-	if !ok {
-		return nil, io.EOF
+	select {
+	case r, ok := <-c.in:
+		if !ok {
+			return nil, io.EOF
+		}
+		return r.m, r.err
+	case <-c.deadline:
+		return nil, os.ErrDeadlineExceeded
 	}
-	return r.m, r.err
+}
+
+func (c *fakeConn) TryRecv() (*fdchan.Message, error) {
+	select {
+	case r, ok := <-c.in:
+		if !ok {
+			return nil, io.EOF
+		}
+		return r.m, r.err
+	default:
+		return nil, fdchan.ErrNoMessage
+	}
+}
+
+func (c *fakeConn) SetReadDeadline(t time.Time) error {
+	if !t.After(time.Now()) {
+		c.dlOnce.Do(func() { close(c.deadline) })
+	}
+	return nil
 }
 
 func (c *fakeConn) Send(record []byte, _ syscall.Conn) error {

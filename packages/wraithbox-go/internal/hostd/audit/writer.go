@@ -47,8 +47,9 @@ const spaceEvery = time.Minute
 // retentionEvery is how often the writer deletes old files.
 const retentionEvery = time.Hour
 
-// DefaultQueueCap is the records the writer's queue holds before Room
-// tells the event channel's receivers to stop reading
+// DefaultQueueCap is the records the writer holds, queued or written
+// but not yet synced, before Room tells the event channel's receivers to
+// stop reading
 // (S04-08-records-and-bounds, "Host work the guest can cause";
 // SEC13-bounded-resources). It matches the queue of one sender
 // (eventchan.DefaultQueueCap), so a burst that one sender holds fits.
@@ -125,6 +126,9 @@ type Writer struct {
 	// room is closed once the queue is below its cap again, nil while
 	// nobody waits for it.
 	room chan struct{}
+	// unsyncedN is len(unsynced), kept under mu for Room: an unsynced
+	// record goes back to the queue when its sync fails.
+	unsyncedN int
 
 	wake  chan struct{}
 	calls chan func()
@@ -299,8 +303,10 @@ func (w *Writer) enqueue(r Record, done chan error) *item {
 	return it
 }
 
-// Room returns a channel that is closed while the queue holds fewer than
-// Config.QueueCap records, or once the writer is closed. The event
+// Room returns a channel that is closed while the writer holds fewer
+// than Config.QueueCap records, queued or written but not yet synced, or
+// once the writer is closed. Unsynced records count because a failed
+// sync puts them back in the queue. The event
 // channel's receivers wait for it before each read, so a sender that
 // ignores its budget fills its own socket, not wb-hostd's memory
 // (S04-08-records-and-bounds, "Host work the guest can cause";
@@ -309,7 +315,7 @@ func (w *Writer) enqueue(r Record, done chan error) *item {
 func (w *Writer) Room() <-chan struct{} {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	if w.closed || len(w.queue) < w.cfg.QueueCap {
+	if w.hasRoomLocked() {
 		return roomNow
 	}
 	if w.room == nil {
@@ -326,10 +332,16 @@ func (w *Writer) Queued() int {
 	return len(w.queue)
 }
 
-// roomLocked closes the channel of Room's waiters once the queue is
-// below its cap or the writer is closed. Callers hold w.mu.
+// hasRoomLocked reports whether the writer holds fewer than its cap of
+// records or is closed. Callers hold w.mu.
+func (w *Writer) hasRoomLocked() bool {
+	return w.closed || len(w.queue)+w.unsyncedN < w.cfg.QueueCap
+}
+
+// roomLocked closes the channel of Room's waiters once the writer has
+// room or is closed. Callers hold w.mu.
 func (w *Writer) roomLocked() {
-	if w.room != nil && (w.closed || len(w.queue) < w.cfg.QueueCap) {
+	if w.room != nil && w.hasRoomLocked() {
 		close(w.room)
 		w.room = nil
 	}
@@ -391,7 +403,9 @@ func (w *Writer) onTick(now time.Time) {
 }
 
 // drain writes the queue in order. While writes are failing it writes
-// only on a retry, once a tick, not on each new record.
+// only on a retry, once a tick, not on each new record. It syncs once
+// the unsynced records reach the queue cap, so Room's waiters don't wait
+// for the tick.
 func (w *Writer) drain(retry bool) {
 	if w.failing() && !retry {
 		return
@@ -402,6 +416,9 @@ func (w *Writer) drain(retry bool) {
 			return
 		}
 		w.pop()
+		if len(w.unsynced) >= w.cfg.QueueCap && !w.syncAll() {
+			return
+		}
 	}
 }
 
