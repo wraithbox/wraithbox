@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -82,12 +83,19 @@ func (r *relay) sendHello(hello []byte, entry policy.PassHost) bool {
 		return false
 	}
 	how := "error"
+	if errors.Is(err, os.ErrDeadlineExceeded) {
+		how = endFirstSendTimeout
+	}
 	if !r.endStream(false) {
 		how = endedByHandoff
 	}
 	r.h.ended(r.st, how, r.toUpstream.Load(), 0)
 	return false
 }
+
+// endFirstSendTimeout is a pass relay's end when its ClientHello's
+// write upstream didn't finish within firstSendTimeout.
+const endFirstSendTimeout = "first-send-timeout"
 
 // checkPassHello checks a ClientHello to a pass host: its server name is
 // the stream's name, it holds no encrypted_client_hello or encrypted SNI

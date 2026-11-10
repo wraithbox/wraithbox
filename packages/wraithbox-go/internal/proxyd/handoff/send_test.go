@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net"
 	"testing"
+	"time"
 )
 
 // openStream returns an open stream on a socket of its own.
@@ -51,25 +52,31 @@ func TestSendWhileOpenEnded(t *testing.T) {
 }
 
 // TestSendWhileOpenEndWaits ends a stream while a send runs. The end
-// waits for the send: Done isn't closed before the send returns, and a
-// send after the end doesn't run (I598).
+// waits for the send: Done isn't closed within 100 ms while the send
+// still runs, it closes once the send returns, and a send after the
+// end doesn't run (I598).
 func TestSendWhileOpenEndWaits(t *testing.T) {
 	s := openStream(t)
 	endedBy := make(chan bool, 1)
-	closedDuring := true
 	err := s.SendWhileOpen(func() error {
 		go func() { endedBy <- s.Close() }()
-		closedDuring = isClosed(s.Done())
+		select {
+		case <-s.Done():
+			t.Error("Done closed while a send ran")
+		case <-time.After(100 * time.Millisecond):
+		}
 		return nil
 	})
 	if err != nil {
 		t.Fatalf("SendWhileOpen on an open stream: %v", err)
 	}
-	if closedDuring {
-		t.Error("Done closed while a send ran")
-	}
-	if !<-endedBy {
-		t.Error("Close didn't end the stream")
+	select {
+	case ended := <-endedBy:
+		if !ended {
+			t.Error("Close didn't end the stream")
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("Close didn't return after the send")
 	}
 	if !isClosed(s.Done()) {
 		t.Error("Done isn't closed after the end")
