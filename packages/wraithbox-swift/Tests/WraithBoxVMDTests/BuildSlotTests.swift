@@ -135,12 +135,15 @@ struct BuildSlotTests {
         }
     }
 
-    @Test("a missing descriptor 5, or one that isn't a pipe, is refused in the build slot")
+    @Test(
+        "a missing descriptor 5, one that isn't a pipe, or a write end is refused in the build slot"
+    )
     func provisioningDescriptorNotPipe() throws {
         let stream = try makeSocketPair(SOCK_STREAM)
         let file = open("/dev/null", O_RDONLY)
-        defer { closeAll([stream.0, stream.1, file]) }
-        for fd in [stream.0, file, 9999] {
+        let pipeEnds = try makePipe()
+        defer { closeAll([stream.0, stream.1, file, pipeEnds.0, pipeEnds.1]) }
+        for fd in [stream.0, file, 9999, pipeEnds.1] {
             try expectRefusal(.descriptor) {
                 try StartInterface.checkProvisioning(slot: .build, fd: fd)
             }
