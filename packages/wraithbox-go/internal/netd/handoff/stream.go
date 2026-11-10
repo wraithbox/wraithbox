@@ -233,8 +233,8 @@ func (st *stream) toGuest(sock *socket) {
 		n, err := st.ours.Read(buf)
 		if n > 0 {
 			st.release()
-			if werr := st.writeGuest(buf[:n]); werr != nil {
-				st.resetFor(sock, guestWriteRule(werr), werr)
+			if wErr := st.writeGuest(buf[:n]); wErr != nil {
+				st.resetFor(sock, guestWriteRule(wErr), wErr)
 				return
 			}
 		}
