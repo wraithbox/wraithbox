@@ -64,7 +64,7 @@ env:
 jobs:
   renovate:
     name: Renovate round ${{ inputs.round || 1 }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 75
     # The App's secrets are environment secrets of `renovate`, which only
     # main may deploy to. A workflow on another branch, which anyone with

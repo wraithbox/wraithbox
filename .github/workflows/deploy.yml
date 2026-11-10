@@ -16,7 +16,7 @@ concurrency:
 jobs:
   build:
     name: Build docs site
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     # Stated explicitly rather than inherited: this job only reads the
     # repo. The write scopes live on `deploy` alone.
     permissions:
@@ -60,7 +60,7 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       pages: write
