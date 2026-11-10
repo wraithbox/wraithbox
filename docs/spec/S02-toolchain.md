@@ -80,16 +80,17 @@ said so.
 A pull request also skips the fuzz smoke and the Windows leg of the Go
 job (I753). The local `mise run ci` gate runs both checks before each
 push: `go:fuzz`, and `go:cross`, which vets, lints, and builds for
-Windows. Only a test that fails on Windows alone waits. A push to
-`main` runs them, and so do `workflow_dispatch` and a train's pull
-request into `main` (head `train/**`, base `main`). The train's pull
-request runs each time a builder's work merges into the train, so
+Windows. Only a test that fails on Windows alone waits. When detection
+fails, the run includes both.
+
+A push to `main` runs them, and so do `workflow_dispatch` and a train's
+pull request into `main` (head `train/**`, base `main`). The train's
+pull request runs each time a builder's work merges into the train, so
 during a campaign they run about once an hour and catch a break before
 it reaches `main`. A builder's pull request into a train skips them
 like any other. The rule that `mise run ci` and the workflow run the
 same checks holds for the workflow as a whole: every check runs on
-every push to `main`, though not on every pull request. When detection
-fails, the run includes both.
+every push to `main`, though not on every pull request.
 
 A change to the Go module alone runs the build, sign, and bundle steps
 of the Swift job, because the app bundle holds the Go programs, and
