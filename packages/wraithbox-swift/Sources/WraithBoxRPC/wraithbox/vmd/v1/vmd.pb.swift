@@ -273,6 +273,15 @@ public nonisolated struct Wraithbox_Vmd_V1_StartRequest: Sendable {
   /// locally administered unicast one, with the rule `vmd-mac-invalid`.
   public var macAddress: Data = Data()
 
+  /// Asks for a start with the macOS provisioning options, which create
+  /// the guest's admin user with the build password (S15-04-guest-admin,
+  /// "Build"). wb-vmd reads the password from its descriptor 5, never
+  /// from a request (S04-11-vmd-start, "How `wb-vmd` is started").
+  /// Every slot refuses it with `vmd-provisioning-refused` until the
+  /// provisioning check is in the start path (#629). Only the build slot
+  /// will accept it.
+  public var provisioning: Bool = false
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -462,6 +471,51 @@ public nonisolated struct Wraithbox_Vmd_V1_ConnectGuestResponse: Sendable {
   public init() {}
 }
 
+public nonisolated struct Wraithbox_Vmd_V1_InstallRequest: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// Number of virtual CPUs of the install's VM, as in StartRequest.
+  public var cpuCount: UInt32 = 0
+
+  /// Memory of the install's VM in MiB, as in StartRequest.
+  public var memoryMib: UInt64 = 0
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+/// InstallResponse is one message of the install's progress stream.
+/// wb-vmd sends at most one per whole percent, in rising order, and 100
+/// once the install has finished.
+public nonisolated struct Wraithbox_Vmd_V1_InstallResponse: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  /// The whole percent done, 0 to 100.
+  public var percent: UInt32 = 0
+
+  /// Set only in the last message of a failed install: the framework's
+  /// error. The call then ends with the rule `vm-install-failed`.
+  public var error: Wraithbox_Vmd_V1_VMError {
+    get {_error ?? Wraithbox_Vmd_V1_VMError()}
+    set {_error = newValue}
+  }
+  /// Returns true if `error` has been explicitly set.
+  public var hasError: Bool {self._error != nil}
+  /// Clears the value of `error`. Subsequent reads from it will return its default value.
+  public mutating func clearError() {self._error = nil}
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+
+  fileprivate var _error: Wraithbox_Vmd_V1_VMError? = nil
+}
+
 /// HandoffMessage is not part of any RPC. wb-vmd sends one for each
 /// descriptor it hands to wb-hostd, as one record on the hand-off
 /// channel: an AF_UNIX SOCK_DGRAM socketpair with no path that wb-hostd
@@ -545,7 +599,7 @@ nonisolated extension Wraithbox_Vmd_V1_Kind: SwiftProtobuf._ProtoNameProviding {
 
 nonisolated extension Wraithbox_Vmd_V1_StartRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".StartRequest"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}generation\0\u{3}cpu_count\0\u{3}memory_mib\0\u{3}mac_address\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}generation\0\u{3}cpu_count\0\u{3}memory_mib\0\u{3}mac_address\0\u{1}provisioning\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -557,6 +611,7 @@ nonisolated extension Wraithbox_Vmd_V1_StartRequest: SwiftProtobuf.Message, Swif
       case 2: try { try decoder.decodeSingularUInt32Field(value: &self.cpuCount) }()
       case 3: try { try decoder.decodeSingularUInt64Field(value: &self.memoryMib) }()
       case 4: try { try decoder.decodeSingularBytesField(value: &self.macAddress) }()
+      case 5: try { try decoder.decodeSingularBoolField(value: &self.provisioning) }()
       default: break
       }
     }
@@ -575,6 +630,9 @@ nonisolated extension Wraithbox_Vmd_V1_StartRequest: SwiftProtobuf.Message, Swif
     if !self.macAddress.isEmpty {
       try visitor.visitSingularBytesField(value: self.macAddress, fieldNumber: 4)
     }
+    if self.provisioning != false {
+      try visitor.visitSingularBoolField(value: self.provisioning, fieldNumber: 5)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -583,6 +641,7 @@ nonisolated extension Wraithbox_Vmd_V1_StartRequest: SwiftProtobuf.Message, Swif
     if lhs.cpuCount != rhs.cpuCount {return false}
     if lhs.memoryMib != rhs.memoryMib {return false}
     if lhs.macAddress != rhs.macAddress {return false}
+    if lhs.provisioning != rhs.provisioning {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }
@@ -910,6 +969,80 @@ nonisolated extension Wraithbox_Vmd_V1_ConnectGuestResponse: SwiftProtobuf.Messa
   }
 
   public static func ==(lhs: Wraithbox_Vmd_V1_ConnectGuestResponse, rhs: Wraithbox_Vmd_V1_ConnectGuestResponse) -> Bool {
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wraithbox_Vmd_V1_InstallRequest: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".InstallRequest"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{3}cpu_count\0\u{3}memory_mib\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularUInt32Field(value: &self.cpuCount) }()
+      case 2: try { try decoder.decodeSingularUInt64Field(value: &self.memoryMib) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if self.cpuCount != 0 {
+      try visitor.visitSingularUInt32Field(value: self.cpuCount, fieldNumber: 1)
+    }
+    if self.memoryMib != 0 {
+      try visitor.visitSingularUInt64Field(value: self.memoryMib, fieldNumber: 2)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wraithbox_Vmd_V1_InstallRequest, rhs: Wraithbox_Vmd_V1_InstallRequest) -> Bool {
+    if lhs.cpuCount != rhs.cpuCount {return false}
+    if lhs.memoryMib != rhs.memoryMib {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+nonisolated extension Wraithbox_Vmd_V1_InstallResponse: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".InstallResponse"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}percent\0\u{1}error\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeSingularUInt32Field(value: &self.percent) }()
+      case 2: try { try decoder.decodeSingularMessageField(value: &self._error) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    // The use of inline closures is to circumvent an issue where the compiler
+    // allocates stack space for every if/case branch local when no optimizations
+    // are enabled. https://github.com/apple/swift-protobuf/issues/1034 and
+    // https://github.com/apple/swift-protobuf/issues/1182
+    if self.percent != 0 {
+      try visitor.visitSingularUInt32Field(value: self.percent, fieldNumber: 1)
+    }
+    try { if let v = self._error {
+      try visitor.visitSingularMessageField(value: v, fieldNumber: 2)
+    } }()
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Wraithbox_Vmd_V1_InstallResponse, rhs: Wraithbox_Vmd_V1_InstallResponse) -> Bool {
+    if lhs.percent != rhs.percent {return false}
+    if lhs._error != rhs._error {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

@@ -46,6 +46,17 @@ service VMService {
   // HandoffMessage with the same `request_id` (S04-02-vm-provider, "Hand-off
   // on macOS").
   rpc ConnectGuest(ConnectGuestRequest) returns (ConnectGuestResponse);
+
+  // Install installs macOS into the build bundle from the restore image
+  // at its fixed path, and streams the progress (S04-10-vmd-install,
+  // "`wb-vmd-install`"). The request names no path and no image. Only
+  // the build slot serves it. Every other slot refuses it with
+  // `vmd-install-refused` before it touches a file, and the build slot
+  // refuses a second install, an install while its VM runs, and a bundle
+  // that already holds an installed file the same way. An image this
+  // host can't run is refused with `vmd-restore-image-unsupported`, and
+  // a framework failure with `vm-install-failed`.
+  rpc Install(InstallRequest) returns (stream InstallResponse);
 }
 
 message StartRequest {
@@ -63,6 +74,14 @@ message StartRequest {
   // wb-vmd refuses any other length, and an address that isn't a
   // locally administered unicast one, with the rule `vmd-mac-invalid`.
   bytes mac_address = 4;
+  // Asks for a start with the macOS provisioning options, which create
+  // the guest's admin user with the build password (S15-04-guest-admin,
+  // "Build"). wb-vmd reads the password from its descriptor 5, never
+  // from a request (S04-11-vmd-start, "How `wb-vmd` is started").
+  // Every slot refuses it with `vmd-provisioning-refused` until the
+  // provisioning check is in the start path (#629). Only the build slot
+  // will accept it.
+  bool provisioning = 5;
 }
 
 message StartResponse {}
@@ -152,6 +171,24 @@ message ConnectGuestRequest {
 }
 
 message ConnectGuestResponse {}
+
+message InstallRequest {
+  // Number of virtual CPUs of the install's VM, as in StartRequest.
+  uint32 cpu_count = 1;
+  // Memory of the install's VM in MiB, as in StartRequest.
+  uint64 memory_mib = 2;
+}
+
+// InstallResponse is one message of the install's progress stream.
+// wb-vmd sends at most one per whole percent, in rising order, and 100
+// once the install has finished.
+message InstallResponse {
+  // The whole percent done, 0 to 100.
+  uint32 percent = 1;
+  // Set only in the last message of a failed install: the framework's
+  // error. The call then ends with the rule `vm-install-failed`.
+  VMError error = 2;
+}
 
 // Direction says which side opened a handed-off connection.
 enum Direction {

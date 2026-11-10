@@ -28,19 +28,21 @@ that carries data (SEC01-separate-kernel, SEC02-no-host-fs-share, SEC05-default-
 | S04-01-design-principles | The rules every process follows: one CLI, a Go core, an untrusted guest, policy checked twice, one work VM |
 | S04-02-vm-provider | How `wb-vmd` hands over guest connections and the NIC, the fixed device set, and stream identity in `wb-proxyd` |
 | S04-03-self-sandboxing | How each host daemon confines itself, and `wb-launcher` |
-| S04-04-vm-processes | One `wb-vmd` per VM, `wb-vmd-install` and `wb-diskfmt` |
+| S04-04-vm-processes | One `wb-vmd` per VM, `wb-vmd-layer` and `wb-diskfmt` |
 | S04-05-helper-programs | `wb-guestadmin`, `wb-release-check`, `wb-download` and `wb-build-ssh` |
 | S04-06-git-confinement | The `wb-git` shim, the `wb-hostd` profile, and what `wb` takes from `wb-hostd` |
 | S04-07-supervision | Who starts whom, when `wb-hostd` stops, upgrades and daemon restarts |
 | S04-08-records-and-bounds | Accounting and event records, version skew, host work the guest can cause, logs |
 | S04-09-netd-start | How `wb-hostd` starts and stops each VM's `wb-netd`, its descriptors, profile and first frames |
+| S04-10-vmd-install | `wb-vmd-install`: the install rules, the restore image, the build bundle, the build password pipe and the `Install` call |
+| S04-11-vmd-start | How `wb-vmd` is started: its descriptors, its gRPC socket, the lifeline and the peer checks |
 
 ## Processes
 
 | Process | Lang | Runs as | Holds | Faces the guest via | Purpose |
 |---|---|---|---|---|---|
 | `wb` | Go | user, per invocation | nothing, and no store access; for `wb cred set` the value it reads, until it has written it to `wb-credset` (S15-least-privilege) | none | The only CLI: dispatcher for every command, TTY relay for agent sessions (S05-cli) |
-| `wb-credset` | Go | user, one run per `wb cred set`, `rm` or `list`, started by `wb`, then exits | the `binding/*` secret store items it writes, deletes or lists, and nothing else | none | Confine itself, then do one store operation: write the value from its standard input, delete an item, or list item names (S15-least-privilege) |
+| `wb-credset` | Go | user, one run per `wb cred set`, `rm` or `list`, started by `wb`, then exits | the `binding/*` secret store items it writes, deletes or lists, and nothing else | none | Open the store, confine itself (S04-03-self-sandboxing, "`wb-proxyd` and the secret store on macOS"), then do one store operation: write the value from its standard input, delete an item, or list item names (S15-least-privilege) |
 | `wb-hostd` | Go | per-user service | policy, landing repos, state | host-guest socket | Sessions, git gateway, approvals, audit writer, admission control (S06-vm-lifecycle, S08-workspace-and-git, S09-policy-credentials-audit) |
 | `wb-launcher` | Go, standard library only | user, started by `wb-hostd` before it confines itself (macOS only) | nothing | none | Start the programs in its fixed table when `wb-hostd` asks, so that each can confine itself (S04-03-self-sandboxing, "Each host daemon is self-sandboxed") |
 | `wb-git` | Go | user, per git gateway transfer, started through `wb-launcher` (on macOS) (B34-sandboxed-daemons) | nothing | pack data from the guest, through `wb-hostd` | Confine itself to one repository (for a push, also reading the `export.git` it borrows from), then run `git receive-pack` or `git upload-pack` (S08-workspace-and-git) |

@@ -10,6 +10,7 @@ hostd
 netd
 proxyd
 guestd
+credcmd
 credset
 vmd
 hostgit
@@ -206,6 +207,7 @@ realpath
 nlink
 wbdisk
 wbstore
+wbstorehost
 VZNAT
 VZUSB
 VZMAC
@@ -248,6 +250,7 @@ MNAME
 RNAME
 Additionals
 synctest
+synchronizable
 SVCB
 gdmf
 gspe
@@ -494,6 +497,7 @@ dnsname
 tmpl
 CAID
 undercounts
+attoseconds
 
 # Vale rule names quoted in .vale.ini
 Cataphoric

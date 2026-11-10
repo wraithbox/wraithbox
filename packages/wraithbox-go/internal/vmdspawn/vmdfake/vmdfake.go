@@ -1,7 +1,7 @@
 // Package vmdfake is a fake wb-vmd for tests on a macOS host, with no
 // VM: a test binary that runs Main from its TestMain, and that the test
 // spawns through internal/vmdspawn. It takes the start interface of
-// wb-vmd (S04-03-self-sandboxing, "How `wb-vmd` is started"):
+// wb-vmd (S04-11-vmd-start, "How `wb-vmd` is started"):
 //
 //   - fd 0 is the lifeline: at EOF it logs lifeline-closed and exits 0;
 //   - fd 2 is the log pipe, where it writes JSON lines;

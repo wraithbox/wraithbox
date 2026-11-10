@@ -37,7 +37,7 @@ var Commands = []Command{
 	{Name: "trust", Summary: "Allow a repository's own configuration"},
 	{Name: "untrust", Summary: "Stop honouring a repository's own configuration"},
 	{Name: "project", Summary: "Show, confirm, move, rename, place or remove a project"},
-	{Name: "cred", Summary: "Manage credentials held on the host"},
+	{Name: "cred", Summary: "set, list or rm the binding secrets held on the host"},
 	{Name: "audit", Summary: "Read the audit log"},
 	{Name: "vm", Summary: "Start, stop, suspend and inspect VMs, and reset a VM's data disk"},
 	{Name: "image", Summary: "Build, list and select guest images"},

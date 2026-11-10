@@ -60,7 +60,8 @@ func TestC05AdhocShim(t *testing.T) {
 	if strings.Contains(logs.String(), "can't be read") {
 		t.Errorf("the shim couldn't read the signature:\n%s", logs.String())
 	}
-	if strings.Contains(logs.String(), "not built yet") {
+	// A call that reached the Keychain item calls would log its status.
+	if strings.Contains(logs.String(), "secret store call failed") {
 		t.Errorf("a call reached the Keychain item calls:\n%s", logs.String())
 	}
 	if !strings.Contains(logs.String(), "rule="+string(storeitem.RuleNeedsTeam)) {

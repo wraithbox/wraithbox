@@ -27,14 +27,15 @@ type checked struct {
 }
 
 // New opens backend for program, the program's own compiled-in
-// identity. It turns dialogs off first, then reads the team and the
-// groups of the process's own signature, each once (S15-02-secret-store,
-// "The group of each call"; S15-03-access-rules, "No Keychain dialogs").
+// identity. It turns dialogs off first, then reads the team, the groups
+// and the executable of the process's own signature, each once
+// (S15-02-secret-store, "The group of each call"; S15-03-access-rules,
+// "No Keychain dialogs").
 //
-// New always returns a Store. When dialogs stay on or the signature has
-// no team, it also returns an *Error with the rule, and every call on
-// the Store is refused with that rule. The caller logs the error and
-// exits. Open calls New with the platform's backend, and tests call it
+// New always returns a Store. When dialogs stay on, the signature has
+// no team, or its executable isn't program's, it also returns an *Error
+// with the rule, and every call on the Store is refused with that rule.
+// The caller logs the error and exits. Open calls New with the platform's backend, and tests call it
 // with the fake of secretstore/storetest.
 func New(program storeitem.Program, backend Backend, log *slog.Logger) (Store, error) {
 	s := &checked{program: program, backend: backend, log: log}
@@ -49,8 +50,16 @@ func New(program storeitem.Program, backend Backend, log *slog.Logger) (Store, e
 		// S15-02-secret-store, "Ad-hoc signed builds".
 		return s, s.refuseOpen(storeitem.RuleNeedsTeam, "the process's own signature has no team, so it has no Keychain backend")
 	}
+	code, msg := s.readCode()
+	if msg != "" {
+		// S15-02-secret-store, "The group of each call": the program is
+		// the one the signature names, not only the caller's constant.
+		return s, s.refuseOpen(storeitem.RuleProgramMismatch, msg)
+	}
 	log.LogAttrs(context.Background(), slog.LevelInfo, "secret store opened",
 		slog.String("program", string(program)),
+		slog.String("identifier", code.Identifier),
+		slog.String("executable", code.Executable),
 		slog.String("team", s.team),
 		slog.Any("groups", s.groups),
 		slog.Bool("groups_read", s.groupsRead))
@@ -84,6 +93,27 @@ func (s *checked) readTeam() string {
 		return ""
 	}
 	return team
+}
+
+// readCode returns the signing identifier and the executable of the
+// process's own signature, and the reason to refuse every call when the
+// executable isn't the program's, or "". A program with no executable,
+// an executable that can't be read, and a code with no Info.plist are
+// refused too.
+func (s *checked) readCode() (Code, string) {
+	code, err := s.backend.Code()
+	want := s.program.Executable()
+	switch {
+	case err != nil:
+		return code, "the process's own signature can't be read for its executable: " + err.Error()
+	case want == "":
+		return code, "the program " + strconv.Quote(string(s.program)) + " has no executable"
+	case code.Executable != want:
+		return code, "the executable of the process's own signed Info.plist is " +
+			strconv.QuoteToASCII(code.Executable) + " (identifier " + strconv.QuoteToASCII(code.Identifier) +
+			"), not " + strconv.Quote(want)
+	}
+	return code, ""
 }
 
 // readGroups returns the groups of the process's own entitlements, and

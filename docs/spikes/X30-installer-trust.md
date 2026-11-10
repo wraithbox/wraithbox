@@ -110,7 +110,7 @@ The host is the dedicated Mac, macOS 27.2 (26B123), and the restore
 image is Apple's `UniversalMac_27.2_26B123_Restore.ipsw`. `x30` is the
 X25-vmd-sandbox install code, ad-hoc signed with the virtualization
 entitlement, and confined with that spike's `wb-vmd` profile plus the
-three install rules of S04-04-vm-processes ("`wb-vmd-install`"). The
+three install rules of S04-10-vmd-install ("`wb-vmd-install`"). The
 install uses 8 GiB of memory.
 
 For each case, `mkipsw.py` writes a copy of the restore image with
@@ -162,7 +162,7 @@ flows").
   that server, which Apple's installation service calls over the
   host's network, outside `wb-vmd-install`'s profile. An older build
   that Apple still signs isn't caught.
-- S04-04-vm-processes, "`wb-vmd-install`": the bullet for the installation
+- S04-10-vmd-install, "`wb-vmd-install`": the bullet for the installation
   service says that it calls Apple.
 
 ## Spike code

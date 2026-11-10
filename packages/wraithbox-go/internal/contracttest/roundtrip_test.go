@@ -131,8 +131,13 @@ func terminalMessages() []proto.Message {
 // checks that every member is set in some value.
 func messages() []proto.Message {
 	return append([]proto.Message{
-		&vmdv1.StartRequest{Generation: 1, CpuCount: 4, MemoryMib: 8192, MacAddress: []byte{0x02, 0x11, 0x22, 0x33, 0x44, 0x55}},
+		&vmdv1.StartRequest{
+			Generation: 1, CpuCount: 4, MemoryMib: 8192,
+			MacAddress: []byte{0x02, 0x11, 0x22, 0x33, 0x44, 0x55}, Provisioning: true,
+		},
 		&vmdv1.StartResponse{},
+		&vmdv1.InstallRequest{CpuCount: 4, MemoryMib: 4096},
+		&vmdv1.InstallResponse{Percent: 42, Error: vmState().GetError()},
 		&vmdv1.StopRequest{Generation: 2, Mode: vmdv1.StopMode_STOP_MODE_FORCE},
 		&vmdv1.StopResponse{},
 		&vmdv1.GetStateRequest{},

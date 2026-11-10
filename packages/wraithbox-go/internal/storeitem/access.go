@@ -21,6 +21,28 @@ const (
 	ProgramGuestadminCleanup Program = "wb-guestadmin-cleanup"
 )
 
+// Executable returns the name of the program's executable in its helper
+// bundle, Contents/Helpers/<name>.app/Contents/MacOS/<name>
+// (S10-02-packaging-and-signing, "Helper bundles"). The secret store
+// checks it against the CFBundleExecutable of the process's own signed
+// Info.plist (S15-02-secret-store, "The group of each call"). The
+// wb-guestadmin run kinds share one program, wb-guestadmin. An unknown
+// program has none, "".
+func (p Program) Executable() string {
+	switch p {
+	case ProgramCredset, ProgramProxyd:
+		return string(p)
+	case ProgramGuestadminBuild, ProgramGuestadminRotate, ProgramGuestadminCleanup:
+		return "wb-guestadmin"
+	}
+	return ""
+}
+
+// Programs lists every program with store access.
+func Programs() []Program {
+	return []Program{ProgramCredset, ProgramProxyd, ProgramGuestadminBuild, ProgramGuestadminRotate, ProgramGuestadminCleanup}
+}
+
 // Access is an access kind of S15-03-access-rules, rule 1.
 type Access string
 
@@ -98,6 +120,10 @@ const (
 	// RuleNeedsTeam: the process's own signature has no team, so it has no
 	// Keychain backend (S15-02-secret-store, "Ad-hoc signed builds").
 	RuleNeedsTeam Rule = "keychain-needs-team"
+	// RuleProgramMismatch: the executable of the process's own signed
+	// Info.plist isn't the program the caller opened the store as
+	// (S15-02-secret-store, "The group of each call").
+	RuleProgramMismatch Rule = "store-program-mismatch"
 	// RuleGroupMismatch: the group the call names isn't the group of the
 	// item, or the process's entitlements don't hold it or can't be read
 	// (S15-02-secret-store, "The group of each call").

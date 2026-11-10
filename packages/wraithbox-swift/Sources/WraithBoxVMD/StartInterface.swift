@@ -1,8 +1,9 @@
-// The start interface of wb-vmd (S04-03-self-sandboxing, "How `wb-vmd`
-// is started"): no arguments, and four inherited descriptors. wb-vmd
-// checks them after it confines itself, and refuses to run when one is
-// missing or of another kind, so it never serves on a descriptor its
-// spawner didn't mean.
+// The start interface of wb-vmd (S04-11-vmd-start, "How `wb-vmd`
+// is started"): no arguments, and four inherited descriptors, five in the
+// build slot. wb-vmd checks them after it confines itself, and refuses to
+// run when one is missing or of another kind, so it never serves on a
+// descriptor its spawner didn't mean. Only the build slot may hold the
+// provisioning password pipe (SEC04-no-guest-secrets).
 import Darwin
 import Foundation
 import WraithBoxVM
@@ -20,6 +21,10 @@ public enum InheritedDescriptor: Int32, Sendable, CaseIterable {
     /// The hand-off socket: AF_UNIX, SOCK_DGRAM (S04-02-vm-provider,
     /// "Hand-off on macOS"). Held open here; ConnectGuest uses it.
     case handoff = 4
+    /// The read end of the build password pipe, in the build slot only
+    /// (S04-11-vmd-start, "How `wb-vmd` is started"). Every other
+    /// slot refuses to start while it is open.
+    case provisioning = 5
 
     var name: String {
         switch self {
@@ -27,6 +32,7 @@ public enum InheritedDescriptor: Int32, Sendable, CaseIterable {
         case .log: "log"
         case .grpc: "gRPC"
         case .handoff: "hand-off"
+        case .provisioning: "provisioning password"
         }
     }
 }
@@ -53,10 +59,25 @@ public enum StartInterface {
         }
     }
 
-    /// Checks every inherited descriptor.
-    public static func checkDescriptors() throws(StartupRefusal) {
-        for descriptor in InheritedDescriptor.allCases {
+    /// Checks every inherited descriptor of the slot. Descriptor 5 must be
+    /// open in the build slot and closed in every other one, so no other
+    /// slot ever holds a password pipe (SEC04-no-guest-secrets).
+    public static func checkDescriptors(slot: VMSlot) throws(StartupRefusal) {
+        for descriptor in InheritedDescriptor.allCases where descriptor != .provisioning {
             try check(descriptor, fd: descriptor.rawValue)
+        }
+        try checkProvisioning(slot: slot, fd: InheritedDescriptor.provisioning.rawValue)
+    }
+
+    /// The provisioning descriptor's check for a slot.
+    static func checkProvisioning(slot: VMSlot, fd: Int32) throws(StartupRefusal) {
+        switch slot {
+        case .build:
+            try check(.provisioning, fd: fd)
+        case .work, .isolated, .layer:
+            guard fcntl(fd, F_GETFD) == -1 else {
+                throw refusal(.provisioning, fd, "is open in the \(slot.rawValue) slot")
+            }
         }
     }
 
@@ -92,6 +113,15 @@ public enum StartInterface {
             }
         case .handoff:
             try checkSocket(descriptor, fd: fd, kind: kind, type: SOCK_DGRAM)
+        case .provisioning:
+            // A pipe only: a file would leave the password on disk.
+            guard kind == S_IFIFO else {
+                throw refusal(descriptor, fd, "is not a pipe")
+            }
+            // The read end only: wb-vmd never writes the password back.
+            guard fcntl(fd, F_GETFL) & O_ACCMODE == O_RDONLY else {
+                throw refusal(descriptor, fd, "is not the read end of a pipe")
+            }
         }
     }
 

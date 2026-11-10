@@ -28,14 +28,21 @@ final class ServiceFixture {
     /// tests read.
     nonisolated let handoff: (vmd: Int32, host: Int32)
 
-    init(connectTimeout: Duration = GuestConnector.defaultTimeout) throws {
-        bundle = try BundleFixture()
+    /// A fixture of `slot`, whose bundle holds `files`. In the build slot,
+    /// the supervisor gets the fixed restore image path, which the fake
+    /// engine never opens.
+    init(
+        slot: VMSlot = .work, files: [BundleFile] = BundleFile.allCases,
+        connectTimeout: Duration = GuestConnector.defaultTimeout
+    ) throws {
+        bundle = try BundleFixture(slot: slot, files: files)
         bundlePath = bundle.path
         homePath = bundle.home.path
         let pair = try makeSocketPair(SOCK_DGRAM)
         handoff = (pair.0, pair.1)
         supervisor = VMSupervisor(
-            engine: engine, slot: .work, bundlePath: bundle.path,
+            engine: engine, slot: slot, bundlePath: bundle.path,
+            restoreImagePath: slot == .build ? bundle.restoreImagePath : nil,
             handoff: HandoffChannel(fd: pair.0), log: recorded.log)
         connector = GuestConnector(
             supervisor: supervisor, handoff: HandoffChannel(fd: pair.0), log: recorded.log,
@@ -321,7 +328,8 @@ struct VMServiceTests {
         await MainActor.run { fixture.engine.holdStart = true }
         let start = Task {
             try await supervisor.start(
-                generation: 1, cpuCount: 2, memoryMiB: 1024, macAddress: testMAC)
+                generation: 1, cpuCount: 2, memoryMiB: 1024, macAddress: testMAC,
+                provisioning: false)
         }
         let machine = try await heldMachine(fixture)
         await #expect(throws: VMRefusal(.starting, .failedPrecondition, "the VM is starting")) {
@@ -340,7 +348,8 @@ struct VMServiceTests {
         await MainActor.run { fixture.engine.holdStart = true }
         let start = Task {
             try await supervisor.start(
-                generation: 1, cpuCount: 2, memoryMiB: 1024, macAddress: testMAC)
+                generation: 1, cpuCount: 2, memoryMiB: 1024, macAddress: testMAC,
+                provisioning: false)
         }
         let machine = try await heldMachine(fixture)
         let exit = Task { await supervisor.stopForExit() }
@@ -367,7 +376,7 @@ struct VMServiceTests {
     func stopForExit() async throws {
         let fixture = try await ServiceFixture()
         try await fixture.supervisor.start(
-            generation: 1, cpuCount: 2, memoryMiB: 1024, macAddress: testMAC)
+            generation: 1, cpuCount: 2, memoryMiB: 1024, macAddress: testMAC, provisioning: false)
         await fixture.supervisor.stopForExit()
         #expect(await fixture.engine.machines.first?.stops == ["force"])
         #expect(await fixture.supervisor.status.state == .stopped)

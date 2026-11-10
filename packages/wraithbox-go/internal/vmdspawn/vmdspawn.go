@@ -1,7 +1,7 @@
 // Package vmdspawn starts one wb-vmd with the descriptors of its start
 // interface, and connects to it: its VMService client through the
 // version exchange, and its hand-off receiver in a vmdlink.Link
-// (S04-04-vm-processes, "One `wb-vmd` per VM"; S04-03-self-sandboxing,
+// (S04-04-vm-processes, "One `wb-vmd` per VM"; S04-11-vmd-start,
 // "How `wb-vmd` is started"). wb-hostd's VM provider and wb-dev-vm both
 // start wb-vmd through it.
 //
@@ -57,8 +57,11 @@ const (
 	bufferSize        = 16 << 10
 )
 
-// slotPattern is the form of a slot: S04-04-vm-processes names work and
-// isolated, and wb-vmd refuses any other.
+// buildSlot is the slot of wb-vmd-install, the one that gets descriptor 5.
+const buildSlot = "build"
+
+// slotPattern is the form of a slot: S04-04-vm-processes names work,
+// isolated, build and layer, and wb-vmd refuses any other.
 var slotPattern = regexp.MustCompile(`^[a-z][a-z0-9-]{0,31}$`)
 
 // Config is what one wb-vmd is started with.
@@ -82,6 +85,13 @@ type Config struct {
 	Log func(r io.Reader)
 	// Logger gets the decisions. nil takes slog.Default().
 	Logger *slog.Logger
+	// ProvisioningPipe is the read end of the build password pipe, which
+	// wb-vmd gets as descriptor 5. The build slot needs it, and every
+	// other slot refuses it (S04-11-vmd-start, "How `wb-vmd` is
+	// started"). It must be a pipe. Start owns it: it closes it once
+	// wb-vmd has its copy, or when the start fails, so the parent never
+	// holds the read end afterwards.
+	ProvisioningPipe *os.File
 }
 
 // Process is one running wb-vmd.
@@ -105,7 +115,8 @@ type Process struct {
 }
 
 // descriptors are the ends the spawner keeps and the ends it passes to
-// wb-vmd as descriptors 0, 2, 3 and 4.
+// wb-vmd as descriptors 0, 2, 3 and 4. Descriptor 5, in the build slot,
+// is the caller's Config.ProvisioningPipe.
 type descriptors struct {
 	lifeRead, lifeWrite *os.File
 	logRead, logWrite   *os.File
@@ -144,13 +155,35 @@ func (c *Config) check() error {
 	if c.Log == nil {
 		errs = append(errs, errors.New("vmdspawn: no log reader"))
 	}
+	// Only wb-vmd-install reads the build password, so only it gets the
+	// pipe, and it refuses to start without it (SEC04-no-guest-secrets).
+	if c.Slot == buildSlot && c.ProvisioningPipe == nil {
+		errs = append(errs, errors.New("vmdspawn: the build slot needs the build password pipe"))
+	}
+	if c.Slot != buildSlot && c.ProvisioningPipe != nil {
+		errs = append(errs, fmt.Errorf("vmdspawn: the %s slot gets no build password pipe", c.Slot))
+	}
+	if c.ProvisioningPipe != nil && !isPipe(c.ProvisioningPipe) {
+		errs = append(errs, errors.New("vmdspawn: the build password descriptor isn't a pipe"))
+	}
 	return errors.Join(errs...)
+}
+
+// isPipe reports whether f is a pipe: a file would leave the password
+// on disk (SEC04-no-guest-secrets).
+func isPipe(f *os.File) bool {
+	info, err := f.Stat()
+	return err == nil && info.Mode()&os.ModeNamedPipe != 0
 }
 
 // Start starts wb-vmd and makes its client. It doesn't wait for wb-vmd:
 // the first call on Client does. ctx bounds only the start: the
-// lifeline, closed by Close, ends wb-vmd.
+// lifeline, closed by Close, ends wb-vmd. Start closes
+// cfg.ProvisioningPipe before it returns.
 func Start(ctx context.Context, cfg Config) (*Process, error) {
+	if cfg.ProvisioningPipe != nil {
+		defer func() { _ = cfg.ProvisioningPipe.Close() }()
+	}
 	if err := cfg.check(); err != nil {
 		return nil, err
 	}
@@ -226,7 +259,7 @@ func (e *UnsafeEndpointError) Unwrap() error { return e.err }
 // leftover socket or a symbolic link included, is refused with
 // ipc-endpoint-unsafe and left in place: bind(2) follows a dangling
 // link and makes the socket at its target (S04-architecture,
-// "Inter-process contracts"; S04-03-self-sandboxing, "How `wb-vmd` is
+// "Inter-process contracts"; S04-11-vmd-start, "How `wb-vmd` is
 // started"). Only the user writes the run directory, so nothing appears
 // at path between the lstat and the bind.
 func listenFile(log *slog.Logger, path string) (*os.File, error) {
@@ -259,8 +292,8 @@ func listenFile(log *slog.Logger, path string) (*os.File, error) {
 }
 
 // spawn starts wb-vmd with no arguments, the slot as its whole
-// environment, and the descriptors of its start interface
-// (SEC12-least-privilege, SEC08-proj-isolation). Go marks every other
+// environment, and the descriptors of its start interface, 5 only in the
+// build slot (SEC12-least-privilege, SEC08-proj-isolation). Go marks every other
 // descriptor close-on-exec, so wb-vmd inherits nothing else.
 func (p *Process) spawn(ctx context.Context, cfg *Config, d *descriptors) error {
 	// The lifeline, not ctx, ends wb-vmd, so that it stops its VM first.
@@ -270,6 +303,9 @@ func (p *Process) spawn(ctx context.Context, cfg *Config, d *descriptors) error 
 	cmd.Stdin = d.lifeRead
 	cmd.Stderr = d.logWrite
 	cmd.ExtraFiles = []*os.File{d.grpc, d.handoff}
+	if cfg.ProvisioningPipe != nil {
+		cmd.ExtraFiles = append(cmd.ExtraFiles, cfg.ProvisioningPipe)
+	}
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("start %s: %w", cfg.Program, err)
 	}

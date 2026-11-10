@@ -8,6 +8,7 @@
 //	wb-dev-app min-macos                # print the macOS the app and wb-vmd are built for: setup.MinMacOS, as 27.0
 //	wb-dev-app layout [-team T -dir D]  # print the layout table for the script; with -team, write the helpers' entitlements into D
 //	wb-dev-app sign-identity -team T    # print the hash of the one Apple Development identity of team T
+//	wb-dev-app entitlements -team T -roles R  # print a helper's entitlements file for the comma-separated roles R
 //	wb-dev-app profile -app A -team T   # fail unless the app Xcode built has a profile of team T
 //	wb-dev-app go-build -stamp F -out D # build the Go programs of the table for darwin/arm64, stamped
 //	wb-dev-app check -app A -disk D -stamp F -bundle-id I [-team T]  # the entitlement check (step 8)
@@ -30,7 +31,7 @@ import (
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/setup"
 )
 
-const usage = "usage: wb-dev-app identity | min-macos | layout | sign-identity | profile | go-build | check | install (see the package comment)"
+const usage = "usage: wb-dev-app identity | min-macos | layout | entitlements | sign-identity | profile | go-build | check | install (see the package comment)"
 
 // errUsage is a usage error: exit 2.
 var errUsage = errors.New(usage)
@@ -73,6 +74,8 @@ func dispatch(ctx context.Context, args []string, stdout, stderr io.Writer) erro
 		return layoutCommand(rest, stdout, stderr)
 	case "profile":
 		return profileCommand(ctx, rest, stdout, stderr)
+	case "entitlements":
+		return entitlementsCommand(rest, stdout, stderr)
 	case "sign-identity":
 		return signIdentityCommand(ctx, rest, stdout, stderr)
 	case "go-build":

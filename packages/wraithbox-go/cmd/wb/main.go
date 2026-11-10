@@ -10,6 +10,7 @@ import (
 	"os"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/cli"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/credcmd"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/projectcmd"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/setup"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/version"
@@ -43,6 +44,12 @@ func run(args []string) int {
 		return vmcmd.Run(context.Background(), vmcmd.SystemEnv(log), inv.Args)
 	case inv.Command.Name == "project" || inv.Command.Name == "shell":
 		return runInProject(inv)
+	case inv.Command.Name == "cred":
+		// Each refusal and its fix go to standard error from credcmd. The
+		// log shows warnings, which include the access lines that stand
+		// in for the audit record until wb-hostd writes it (I514).
+		log := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
+		return credcmd.Run(context.Background(), credcmd.SystemEnv(log), inv.Args)
 	}
 	fmt.Fprintf(os.Stderr, "wb %s: not implemented yet\n", inv.Command.Name)
 	return 2

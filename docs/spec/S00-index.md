@@ -18,6 +18,8 @@ Wraith Box works and why.
 | S04-07-supervision | Supervision | Draft |
 | S04-08-records-and-bounds | Records, Versions and Bounds | Draft |
 | S04-09-netd-start | Starting `wb-netd` | Draft |
+| S04-10-vmd-install | Installing macOS in `wb-vmd` | Draft |
+| S04-11-vmd-start | Starting `wb-vmd` | Draft |
 | S05-cli | Command Line Interface | Draft |
 | S05-01-agent-commands | Agent Commands | Draft |
 | S05-02-exit-status-and-signals | Exit Status and Signals | Draft |
@@ -108,6 +110,7 @@ Wraith Box works and why.
 | S15-03-access-rules | Access Rules | Draft |
 | S15-04-guest-admin | The Guest Admin User | Draft |
 | S15-05-admin-path | The Admin Path | Draft |
+| S15-06-binding-commands | The Binding Commands | Draft |
 | S16-terminal-stream | Terminal Stream | Draft |
 | S16-01-filter | Filter | Draft |
 | S16-02-drops-and-links | Drops and Links | Draft |

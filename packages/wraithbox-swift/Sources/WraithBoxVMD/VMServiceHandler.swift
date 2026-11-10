@@ -30,13 +30,68 @@ public struct VMServiceHandler: Wraithbox_Vmd_V1_VMService.SimpleServiceProtocol
             [
                 "generation": .uint(request.generation), "cpu_count": .uint(request.cpuCount),
                 "memory_mib": .uint(request.memoryMib),
+                "provisioning": .string(String(request.provisioning)),
             ])
         try await refusing("Start", generation: request.generation) { () async throws(VMRefusal) in
             try await supervisor.start(
                 generation: request.generation, cpuCount: request.cpuCount,
-                memoryMiB: request.memoryMib, macAddress: Array(request.macAddress))
+                memoryMiB: request.memoryMib, macAddress: Array(request.macAddress),
+                provisioning: request.provisioning)
         }
         return Wraithbox_Vmd_V1_StartResponse()
+    }
+
+    public func install(
+        request: Wraithbox_Vmd_V1_InstallRequest,
+        response: RPCWriter<Wraithbox_Vmd_V1_InstallResponse>, context: ServerContext
+    ) async throws {
+        log.info(
+            "rpc-install",
+            ["cpu_count": .uint(request.cpuCount), "memory_mib": .uint(request.memoryMib)])
+        // The supervisor reports on the main actor, and the stream writes
+        // here. At most 101 percents, so the buffer holds them all.
+        let (percents, sink) = AsyncStream.makeStream(of: UInt32.self)
+        let run = Task { () -> VMRefusal? in
+            defer { sink.finish() }
+            do throws(VMRefusal) {
+                try await supervisor.install(
+                    cpuCount: request.cpuCount, memoryMiB: request.memoryMib
+                ) { percent in
+                    sink.yield(percent)
+                }
+                return nil
+            } catch {
+                return error
+            }
+        }
+        // A caller that is gone stops the percents, not the install: the
+        // loop still waits for the end, so a refusal below is logged with
+        // its rule.
+        var callerGone = false
+        for await percent in percents where !callerGone {
+            var message = Wraithbox_Vmd_V1_InstallResponse()
+            message.percent = percent
+            do {
+                try await response.write(message)
+            } catch {
+                callerGone = true
+                log.info("install-progress-unsent", ["percent": .uint(percent)])
+            }
+        }
+        guard let refusal = await run.value else {
+            return
+        }
+        // A framework failure ends the stream with its VMError, as a
+        // VMState carries one, before the call fails. A caller that is gone
+        // misses it, and the refusal is still logged.
+        if let failure = refusal.failure {
+            var message = Wraithbox_Vmd_V1_InstallResponse()
+            message.error = Wraithbox_Vmd_V1_VMError(failure)
+            try? await response.write(message)
+        }
+        try await refusing("Install", generation: nil) { () throws(VMRefusal) in
+            throw refusal
+        }
     }
 
     public func stop(request: Wraithbox_Vmd_V1_StopRequest, context: ServerContext) async throws
@@ -135,13 +190,18 @@ extension Wraithbox_Vmd_V1_VMState {
         generation = status.generation
         state = Wraithbox_Vmd_V1_State(status.state)
         if let failure = status.failure {
-            var error = Wraithbox_Vmd_V1_VMError()
-            error.code = failure.code
-            error.failureReason = failure.failureReason
-            error.errno = failure.errno
-            error.description_p = failure.description
-            self.error = error
+            error = Wraithbox_Vmd_V1_VMError(failure)
         }
+    }
+}
+
+extension Wraithbox_Vmd_V1_VMError {
+    init(_ failure: VMFailure) {
+        self.init()
+        code = failure.code
+        failureReason = failure.failureReason
+        errno = failure.errno
+        description_p = failure.description
     }
 }
 

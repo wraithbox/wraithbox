@@ -58,34 +58,25 @@ of bindings, is enforced by our code (S15-03-access-rules, rule 1).
 
 `wb` doesn't hold a group ("`wb` doesn't hold a group" below).
 
-#### `wb-credset`
+Each item is a generic password whose service attribute is the item
+name and whose account attribute is the fixed `wraithbox`. Every call
+names the data protection keychain (`kSecUseDataProtectionKeychain`),
+the item's group, the account, and `kSecAttrSynchronizable` false. A
+query without an account matches every account. With the fixed one,
+each item name is one item, and no call matches an item another
+program of the team wrote in the group under another account.
 
-`wb-credset` is the helper that `wb cred set`, `wb cred rm` and `wb
-cred list` run as the user.
+A write sets the protection class
+`kSecAttrAccessibleWhenUnlockedThisDeviceOnly`. An item with it stays
+on this Mac and can be read only while the Mac is unlocked. A write of an
+item that exists updates its value in place, so there is no moment
+without the item. A list asks for the items' attributes, never their
+values. The cgo shim returns the call's status and nothing else: a
+message from Security.framework can name an item's attributes, so Go
+writes the log line ("Failed store calls").
 
-- `wb` starts it from the installed bundle (S10-tech-stack).
-- Its arguments are the operation and the binding name, never the
-  value.
-- It confines itself first thing, from a compiled-in profile. The
-  profile allows the secret store service and its standard streams. It
-  denies files, the network and starting programs
-  (S04-03-self-sandboxing, "Each host daemon is self-sandboxed").
-
-It does one operation and exits:
-
-- *write* reads the value from its standard input;
-- *delete* removes the item;
-- *list* prints the names of the `binding/` items, never a value.
-
-It takes exactly two arguments, the operation and the binding name.
-Its environment has only the variable names on a fixed list compiled
-into it, which `wb` also uses when it starts it. Before any store call,
-it refuses each of these with the rule `credset-refused`:
-
-- any other argument count;
-- any variable not on that list;
-- an operation or name outside the fixed forms of
-  S15-03-access-rules, "Declared access".
+The binding secrets are written, listed and deleted by `wb-credset`,
+which `wb cred` runs (S15-06-binding-commands).
 
 #### The group of each call
 
@@ -96,6 +87,18 @@ Each Keychain call names its group. The cgo shim (S12-platforms) sets
 - `<TEAMID>` is the team identifier of the process's own code
   signature. The shim reads it once at start, and never takes it from
   configuration or a request.
+
+The signature is read from the files on disk, which can change while
+the process runs. So the shim first checks that the code directory on
+disk still matches the running code, with what it hashes, the
+Info.plist among them (`SecCodeCheckValidity`). The check doesn't
+cover the bundle's resource files, and the shim reads nothing from
+them: the team, the identifier and the executable come from the code
+directory and the Info.plist. A signature that fails the check counts
+as unreadable, which every check refuses: the team is then none, with
+`keychain-needs-team`. The groups come from the kernel's copy of the
+process's entitlements (`SecTaskCopyValueForEntitlement`), the one
+the Keychain checks, never from the files.
 
 Without the attribute, a write by a process with two groups, such as
 `wb-proxyd`, would go to the first group of its entitlements. A `ca/`
@@ -109,6 +112,18 @@ call, the shim refuses in each of these cases with the rule
 - the process's entitlements don't hold the group.
 
 An entitlement set the shim can't read counts as not holding it.
+
+The program a caller opens the store as decides which accesses the
+checks allow (S15-03-access-rules, "Declared access"). So the shim
+also reads the `CFBundleExecutable` of the Info.plist that the
+process's own signature seals, once at start. When it isn't the
+program's executable (`wb-credset`, `wb-proxyd` or `wb-guestadmin`),
+or there is none, every call is refused with the rule
+`store-program-mismatch`. The signing identifier can't tell the
+programs apart: each helper bundle has the app's bundle identifier,
+which its profile matches (X29-dev-signing). The shim logs the
+identifier and the executable when it opens. An ad-hoc build is
+refused with `keychain-needs-team` first.
 
 ### Ad-hoc signed builds
 

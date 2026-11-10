@@ -1,9 +1,9 @@
 // The provisioning-options check. Only the `build` slot of
 // wb-vmd-install accepts the macOS provisioning options, which create
 // `wbadmin` with a password. Every other slot refuses them, the `layer`
-// slot of wb-vmd-layer included (S04-04-vm-processes, "The build bundle"
-// and "`wb-vmd-layer`"; S15-04-guest-admin, "Refused outside the path";
-// SEC12-least-privilege).
+// slot of wb-vmd-layer included (S04-10-vmd-install, "The build bundle"
+// and S04-04-vm-processes, "`wb-vmd-layer`"; S15-04-guest-admin,
+// "Refused outside the path"; SEC12-least-privilege).
 import WraithBoxVM
 
 /// Decides whether an instance's slot takes provisioning options. Nothing

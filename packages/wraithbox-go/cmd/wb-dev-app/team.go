@@ -15,6 +15,7 @@ import (
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/appbundle"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/platform/codesign"
+	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/storeitem"
 )
 
 // securityPath is the tool sign-identity runs, by absolute path.
@@ -153,4 +154,32 @@ func signIdentityCommand(ctx context.Context, args []string, stdout, stderr io.W
 	fmt.Fprintf(stderr, "sign-identity: %s\n", id)
 	fmt.Fprintln(stdout, id.Hash)
 	return nil
+}
+
+// entitlementsCommand prints the entitlements file of a helper of -team
+// with the groups of -roles, a comma-separated list of the roles of
+// S15-02-secret-store, "Keychain", as the build writes it for a helper
+// (HelperEntitlements). store:host-test signs its test bundles with it.
+func entitlementsCommand(args []string, stdout, stderr io.Writer) error {
+	fs := flag.NewFlagSet("entitlements", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	team := fs.String("team", "", "the team that signs the bundle")
+	roles := fs.String("roles", "", "the roles of the groups, comma-separated")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if *team == "" || *roles == "" || fs.NArg() != 0 {
+		return errUsage
+	}
+	if !appbundle.ValidTeamID(*team) {
+		return fmt.Errorf("-team %q is not an Apple team ID", *team)
+	}
+	list := strings.Split(*roles, ",")
+	for _, r := range list {
+		if !storeitem.Role(r).Valid() {
+			return fmt.Errorf("-roles: %q is not a role", r)
+		}
+	}
+	_, err := stdout.Write(appbundle.HelperEntitlements(*team, list))
+	return err
 }

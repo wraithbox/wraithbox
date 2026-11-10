@@ -2,7 +2,9 @@
 // that already passed the device-set check to Virtualization objects
 // (S04-02-vm-provider, "The device set is fixed and checked"), and
 // creates no device the description doesn't name. Boot and stop use
-// APIs from macOS 12 to 14.
+// APIs from macOS 12 to 14. The build slot's install uses the restore
+// image and installer APIs of macOS 12 (S04-10-vmd-install,
+// "`wb-vmd-install`").
 import Foundation
 import Virtualization
 import WraithBoxVM
@@ -25,6 +27,71 @@ public final class VirtualizationEngine: VMEngine {
     {
         let configuration = try VirtualizationConfiguration.make(request)
         return VirtualizationVM(configuration: configuration, onState: onState)
+    }
+
+    /// How often an install's progress is read.
+    static let progressInterval = Duration.milliseconds(500)
+
+    public func restoreImage(at path: String) async throws(VMFailure) -> RestoreImageInfo {
+        let image: VZMacOSRestoreImage
+        do {
+            image = try await VZMacOSRestoreImage.image(from: URL(fileURLWithPath: path))
+        } catch {
+            throw VMFailure(error)
+        }
+        var model: [UInt8]?
+        if let requirements = image.mostFeaturefulSupportedConfiguration,
+            requirements.hardwareModel.isSupported
+        {
+            model = Array(requirements.hardwareModel.dataRepresentation)
+        }
+        return RestoreImageInfo(buildVersion: image.buildVersion, hardwareModel: model)
+    }
+
+    public func newMachineIdentifier() -> [UInt8] {
+        Array(VZMacMachineIdentifier().dataRepresentation)
+    }
+
+    public func createAuxiliaryStorage(at path: String, hardwareModel: [UInt8]) throws(VMFailure) {
+        guard let model = VZMacHardwareModel(dataRepresentation: Data(hardwareModel)) else {
+            throw VMFailure(description: "the hardware model can't be read")
+        }
+        do {
+            // No .allowOverwrite: an existing file fails the call.
+            _ = try VZMacAuxiliaryStorage(
+                creatingStorageAt: URL(fileURLWithPath: path), hardwareModel: model, options: [])
+        } catch {
+            throw VMFailure(error)
+        }
+    }
+
+    public func install(
+        _ request: BootRequest, restoreImagePath: String,
+        progress: @escaping InstallProgressHandler
+    ) async throws(VMFailure) {
+        let configuration = try VirtualizationConfiguration.make(request)
+        let machine = VZVirtualMachine(configuration: configuration)
+        let installer = VZMacOSInstaller(
+            virtualMachine: machine, restoringFromImageAt: URL(fileURLWithPath: restoreImagePath))
+        let reporter = Task { @MainActor in
+            while !Task.isCancelled {
+                progress(installer.progress.fractionCompleted)
+                try? await Task.sleep(for: Self.progressInterval)
+            }
+        }
+        defer { reporter.cancel() }
+        var failure: VMFailure?
+        do {
+            try await installer.install()
+        } catch {
+            failure = VMFailure(error)
+        }
+        if machine.canStop {
+            try? await machine.stop()
+        }
+        if let failure {
+            throw failure
+        }
     }
 }
 

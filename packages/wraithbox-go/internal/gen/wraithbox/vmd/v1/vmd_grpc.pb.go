@@ -42,6 +42,7 @@ const (
 	VMService_GetState_FullMethodName     = "/wraithbox.vmd.v1.VMService/GetState"
 	VMService_WatchState_FullMethodName   = "/wraithbox.vmd.v1.VMService/WatchState"
 	VMService_ConnectGuest_FullMethodName = "/wraithbox.vmd.v1.VMService/ConnectGuest"
+	VMService_Install_FullMethodName      = "/wraithbox.vmd.v1.VMService/Install"
 )
 
 // VMServiceClient is the client API for VMService service.
@@ -71,6 +72,16 @@ type VMServiceClient interface {
 	// HandoffMessage with the same `request_id` (S04-02-vm-provider, "Hand-off
 	// on macOS").
 	ConnectGuest(ctx context.Context, in *ConnectGuestRequest, opts ...grpc.CallOption) (*ConnectGuestResponse, error)
+	// Install installs macOS into the build bundle from the restore image
+	// at its fixed path, and streams the progress (S04-10-vmd-install,
+	// "`wb-vmd-install`"). The request names no path and no image. Only
+	// the build slot serves it. Every other slot refuses it with
+	// `vmd-install-refused` before it touches a file, and the build slot
+	// refuses a second install, an install while its VM runs, and a bundle
+	// that already holds an installed file the same way. An image this
+	// host can't run is refused with `vmd-restore-image-unsupported`, and
+	// a framework failure with `vm-install-failed`.
+	Install(ctx context.Context, in *InstallRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[InstallResponse], error)
 }
 
 type vMServiceClient struct {
@@ -140,6 +151,25 @@ func (c *vMServiceClient) ConnectGuest(ctx context.Context, in *ConnectGuestRequ
 	return out, nil
 }
 
+func (c *vMServiceClient) Install(ctx context.Context, in *InstallRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[InstallResponse], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &VMService_ServiceDesc.Streams[1], VMService_Install_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[InstallRequest, InstallResponse]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type VMService_InstallClient = grpc.ServerStreamingClient[InstallResponse]
+
 // VMServiceServer is the server API for VMService service.
 // All implementations must embed UnimplementedVMServiceServer
 // for forward compatibility.
@@ -167,6 +197,16 @@ type VMServiceServer interface {
 	// HandoffMessage with the same `request_id` (S04-02-vm-provider, "Hand-off
 	// on macOS").
 	ConnectGuest(context.Context, *ConnectGuestRequest) (*ConnectGuestResponse, error)
+	// Install installs macOS into the build bundle from the restore image
+	// at its fixed path, and streams the progress (S04-10-vmd-install,
+	// "`wb-vmd-install`"). The request names no path and no image. Only
+	// the build slot serves it. Every other slot refuses it with
+	// `vmd-install-refused` before it touches a file, and the build slot
+	// refuses a second install, an install while its VM runs, and a bundle
+	// that already holds an installed file the same way. An image this
+	// host can't run is refused with `vmd-restore-image-unsupported`, and
+	// a framework failure with `vm-install-failed`.
+	Install(*InstallRequest, grpc.ServerStreamingServer[InstallResponse]) error
 	mustEmbedUnimplementedVMServiceServer()
 }
 
@@ -191,6 +231,9 @@ func (UnimplementedVMServiceServer) WatchState(*WatchStateRequest, grpc.ServerSt
 }
 func (UnimplementedVMServiceServer) ConnectGuest(context.Context, *ConnectGuestRequest) (*ConnectGuestResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ConnectGuest not implemented")
+}
+func (UnimplementedVMServiceServer) Install(*InstallRequest, grpc.ServerStreamingServer[InstallResponse]) error {
+	return status.Error(codes.Unimplemented, "method Install not implemented")
 }
 func (UnimplementedVMServiceServer) mustEmbedUnimplementedVMServiceServer() {}
 func (UnimplementedVMServiceServer) testEmbeddedByValue()                   {}
@@ -296,6 +339,17 @@ func _VMService_ConnectGuest_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _VMService_Install_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(InstallRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(VMServiceServer).Install(m, &grpc.GenericServerStream[InstallRequest, InstallResponse]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type VMService_InstallServer = grpc.ServerStreamingServer[InstallResponse]
+
 // VMService_ServiceDesc is the grpc.ServiceDesc for VMService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -324,6 +378,11 @@ var VMService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "WatchState",
 			Handler:       _VMService_WatchState_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "Install",
+			Handler:       _VMService_Install_Handler,
 			ServerStreams: true,
 		},
 	},

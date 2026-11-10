@@ -38,14 +38,16 @@ func TestMain(m *testing.M) {
 }
 
 // checkStartInterface checks, inside wb-vmd, the start interface of
-// S04-03-self-sandboxing, "How `wb-vmd` is started": no arguments,
-// WB_VMD_SLOT=work or WB_VMD_SLOT=isolated as the whole environment, a
-// blocking lifeline, and descriptors 0, 2, 3 and 4 and no others.
+// S04-11-vmd-start, "How `wb-vmd` is started": no arguments,
+// WB_VMD_SLOT=work, isolated or build as the whole environment, a
+// blocking lifeline, and descriptors 0, 2, 3 and 4, and 5 a pipe in the
+// build slot, and no others.
 func checkStartInterface() error {
 	if len(os.Args) != 1 {
 		return fmt.Errorf("arguments %q", os.Args[1:])
 	}
-	if env := os.Environ(); len(env) != 1 || (env[0] != "WB_VMD_SLOT=work" && env[0] != "WB_VMD_SLOT=isolated") {
+	env := os.Environ()
+	if len(env) != 1 || !slices.Contains([]string{"WB_VMD_SLOT=work", "WB_VMD_SLOT=isolated", "WB_VMD_SLOT=build"}, env[0]) {
 		return fmt.Errorf("environment %q", env)
 	}
 	if fl, err := unix.FcntlInt(0, unix.F_GETFL, 0); err != nil || fl&unix.O_NONBLOCK != 0 {
@@ -57,7 +59,18 @@ func checkStartInterface() error {
 	if err := checkGRPCSocket(); err != nil {
 		return err
 	}
-	for fd := 5; fd < 256; fd++ {
+	firstUnused := 5
+	if env[0] == "WB_VMD_SLOT=build" {
+		var st syscall.Stat_t
+		if err := syscall.Fstat(5, &st); err != nil {
+			return fmt.Errorf("fd 5: %w", err)
+		}
+		if uint32(st.Mode)&syscall.S_IFMT != syscall.S_IFIFO {
+			return fmt.Errorf("fd 5: mode %#o, not a pipe", st.Mode)
+		}
+		firstUnused = 6
+	}
+	for fd := firstUnused; fd < 256; fd++ {
 		if _, err := unix.FcntlInt(uintptr(fd), unix.F_GETFD, 0); err == nil {
 			return fmt.Errorf("fd %d is open", fd)
 		}
@@ -259,6 +272,39 @@ func TestSpawnBothSlotsAtOnce(t *testing.T) {
 		if !logs[n].waitFor(ctx, `"event":"started"`, `"slot":"`+slot+`"`) {
 			t.Errorf("%s: no started record for the slot; log: %s", slot, logs[n])
 		}
+	}
+}
+
+// The build slot's wb-vmd gets the build password pipe as descriptor 5,
+// and no other: the fake checks from inside that 5 is a pipe and 6 and up
+// are closed.
+func TestSpawnBuild(t *testing.T) {
+	markRunnerDescriptors()
+	dir := runDir(t)
+	pipeRead, pipeWrite, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = pipeWrite.Close() }()
+	log := newLines()
+	cfg := config(t, dir, "build", own, log)
+	cfg.ProvisioningPipe = pipeRead
+	p, err := vmdspawn.Start(t.Context(), cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Start owns the read end and closes the parent's copy.
+	if _, err := pipeRead.Stat(); !errors.Is(err, os.ErrClosed) {
+		t.Errorf("Start left the parent's read end open: %v", err)
+	}
+	t.Cleanup(func() { _ = p.Close() })
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	if _, err := p.Client.GetState(ctx, &vmdv1.GetStateRequest{}); err != nil {
+		t.Fatalf("GetState: %v; log: %s", err, log)
+	}
+	if !log.waitFor(ctx, `"event":"started"`, `"slot":"build"`) {
+		t.Errorf("no started record for the build slot; log: %s", log)
 	}
 }
 

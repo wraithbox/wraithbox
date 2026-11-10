@@ -28,7 +28,7 @@ func runningFixture(connectTimeout: Duration = GuestConnector.defaultTimeout) as
 {
     let fixture = try ServiceFixture(connectTimeout: connectTimeout)
     try await fixture.supervisor.start(
-        generation: 1, cpuCount: 2, memoryMiB: 1024, macAddress: testMAC)
+        generation: 1, cpuCount: 2, memoryMiB: 1024, macAddress: testMAC, provisioning: false)
     let machine = try #require(fixture.engine.machines.first)
     // The start's network record comes first. The tests here read only
     // the connection records after it.

@@ -32,6 +32,10 @@ type Fake struct {
 	// the error of reading them.
 	GroupList []string
 	GroupsErr error
+	// CodeInfo is the signing identifier and executable the fake's
+	// signature claims, and CodeErr the error of reading them.
+	CodeInfo secretstore.Code
+	CodeErr  error
 	// DialogsErr is the error of turning dialogs off.
 	DialogsErr error
 
@@ -50,9 +54,14 @@ type statusKey struct {
 	item   string
 }
 
-// New returns a fake that claims team and holds groups.
-func New(team string, groups ...string) *Fake {
-	return &Fake{TeamID: team, GroupList: groups}
+// New returns a fake signed as program, with program's executable, that
+// claims team and holds groups.
+func New(program storeitem.Program, team string, groups ...string) *Fake {
+	return &Fake{
+		TeamID:    team,
+		GroupList: groups,
+		CodeInfo:  secretstore.Code{Identifier: "nl.wraithbox.dev.test", Executable: program.Executable()},
+	}
 }
 
 // SetStatus makes every later call of access on item return status. item
@@ -98,6 +107,9 @@ func (f *Fake) DialogsOff() error {
 
 // Team implements secretstore.Backend.
 func (f *Fake) Team() (string, error) { return f.TeamID, f.TeamErr }
+
+// Code implements secretstore.Backend.
+func (f *Fake) Code() (secretstore.Code, error) { return f.CodeInfo, f.CodeErr }
 
 // Groups implements secretstore.Backend.
 func (f *Fake) Groups() ([]string, error) {

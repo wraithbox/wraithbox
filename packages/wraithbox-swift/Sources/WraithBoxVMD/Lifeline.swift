@@ -1,4 +1,4 @@
-// The lifeline (S04-03-self-sandboxing, "How `wb-vmd` is started";
+// The lifeline (S04-11-vmd-start, "How `wb-vmd` is started";
 // S04-07-supervision, "When `wb-hostd` stops"). wb-vmd reads fd 0 until
 // end of file. End of file, or a read error, means its spawner is gone:
 // wb-vmd stops its VM at once and exits, so no VM outlives the process

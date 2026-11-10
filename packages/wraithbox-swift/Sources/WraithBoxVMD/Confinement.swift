@@ -3,7 +3,11 @@
 // are the bundle's real path and the per-user cache directory, both
 // worked out before confinement. It is the X25-vmd-sandbox profile
 // `vmd-final-narrow.sb`, measured with the X18-vsock-handoff device set.
+// The build slot's profile adds the three install rules X30-installer-trust
+// measured, with a third parameter, the restore image's real path
+// (S04-10-vmd-install, "`wb-vmd-install`").
 import Darwin
+import WraithBoxVM
 
 /// The profile and how wb-vmd applies it.
 public enum Confinement {
@@ -58,6 +62,30 @@ public enum Confinement {
               (string-append (param "CACHE") "/com.apple.paravirtualizedgraphics-"))))
         """
 
+    /// The rules an install needs, which only the build slot's profile
+    /// has (SEC12-least-privilege): reading the one restore image, a read
+    /// extension for it, and the installation service, which calls Apple
+    /// (X30-installer-trust, `vmd-install.sb`).
+    public static let installRules = """
+
+        ; Installing: the restore image (parameter IPSW) and the service
+        ; that installs from it.
+        (allow file-read* (literal (param "IPSW")))
+        (allow mach-lookup (xpc-service-name "com.apple.Virtualization.Installation"))
+        (allow file-issue-extension
+          (require-all (literal (param "IPSW")) (extension-class "com.apple.app-sandbox.read")))
+        """
+
+    /// The profile text of a slot: the `wb-vmd` profile, plus the install
+    /// rules in the build slot only (S04-10-vmd-install,
+    /// "`wb-vmd-install`"; S04-04-vm-processes, "`wb-vmd-layer`").
+    public static func profile(for slot: VMSlot) -> String {
+        switch slot {
+        case .build: profile + installRules
+        case .work, .isolated, .layer: profile
+        }
+    }
+
     /// The file the deny probe opens. The profile denies reading it, and
     /// every user can read it unconfined.
     public static let probePath = "/etc/passwd"
@@ -70,12 +98,13 @@ public enum Confinement {
 
     private typealias SandboxFreeError = @convention(c) (UnsafeMutablePointer<CChar>?) -> Void
 
-    /// Applies the profile to this process, with the bundle and cache
-    /// directory as its parameters. The function is looked up with dlsym
-    /// and called with the C calling convention: it has no public header.
-    public static func apply(bundle: String, cache: String) throws(StartupRefusal) {
-        let values = [("BUNDLE", bundle), ("CACHE", cache)]
-        try checkParameters(values)
+    /// Applies the slot's profile to this process, with the bundle and
+    /// cache directory as its parameters, and in the build slot the
+    /// restore image too. The function is looked up with dlsym and called
+    /// with the C calling convention: it has no public header.
+    public static func apply(_ resolved: ResolvedSlot, cache: String) throws(StartupRefusal) {
+        let values = try parameters(resolved, cache: cache)
+        let text = profile(for: resolved.slot)
         guard
             let initSymbol = dlsym(
                 UnsafeMutableRawPointer(bitPattern: -2), "sandbox_init_with_parameters")
@@ -96,7 +125,7 @@ public enum Confinement {
         parameters.append(nil)
         var errorText: UnsafeMutablePointer<CChar>?
         let result = parameters.withUnsafeBufferPointer { list in
-            sandboxInit(profile, 0, list.baseAddress, &errorText)
+            sandboxInit(text, 0, list.baseAddress, &errorText)
         }
         guard result == 0 else {
             let detail = errorText.map { String(cString: $0) } ?? "error \(result)"
@@ -106,6 +135,22 @@ public enum Confinement {
             }
             throw StartupRefusal(.sandboxInit, detail)
         }
+    }
+
+    /// The profile parameters of a slot, checked. The build slot has IPSW,
+    /// and refuses to confine itself without it. No other slot gets it.
+    static func parameters(_ resolved: ResolvedSlot, cache: String) throws(StartupRefusal)
+        -> [(String, String)]
+    {
+        var values = [("BUNDLE", resolved.realBundle), ("CACHE", cache)]
+        switch resolved.slot {
+        case .build:
+            values.append(("IPSW", resolved.realRestoreImage ?? ""))
+        case .work, .isolated, .layer:
+            break
+        }
+        try checkParameters(values)
+        return values
     }
 
     /// Refuses a parameter value that is empty or holds a NUL byte, while

@@ -6,11 +6,14 @@
 // S15-03-access-rules before the backend runs, in this order:
 //
 //  1. the call that turns dialogs off failed at Open: store-dialogs-on;
-//  2. the process's own signature has no team: keychain-needs-team;
-//  3. the item's role isn't the role the call names, or the process's
+//  2. the process's own signature has no team, or its files on disk no
+//     longer match the running code: keychain-needs-team;
+//  3. the executable of the Info.plist the process's own signature seals
+//     isn't the program's: store-program-mismatch;
+//  4. the item's role isn't the role the call names, or the process's
 //     entitlements don't hold that role's group or can't be read:
 //     store-group-mismatch;
-//  4. the access isn't declared for the program: store-access-undeclared.
+//  5. the access isn't declared for the program: store-access-undeclared.
 //
 // Each refusal and each failed call is logged with the call, the item,
 // the groups and the rule, and never a value.
@@ -54,9 +57,6 @@ type Status int32
 // calls").
 const (
 	StatusOK Status = 0
-	// StatusUnimplemented is errSecUnimplemented: the backend has no such
-	// call yet.
-	StatusUnimplemented Status = -4
 	// StatusNotFound is errSecItemNotFound.
 	StatusNotFound Status = -25300
 	// StatusLocked is errSecInteractionNotAllowed, which a locked
@@ -80,14 +80,36 @@ type Backend interface {
 	// when it has none. It runs once, at Open.
 	Team() (string, error)
 	// Groups returns the access groups the process's own entitlements
-	// hold. It runs once, at Open. An error means they can't be read,
+	// hold, on macOS from the kernel's copy of them. It runs once, at
+	// Open. An error means they can't be read,
 	// and the process holds no group.
 	Groups() ([]string, error)
+	// Code returns the signing identifier and the main executable of the
+	// process's own signature. It runs once, at Open.
+	Code() (Code, error)
 
 	Write(ctx context.Context, group, item string, value []byte) Status
 	Fetch(ctx context.Context, group, item string) ([]byte, Status)
 	Delete(ctx context.Context, group, item string) Status
 	List(ctx context.Context, group string) ([]string, Status)
+}
+
+// Code is what the process's own code signature says the process is.
+type Code struct {
+	// Identifier is the signing identifier, kSecCodeInfoIdentifier on
+	// macOS. Every helper bundle has the app's bundle identifier
+	// (X29-dev-signing), so it names the build, not the program. It is
+	// logged, and no check reads it.
+	Identifier string
+	// Executable is the CFBundleExecutable of the Info.plist the
+	// signature seals, or "" when the code has none. It names the
+	// program: renaming a helper's executable breaks its bundle's
+	// signature. On macOS the shim reads it only after
+	// SecCodeCheckValidity sees that the code directory on disk, and the
+	// Info.plist it hashes, still match the running code, so a bundle
+	// signed again after the start can't change it. The check doesn't
+	// cover resource files, and the shim reads none.
+	Executable string
 }
 
 // ErrNotFound is wrapped by the error of a call for an item that isn't in
