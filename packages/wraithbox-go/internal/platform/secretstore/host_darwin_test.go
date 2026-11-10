@@ -301,7 +301,7 @@ func TestC05HostCARoundTrip(t *testing.T) {
 // every write, that doesn't synchronize (G4, S15-02-secret-store, "Backend guarantees").
 func checkAttributes(t *testing.T, item storeitem.Name, role storeitem.Role) {
 	t.Helper()
-	a, st := readItemAttributes(item.String())
+	a, st := ReadItemAttributes(item.String())
 	if st != StatusOK {
 		t.Fatalf("attributes of %s: OSStatus %d", item, st)
 	}

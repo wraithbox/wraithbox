@@ -11,10 +11,13 @@
 // and no program may import its fake in hwkey/hwkeytest. A test in this
 // package checks both (SEC12-least-privilege).
 //
-// On every platform, until each backend is built, Generate and Restore
-// return an error that wraps errors.ErrUnsupported
-// (S12-01-platform-interfaces, "Unimplemented platforms fail clearly"),
-// which the caller treats as `ca-key-restore`.
+// On darwin with cgo the backend is a Secure Enclave key, through the
+// cgo shim in hwkey_darwin.go. On linux, windows and a darwin build
+// without cgo, no backend is built yet, and Generate and Restore return
+// an error that wraps errors.ErrUnsupported
+// (S12-01-platform-interfaces, "Unimplemented platforms fail clearly").
+// The caller treats every error of Generate and Restore as
+// `ca-key-restore`.
 package hwkey
 
 import (
