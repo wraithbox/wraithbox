@@ -103,13 +103,27 @@ public enum Wraithbox_Vmd_V1_VMService: Sendable {
                 type: .unary
             )
         }
+        /// Namespace for "Install" metadata.
+        public enum Install: Sendable {
+            /// Request type for "Install".
+            public typealias Input = Wraithbox_Vmd_V1_InstallRequest
+            /// Response type for "Install".
+            public typealias Output = Wraithbox_Vmd_V1_InstallResponse
+            /// Descriptor for "Install".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "wraithbox.vmd.v1.VMService"),
+                method: "Install",
+                type: .serverStreaming
+            )
+        }
         /// Descriptors for all methods in the "wraithbox.vmd.v1.VMService" service.
         public static let descriptors: [GRPCCore.MethodDescriptor] = [
             Start.descriptor,
             Stop.descriptor,
             GetState.descriptor,
             WatchState.descriptor,
-            ConnectGuest.descriptor
+            ConnectGuest.descriptor,
+            Install.descriptor
         ]
     }
 }
@@ -240,6 +254,32 @@ extension Wraithbox_Vmd_V1_VMService {
             request: GRPCCore.StreamingServerRequest<Wraithbox_Vmd_V1_ConnectGuestRequest>,
             context: GRPCCore.ServerContext
         ) async throws -> GRPCCore.StreamingServerResponse<Wraithbox_Vmd_V1_ConnectGuestResponse>
+
+        /// Handle the "Install" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > Install installs macOS into the build bundle from the restore image
+        /// > at its fixed path, and streams the progress (S04-04-vm-processes,
+        /// > "`wb-vmd-install`"). The request names no path and no image. Only
+        /// > the build slot serves it. Every other slot refuses it with
+        /// > `vmd-install-refused` before it touches a file, and the build slot
+        /// > refuses a second install, an install while its VM runs, and a bundle
+        /// > that already holds an installed file the same way. An image this
+        /// > host can't run is refused with `vmd-restore-image-unsupported`, and
+        /// > a framework failure with `vm-install-failed`.
+        ///
+        /// - Parameters:
+        ///   - request: A streaming request of `Wraithbox_Vmd_V1_InstallRequest` messages.
+        ///   - context: Context providing information about the RPC.
+        /// - Throws: Any error which occurred during the processing of the request. Thrown errors
+        ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
+        ///     to an internal error.
+        /// - Returns: A streaming response of `Wraithbox_Vmd_V1_InstallResponse` messages.
+        func install(
+            request: GRPCCore.StreamingServerRequest<Wraithbox_Vmd_V1_InstallRequest>,
+            context: GRPCCore.ServerContext
+        ) async throws -> GRPCCore.StreamingServerResponse<Wraithbox_Vmd_V1_InstallResponse>
     }
 
     /// Service protocol for the "wraithbox.vmd.v1.VMService" service.
@@ -354,6 +394,32 @@ extension Wraithbox_Vmd_V1_VMService {
             request: GRPCCore.ServerRequest<Wraithbox_Vmd_V1_ConnectGuestRequest>,
             context: GRPCCore.ServerContext
         ) async throws -> GRPCCore.ServerResponse<Wraithbox_Vmd_V1_ConnectGuestResponse>
+
+        /// Handle the "Install" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > Install installs macOS into the build bundle from the restore image
+        /// > at its fixed path, and streams the progress (S04-04-vm-processes,
+        /// > "`wb-vmd-install`"). The request names no path and no image. Only
+        /// > the build slot serves it. Every other slot refuses it with
+        /// > `vmd-install-refused` before it touches a file, and the build slot
+        /// > refuses a second install, an install while its VM runs, and a bundle
+        /// > that already holds an installed file the same way. An image this
+        /// > host can't run is refused with `vmd-restore-image-unsupported`, and
+        /// > a framework failure with `vm-install-failed`.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Wraithbox_Vmd_V1_InstallRequest` message.
+        ///   - context: Context providing information about the RPC.
+        /// - Throws: Any error which occurred during the processing of the request. Thrown errors
+        ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
+        ///     to an internal error.
+        /// - Returns: A streaming response of `Wraithbox_Vmd_V1_InstallResponse` messages.
+        func install(
+            request: GRPCCore.ServerRequest<Wraithbox_Vmd_V1_InstallRequest>,
+            context: GRPCCore.ServerContext
+        ) async throws -> GRPCCore.StreamingServerResponse<Wraithbox_Vmd_V1_InstallResponse>
     }
 
     /// Simple service protocol for the "wraithbox.vmd.v1.VMService" service.
@@ -467,6 +533,33 @@ extension Wraithbox_Vmd_V1_VMService {
             request: Wraithbox_Vmd_V1_ConnectGuestRequest,
             context: GRPCCore.ServerContext
         ) async throws -> Wraithbox_Vmd_V1_ConnectGuestResponse
+
+        /// Handle the "Install" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > Install installs macOS into the build bundle from the restore image
+        /// > at its fixed path, and streams the progress (S04-04-vm-processes,
+        /// > "`wb-vmd-install`"). The request names no path and no image. Only
+        /// > the build slot serves it. Every other slot refuses it with
+        /// > `vmd-install-refused` before it touches a file, and the build slot
+        /// > refuses a second install, an install while its VM runs, and a bundle
+        /// > that already holds an installed file the same way. An image this
+        /// > host can't run is refused with `vmd-restore-image-unsupported`, and
+        /// > a framework failure with `vm-install-failed`.
+        ///
+        /// - Parameters:
+        ///   - request: A `Wraithbox_Vmd_V1_InstallRequest` message.
+        ///   - response: A response stream of `Wraithbox_Vmd_V1_InstallResponse` messages.
+        ///   - context: Context providing information about the RPC.
+        /// - Throws: Any error which occurred during the processing of the request. Thrown errors
+        ///     of type `RPCError` are mapped to appropriate statuses. All other errors are converted
+        ///     to an internal error.
+        func install(
+            request: Wraithbox_Vmd_V1_InstallRequest,
+            response: GRPCCore.RPCWriter<Wraithbox_Vmd_V1_InstallResponse>,
+            context: GRPCCore.ServerContext
+        ) async throws
     }
 }
 
@@ -524,6 +617,17 @@ extension Wraithbox_Vmd_V1_VMService.StreamingServiceProtocol {
             serializer: GRPCProtobuf.ProtobufSerializer<Wraithbox_Vmd_V1_ConnectGuestResponse>(),
             handler: { request, context in
                 try await self.connectGuest(
+                    request: request,
+                    context: context
+                )
+            }
+        )
+        router.registerHandler(
+            forMethod: Wraithbox_Vmd_V1_VMService.Method.Install.descriptor,
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Wraithbox_Vmd_V1_InstallRequest>(),
+            serializer: GRPCProtobuf.ProtobufSerializer<Wraithbox_Vmd_V1_InstallResponse>(),
+            handler: { request, context in
+                try await self.install(
                     request: request,
                     context: context
                 )
@@ -588,6 +692,17 @@ extension Wraithbox_Vmd_V1_VMService.ServiceProtocol {
             context: context
         )
         return GRPCCore.StreamingServerResponse(single: response)
+    }
+
+    public func install(
+        request: GRPCCore.StreamingServerRequest<Wraithbox_Vmd_V1_InstallRequest>,
+        context: GRPCCore.ServerContext
+    ) async throws -> GRPCCore.StreamingServerResponse<Wraithbox_Vmd_V1_InstallResponse> {
+        let response = try await self.install(
+            request: GRPCCore.ServerRequest(stream: request),
+            context: context
+        )
+        return response
     }
 }
 
@@ -660,6 +775,23 @@ extension Wraithbox_Vmd_V1_VMService.SimpleServiceProtocol {
                 context: context
             ),
             metadata: [:]
+        )
+    }
+
+    public func install(
+        request: GRPCCore.ServerRequest<Wraithbox_Vmd_V1_InstallRequest>,
+        context: GRPCCore.ServerContext
+    ) async throws -> GRPCCore.StreamingServerResponse<Wraithbox_Vmd_V1_InstallResponse> {
+        return GRPCCore.StreamingServerResponse<Wraithbox_Vmd_V1_InstallResponse>(
+            metadata: [:],
+            producer: { writer in
+                try await self.install(
+                    request: request.message,
+                    response: writer,
+                    context: context
+                )
+                return [:]
+            }
         )
     }
 }
@@ -801,6 +933,37 @@ extension Wraithbox_Vmd_V1_VMService {
             deserializer: some GRPCCore.MessageDeserializer<Wraithbox_Vmd_V1_ConnectGuestResponse>,
             options: GRPCCore.CallOptions,
             onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Wraithbox_Vmd_V1_ConnectGuestResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "Install" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > Install installs macOS into the build bundle from the restore image
+        /// > at its fixed path, and streams the progress (S04-04-vm-processes,
+        /// > "`wb-vmd-install`"). The request names no path and no image. Only
+        /// > the build slot serves it. Every other slot refuses it with
+        /// > `vmd-install-refused` before it touches a file, and the build slot
+        /// > refuses a second install, an install while its VM runs, and a bundle
+        /// > that already holds an installed file the same way. An image this
+        /// > host can't run is refused with `vmd-restore-image-unsupported`, and
+        /// > a framework failure with `vm-install-failed`.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Wraithbox_Vmd_V1_InstallRequest` message.
+        ///   - serializer: A serializer for `Wraithbox_Vmd_V1_InstallRequest` messages.
+        ///   - deserializer: A deserializer for `Wraithbox_Vmd_V1_InstallResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response and returns its result to
+        ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+        ///       already finished.
+        /// - Returns: The result of `handleResponse`.
+        func install<Result>(
+            request: GRPCCore.ClientRequest<Wraithbox_Vmd_V1_InstallRequest>,
+            serializer: some GRPCCore.MessageSerializer<Wraithbox_Vmd_V1_InstallRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Wraithbox_Vmd_V1_InstallResponse>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.StreamingClientResponse<Wraithbox_Vmd_V1_InstallResponse>) async throws -> Result
         ) async throws -> Result where Result: Sendable
     }
 
@@ -1002,6 +1165,46 @@ extension Wraithbox_Vmd_V1_VMService {
                 onResponse: handleResponse
             )
         }
+
+        /// Call the "Install" method.
+        ///
+        /// > Source IDL Documentation:
+        /// >
+        /// > Install installs macOS into the build bundle from the restore image
+        /// > at its fixed path, and streams the progress (S04-04-vm-processes,
+        /// > "`wb-vmd-install`"). The request names no path and no image. Only
+        /// > the build slot serves it. Every other slot refuses it with
+        /// > `vmd-install-refused` before it touches a file, and the build slot
+        /// > refuses a second install, an install while its VM runs, and a bundle
+        /// > that already holds an installed file the same way. An image this
+        /// > host can't run is refused with `vmd-restore-image-unsupported`, and
+        /// > a framework failure with `vm-install-failed`.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Wraithbox_Vmd_V1_InstallRequest` message.
+        ///   - serializer: A serializer for `Wraithbox_Vmd_V1_InstallRequest` messages.
+        ///   - deserializer: A deserializer for `Wraithbox_Vmd_V1_InstallResponse` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response and returns its result to
+        ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+        ///       already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func install<Result>(
+            request: GRPCCore.ClientRequest<Wraithbox_Vmd_V1_InstallRequest>,
+            serializer: some GRPCCore.MessageSerializer<Wraithbox_Vmd_V1_InstallRequest>,
+            deserializer: some GRPCCore.MessageDeserializer<Wraithbox_Vmd_V1_InstallResponse>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.StreamingClientResponse<Wraithbox_Vmd_V1_InstallResponse>) async throws -> Result
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.serverStreaming(
+                request: request,
+                descriptor: Wraithbox_Vmd_V1_VMService.Method.Install.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
     }
 }
 
@@ -1156,6 +1359,41 @@ extension Wraithbox_Vmd_V1_VMService.ClientProtocol {
             request: request,
             serializer: GRPCProtobuf.ProtobufSerializer<Wraithbox_Vmd_V1_ConnectGuestRequest>(),
             deserializer: GRPCProtobuf.ProtobufDeserializer<Wraithbox_Vmd_V1_ConnectGuestResponse>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "Install" method.
+    ///
+    /// > Source IDL Documentation:
+    /// >
+    /// > Install installs macOS into the build bundle from the restore image
+    /// > at its fixed path, and streams the progress (S04-04-vm-processes,
+    /// > "`wb-vmd-install`"). The request names no path and no image. Only
+    /// > the build slot serves it. Every other slot refuses it with
+    /// > `vmd-install-refused` before it touches a file, and the build slot
+    /// > refuses a second install, an install while its VM runs, and a bundle
+    /// > that already holds an installed file the same way. An image this
+    /// > host can't run is refused with `vmd-restore-image-unsupported`, and
+    /// > a framework failure with `vm-install-failed`.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Wraithbox_Vmd_V1_InstallRequest` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response and returns its result to
+    ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+    ///       already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func install<Result>(
+        request: GRPCCore.ClientRequest<Wraithbox_Vmd_V1_InstallRequest>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.StreamingClientResponse<Wraithbox_Vmd_V1_InstallResponse>) async throws -> Result
+    ) async throws -> Result where Result: Sendable {
+        try await self.install(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Wraithbox_Vmd_V1_InstallRequest>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Wraithbox_Vmd_V1_InstallResponse>(),
             options: options,
             onResponse: handleResponse
         )
@@ -1332,6 +1570,45 @@ extension Wraithbox_Vmd_V1_VMService.ClientProtocol {
             metadata: metadata
         )
         return try await self.connectGuest(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "Install" method.
+    ///
+    /// > Source IDL Documentation:
+    /// >
+    /// > Install installs macOS into the build bundle from the restore image
+    /// > at its fixed path, and streams the progress (S04-04-vm-processes,
+    /// > "`wb-vmd-install`"). The request names no path and no image. Only
+    /// > the build slot serves it. Every other slot refuses it with
+    /// > `vmd-install-refused` before it touches a file, and the build slot
+    /// > refuses a second install, an install while its VM runs, and a bundle
+    /// > that already holds an installed file the same way. An image this
+    /// > host can't run is refused with `vmd-restore-image-unsupported`, and
+    /// > a framework failure with `vm-install-failed`.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response and returns its result to
+    ///       the caller. Returning from the closure will cancel the RPC if it hasn't
+    ///       already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func install<Result>(
+        _ message: Wraithbox_Vmd_V1_InstallRequest,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.StreamingClientResponse<Wraithbox_Vmd_V1_InstallResponse>) async throws -> Result
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Wraithbox_Vmd_V1_InstallRequest>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.install(
             request: request,
             options: options,
             onResponse: handleResponse

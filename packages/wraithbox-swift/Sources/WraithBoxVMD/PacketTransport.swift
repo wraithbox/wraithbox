@@ -35,6 +35,14 @@ public struct MACAddress: Sendable, Equatable, CustomStringConvertible {
         self.bytes = bytes
     }
 
+    /// The address of an install's VM, whose fixed set has no network
+    /// device, so nothing uses it.
+    static let unused = MACAddress(unchecked: [0x02, 0, 0, 0, 0, 0])
+
+    private init(unchecked bytes: [UInt8]) {
+        self.bytes = bytes
+    }
+
     public var description: String {
         Self.text(bytes)
     }

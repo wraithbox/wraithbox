@@ -84,6 +84,25 @@ public struct BootRequest: Sendable, Equatable {
 /// when the state is `.error`.
 public typealias VMStateHandler = @MainActor (VMRunState, VMFailure?) -> Void
 
+/// What an install reads from the restore image.
+public struct RestoreImageInfo: Sendable, Equatable {
+    /// The macOS build the image holds, for the log.
+    public var buildVersion: String
+    /// The data representation of the hardware model of the image's most
+    /// featureful configuration that this host supports, or nil when this
+    /// host can run none of them.
+    public var hardwareModel: [UInt8]?
+
+    public init(buildVersion: String, hardwareModel: [UInt8]?) {
+        self.buildVersion = buildVersion
+        self.hardwareModel = hardwareModel
+    }
+}
+
+/// Called on the main actor while an install runs, with the fraction
+/// done, from 0 to 1.
+public typealias InstallProgressHandler = @MainActor (Double) -> Void
+
 /// Builds VMs.
 @MainActor
 public protocol VMEngine: AnyObject {
@@ -95,6 +114,24 @@ public protocol VMEngine: AnyObject {
     /// configuration.
     func makeVM(_ request: BootRequest, onState: @escaping VMStateHandler) throws(VMFailure)
         -> any EngineVM
+
+    /// Reads the restore image at `path`, the fixed one of the build slot.
+    func restoreImage(at path: String) async throws(VMFailure) -> RestoreImageInfo
+
+    /// The data representation of a new machine identifier.
+    func newMachineIdentifier() -> [UInt8]
+
+    /// Creates the auxiliary storage at `path` for the hardware model.
+    /// Throws when a file is there already: it never overwrites one.
+    func createAuxiliaryStorage(at path: String, hardwareModel: [UInt8]) throws(VMFailure)
+
+    /// Installs macOS from the restore image at `restoreImagePath` into
+    /// the VM a checked request describes, and calls `progress` while the
+    /// install runs. The VM is stopped when the install returns.
+    func install(
+        _ request: BootRequest, restoreImagePath: String,
+        progress: @escaping InstallProgressHandler
+    ) async throws(VMFailure)
 }
 
 /// One VM the engine built.

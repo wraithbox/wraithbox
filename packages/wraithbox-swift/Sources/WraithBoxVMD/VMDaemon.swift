@@ -36,16 +36,18 @@ public enum VMDaemon {
 
     /// Everything up to the VM. Before `Confinement.apply`, it reads only
     /// the macOS version, the cache directory, WB_VMD_SLOT, the user
-    /// database and the bundle path (S04-03-self-sandboxing, "`wb-vmd`
-    /// before it confines itself").
+    /// database and the bundle path, and in the build slot the restore
+    /// image path (S04-03-self-sandboxing, "`wb-vmd` before it confines
+    /// itself").
     static func prepare(log: EventLog) throws(StartupRefusal) -> ResolvedSlot {
         try StartInterface.checkHost(ProcessInfo.processInfo.operatingSystemVersion)
         let cache = try SlotResolution.cacheDirectory()
         let slotValue = getenv(SlotResolution.variable).map { String(cString: $0) }
         let home = SlotResolution.homeDirectory()
         let resolved = try SlotResolution.resolve(slotValue: slotValue, home: home)
-        // SEC12-least-privilege: confined to the slot's one bundle.
-        try Confinement.apply(bundle: resolved.realBundle, cache: cache)
+        // SEC12-least-privilege: confined to the slot's one bundle, and only
+        // the build slot gets the install rules.
+        try Confinement.apply(resolved, cache: cache)
         try Confinement.probe()
         log.info(
             "confined",
@@ -54,7 +56,7 @@ public enum VMDaemon {
                 "probe": .string(Confinement.probePath + " denied"),
             ])
         try StartInterface.checkArguments(CommandLine.arguments)
-        try StartInterface.checkDescriptors()
+        try StartInterface.checkDescriptors(slot: resolved.slot)
         return resolved
     }
 
@@ -70,7 +72,8 @@ public enum VMDaemon {
             let handoff = HandoffChannel(fd: InheritedDescriptor.handoff.rawValue)
             let supervisor = VMSupervisor(
                 engine: VirtualizationEngine(), slot: resolved.slot,
-                bundlePath: resolved.realBundle, handoff: handoff, log: log)
+                bundlePath: resolved.realBundle, restoreImagePath: resolved.realRestoreImage,
+                handoff: handoff, log: log)
             let connector = GuestConnector(supervisor: supervisor, handoff: handoff, log: log)
             return (
                 supervisor, VMServiceHandler(supervisor: supervisor, connector: connector, log: log)

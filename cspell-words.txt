@@ -496,6 +496,7 @@ dnsname
 tmpl
 CAID
 undercounts
+attoseconds
 
 # Vale rule names quoted in .vale.ini
 Cataphoric

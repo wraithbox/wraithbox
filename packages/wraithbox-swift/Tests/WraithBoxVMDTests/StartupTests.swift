@@ -26,7 +26,6 @@ struct SlotResolutionTests {
             ("", .slotUnknown),
             ("Work", .slotUnknown),
             ("work ", .slotUnknown),
-            ("build", .slotBuildUnsupported),
             ("layer", .slotLayerUnsupported),
         ])
     func refusedSlot(value: String?, rule: StartupRule) throws {

@@ -462,14 +462,17 @@ run_windows = "echo store:host-test: the Keychain tests need macOS; skipped on W
 
 # needs-vm, attended (docs/agents/host-work.md): clones the spike bundle
 # WB_VM_TEST_BUNDLE names into the work slot's bundle under <data>, boots
-# it with the signed wb-vmd, and deletes the slot (VMBootTests).
+# it with the signed wb-vmd, and deletes the slot (VMBootTests). With
+# WB_VM_TEST_RESTORE_IMAGE it clones that image to <data>, installs macOS
+# into the build bundle, which calls Apple's signing server, boots it,
+# and deletes both (VMInstallTests). Each suite runs when its variable is set.
 [tasks."swift:test-vm"]
-description = "Boot a macOS guest from WB_VM_TEST_BUNDLE with the signed wb-vmd (needs-vm, macOS)"
+description = "Boot a macOS guest from WB_VM_TEST_BUNDLE, or install one from WB_VM_TEST_RESTORE_IMAGE, with the signed wb-vmd (needs-vm, macOS)"
 depends = ["swift:sign"]
 run = """
 set -e
-test -n "$WB_VM_TEST_BUNDLE" || { echo "set WB_VM_TEST_BUNDLE to a spike bundle" >&2; exit 2; }
-swift test --package-path packages/wraithbox-swift --force-resolved-versions --filter VMBootTests
+test -n "$WB_VM_TEST_BUNDLE$WB_VM_TEST_RESTORE_IMAGE" || { echo "set WB_VM_TEST_BUNDLE to a spike bundle, WB_VM_TEST_RESTORE_IMAGE to a restore image, or both" >&2; exit 2; }
+swift test --package-path packages/wraithbox-swift --force-resolved-versions --filter 'VMBootTests|VMInstallTests'
 """
 
 # needs-vm and needs-host, attended (docs/agents/host-work.md): runs

@@ -18,10 +18,6 @@ public enum StartupRule: String, Sendable, Equatable, CaseIterable {
     case slotMissing = "vmd-slot-missing"
     /// WB_VMD_SLOT holds a value that isn't a slot.
     case slotUnknown = "vmd-slot-unknown"
-    /// The build slot, which only wb-vmd-install serves, with the install
-    /// rules and checks that aren't built yet (S04-04-vm-processes,
-    /// "`wb-vmd-install`").
-    case slotBuildUnsupported = "vmd-slot-build-unsupported"
     /// The layer slot, which only wb-vmd-layer serves, and wb-vmd-layer
     /// isn't built yet (S04-04-vm-processes, "`wb-vmd-layer`").
     case slotLayerUnsupported = "vmd-slot-layer-unsupported"
@@ -30,6 +26,10 @@ public enum StartupRule: String, Sendable, Equatable, CaseIterable {
     /// The bundle's real path isn't the slot's bundle under the real path
     /// of `<data>`.
     case slotBundleMismatch = "vmd-slot-bundle-mismatch"
+    /// In the build slot, the restore image isn't a regular file whose real
+    /// path is `images/macos-restore.ipsw` under the real path of `<data>`
+    /// (S04-04-vm-processes, "The restore image").
+    case restoreImageMismatch = "vmd-restore-image-mismatch"
     /// The user database gave an empty or relative home directory.
     case homeInvalid = "paths-home-invalid"
     /// The per-user cache directory can't be found.
@@ -80,6 +80,10 @@ public enum HostPaths {
         case .build, .layer: "images/macos-build.noindex"
         }
     }
+
+    /// The restore image the build slot installs from, relative to
+    /// `<data>` (S04-04-vm-processes, "The restore image").
+    public static let restoreImage = "images/macos-restore.ipsw"
 }
 
 /// The slot, and the bundle it confines itself to.
@@ -89,6 +93,9 @@ public struct ResolvedSlot: Sendable, Equatable {
     public let bundlePath: String
     /// The bundle's real path: the profile's BUNDLE parameter.
     public let realBundle: String
+    /// In the build slot, the restore image's real path: the profile's
+    /// IPSW parameter. Nil in every other slot.
+    public let realRestoreImage: String?
 }
 
 /// The slot checks of S04-04-vm-processes, "Slot checks".
@@ -122,7 +129,29 @@ public enum SlotResolution {
                 .slotBundleMismatch,
                 "\(bundlePath) does not resolve to the \(slot.rawValue) slot's bundle")
         }
-        return ResolvedSlot(slot: slot, bundlePath: bundlePath, realBundle: realBundle)
+        let realRestoreImage =
+            slot == .build ? try restoreImage(data: data, realData: realData) : nil
+        return ResolvedSlot(
+            slot: slot, bundlePath: bundlePath, realBundle: realBundle,
+            realRestoreImage: realRestoreImage)
+    }
+
+    /// The restore image check of S04-04-vm-processes, "The restore
+    /// image": `lstat` shows a regular file, so not a symbolic link, and
+    /// its real path is the fixed one under the real path of `<data>`. The
+    /// profile then reads that one file (SEC12-least-privilege).
+    static func restoreImage(data: String, realData: String) throws(StartupRefusal) -> String {
+        let path = data + "/" + HostPaths.restoreImage
+        var info = stat()
+        guard lstat(path, &info) == 0, info.st_mode & S_IFMT == S_IFREG else {
+            throw StartupRefusal(.restoreImageMismatch, "\(path) is not a regular file")
+        }
+        let expected = realData + "/" + HostPaths.restoreImage
+        guard let real = realPath(path), real == expected else {
+            throw StartupRefusal(
+                .restoreImageMismatch, "\(path) does not resolve to \(expected)")
+        }
+        return real
     }
 
     static func parseSlot(_ value: String?) throws(StartupRefusal) -> VMSlot {
@@ -133,12 +162,8 @@ public enum SlotResolution {
             throw StartupRefusal(.slotUnknown, "\(variable) is \"\(value)\"")
         }
         switch slot {
-        case .work, .isolated:
+        case .work, .isolated, .build:
             return slot
-        case .build:
-            throw StartupRefusal(
-                .slotBuildUnsupported, "the build slot needs wb-vmd-install, which is not built yet"
-            )
         case .layer:
             throw StartupRefusal(
                 .slotLayerUnsupported, "the layer slot needs wb-vmd-layer, which is not built yet"
