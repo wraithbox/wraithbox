@@ -49,7 +49,7 @@ swiftlint = { version = "0.65.1", os = ["macos"] }
 bun = "1.4.4"
 # Used by `mise run audit`; must match `version:` on the workflow's
 # zizmor step. Bump them together.
-zizmor = "1.31.1"
+zizmor = "1.32.0"
 # Used by `mise run gha:lint`. actionlint shells out to shellcheck for
 # the `run:` blocks in workflows, and silently skips that half if
 # shellcheck is missing, so it is pinned here too.
@@ -64,7 +64,7 @@ osv-scanner = "2.7.0"
 "go:golang.org/x/vuln/cmd/govulncheck" = "1.9.0"
 # Prose lint (`mise run prose:lint`). Its style packages are vendored
 # under .vale/styles/ (see .vale.ini), so the lint needs no network.
-vale = "3.25.1"
+vale = "3.26.0"
 # Used by `mise run proto:check` and `proto:generate`: lints the .proto
 # contracts, checks them for breaking changes against main, and runs the
 # code generators (B52-proto-contracts). Every plugin it runs is local:
@@ -597,7 +597,7 @@ zizmor --github-token "$token" --collect=all --strict-collection .github
 description = "Validate renovate.json with Renovate's own validator (Docker, network; not part of `ci`)"
 run = """
 docker run --rm -v "$PWD:/work:ro" -w /work --entrypoint renovate-config-validator \
-  ghcr.io/renovatebot/renovate:44.205.2 --strict renovate.json
+  ghcr.io/renovatebot/renovate:44.206.2 --strict renovate.json
 """
 
 # ---------- Dependency vulnerability scanning ----------

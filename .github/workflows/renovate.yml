@@ -142,7 +142,7 @@ jobs:
             --env RENOVATE_REPOSITORY_CACHE --env RENOVATE_ALLOWED_UNSAFE_EXECUTIONS \
             --env RENOVATE_REPORT_TYPE --env RENOVATE_REPORT_PATH \
             --env RENOVATE_DRY_RUN --env RENOVATE_FORCE \
-            ghcr.io/renovatebot/renovate:44.205.2
+            ghcr.io/renovatebot/renovate:44.206.2
 
       - name: Wait for CI and summarize
         id: wait
