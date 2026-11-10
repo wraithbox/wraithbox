@@ -125,8 +125,10 @@ S04-02-vm-provider ("The device set is fixed and checked")
   those over the rate dropped at once with `dns-query-rate`, no answer
   sent for them, and none dropped with `dns-hold-full`. See a name that
   isn't allowlisted, looked up during the flood, still raise an
-  approval event once the rate has a token for it. Send one over the rate
-  over DNS over TCP, and see the connection closed.
+  approval event once the rate has a token for it. Over DNS over TCP,
+  send one over the rate on a connection with a held query, and see the
+  connection stay open and the held query answered at the end of its
+  hold. On a connection without one, see the connection closed.
 - With queries held, approve a name, so that more held queries are run
   again at once than the query rate allows. See the excess refused with
   `dns-query-rate` at the end of their holds, with no new requests,
@@ -157,7 +159,9 @@ with fakes and `testing/synctest` as the clock:
 - `TestRateDrops` and `TestRateFloodLeavesHoldRoom`: a query over the
   rate is dropped at once, logged and counted with `dns-query-rate`,
   and a flood over the rate leaves room in the held-query table for a
-  name that raises an approval event.
+  name that raises an approval event, at the smallest cap.
+- `TestHeldQueriesMinimum`: a held-query cap the rate could fill in one
+  hold is refused.
 - `TestParseQueryRefuses`: every `dns-message-form` case is dropped
   without an answer.
 

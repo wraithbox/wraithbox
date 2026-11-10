@@ -17,6 +17,7 @@ package dns
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"maps"
 	"net/netip"
@@ -39,6 +40,11 @@ const (
 	// "Wildcard budget"). They stop a flood, not normal use.
 	QueryRate  = 100
 	QueryBurst = 200
+	// MinHeldQueries is the smallest held-query cap New takes: one more
+	// than the queries the rate lets through in one hold, so a flood
+	// over the rate can't fill the table (S07-04-dns-refusals, "Hold
+	// limits", SEC13-bounded-resources).
+	MinHeldQueries = QueryBurst + QueryRate*int(Hold/time.Second) + 1
 	// ttl is the TTL of an A answer and of the SOA record of an allowed
 	// name's empty answers, in seconds: the pool's TTL (S07-03-dns,
 	// "Negative answers").
@@ -76,7 +82,7 @@ type Config struct {
 	// image.
 	Background []dnsname.Name
 	// HeldQueries bounds the held-query table. Zero means the default of
-	// netd.DefaultCaps.
+	// netd.DefaultCaps, and New refuses one below MinHeldQueries.
 	HeldQueries int
 	// Debited and DebitCount are the wildcard budget's state that
 	// wb-hostd kept for the active period (S04-07-supervision, "What a
@@ -120,8 +126,8 @@ func New(cfg Config) (*Resolver, error) {
 	if cfg.HeldQueries == 0 {
 		cfg.HeldQueries = netd.DefaultCaps().HeldQueries
 	}
-	if cfg.HeldQueries < 1 {
-		return nil, errors.New("dns: the held-query cap must be at least 1")
+	if cfg.HeldQueries < MinHeldQueries {
+		return nil, fmt.Errorf("dns: held-query cap %d is below %d, what the query rate lets through in one hold and one more", cfg.HeldQueries, MinHeldQueries)
 	}
 	r := &Resolver{
 		cfg:        cfg,

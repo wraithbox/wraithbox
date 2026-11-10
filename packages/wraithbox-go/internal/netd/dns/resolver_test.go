@@ -333,6 +333,27 @@ func TestRateDrops(t *testing.T) {
 	})
 }
 
+// TestHeldQueriesMinimum checks that New refuses a held-query cap the
+// query rate could fill in one hold, and takes MinHeldQueries
+// (S07-04-dns-refusals, "Hold limits").
+func TestHeldQueriesMinimum(t *testing.T) {
+	for _, tc := range []struct {
+		held int
+		ok   bool
+	}{{-1, false}, {1, false}, {MinHeldQueries - 1, false}, {MinHeldQueries, true}, {0, true}} {
+		f := newFixture(t, nil)
+		cfg := f.r.cfg
+		cfg.HeldQueries = tc.held
+		r, err := New(cfg)
+		if (err == nil) != tc.ok {
+			t.Errorf("cap %d: error %v", tc.held, err)
+		}
+		if r != nil {
+			r.Close()
+		}
+	}
+}
+
 // TestRateFloodLeavesHoldRoom checks that a flood over the query rate
 // can't fill the held-query table (S07-04-dns-refusals, "Over the
 // rate", T11-shared-vm-grants). For a whole hold the guest sends twenty
@@ -343,13 +364,14 @@ func TestRateDrops(t *testing.T) {
 // event.
 func TestRateFloodLeavesHoldRoom(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		f := newFixture(t, nil)
+		// The smallest cap New takes: room for one query more than the
+		// rate lets through in a hold.
+		f := newFixture(t, func(c *Config) { c.HeldQueries = MinHeldQueries })
 		out := &outbox{}
 		flood(f, out, 20*QueryRate, Hold)
 		rec := f.r.Recorder()
-		most := QueryBurst + QueryRate*int(Hold/time.Second)
-		if held := f.r.HeldCount(); held > most || held >= netd.DefaultCaps().HeldQueries {
-			t.Fatalf("%d held, want at most %d", held, most)
+		if held := f.r.HeldCount(); held >= MinHeldQueries {
+			t.Fatalf("%d held, want fewer than %d", held, MinHeldQueries)
 		}
 		if n := rec.Count(netd.RuleDNSQueryRate); n == 0 {
 			t.Fatal("no query dropped with dns-query-rate")
@@ -405,8 +427,8 @@ func emptyRate(f *fixture) {
 // TestBudgetDebits checks which lookups debit the wildcard budget
 // (S07-03-dns, "Wildcard budget", "Order of checks"): a new name under a
 // wildcard and a refused name once each, in any case and for any type,
-// and an exact name never. Neither does a refusal for the name form,
-// the host state or the query rate.
+// and an exact name never. Neither does a refusal for the name form or
+// the host state, nor a drop for the query rate.
 func TestBudgetDebits(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		f := newFixture(t, nil)
@@ -507,7 +529,7 @@ func TestHoldFull(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		f := newFixture(t, nil)
 		f.names.budget = 2000
-		// The query rate would refuse most of them, and a rate refusal
+		// The query rate would drop most of them, and a rate drop
 		// doesn't debit. The rate isn't what this test is about.
 		f.r.rate = newBucket(1e6, 1e6)
 		out := &outbox{}

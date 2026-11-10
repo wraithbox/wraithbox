@@ -84,11 +84,10 @@ of the hold.
 
 Each VM's `wb-netd` holds at most 1,024 queries at once by default.
 That is a per-VM cap that is configuration like the others
-(S07-02-packet-path, "Per-VM caps"). Every query of a name counts on
-its own.
-
-A held query costs a few hundred bytes. The default table then takes
-well under a megabyte per VM.
+(S07-02-packet-path, "Per-VM caps"), with a minimum of one more than
+the queries the rate lets through in one hold ("Over the rate"). Every
+query of a name counts on its own. A held query costs a few hundred
+bytes, so the default table takes well under a megabyte per VM.
 
 #### Over the cap
 
@@ -119,10 +118,9 @@ dropped at once without an answer, and isn't held.
   rule (S07-02-packet-path, "Events and rate limits").
 
 So a flood over the rate holds at most the burst and the rate for one
-hold, well under the cap, and leaves room for names that raise an
+hold, under the cap's minimum, and leaves room for names that raise an
 approval event (T11-shared-vm-grants). Over UDP the guest's resolver
-sends it again after its own timeout. Over TCP `wb-netd` closes the
-connection that sent it, as for a query over the cap.
+sends it again after its own timeout. For TCP, see "TCP".
 
 #### TCP
 
@@ -130,8 +128,10 @@ connection that sent it, as for a query over the cap.
 query. It counts the connection in the per-VM cap on DNS-over-TCP
 connections until its last held answer is sent.
 
-An over-cap query, or one over the rate, closes the connection anyway. The connection's held
-queries leave the table at the close, and their timers don't fire.
+An over-cap query closes the connection anyway. The connection's held
+queries leave the table at the close, and their timers don't fire. A
+query over the rate is dropped, and closes the connection only when it
+has no held query, so a rate drop never evicts a held query.
 
 ### Deny duration
 
@@ -209,7 +209,7 @@ refused, and so is the time of sending ("Hold"). The reasons are:
 
 Each of them can be held. A held query costs only an entry in the
 held-query table, whose cap drops what doesn't fit ("Hold limits").
-A query over the query rate is dropped, not refused with this answer
+A new query over the query rate is dropped, not refused with this answer
 ("Over the rate").
 
 The last three come from the host's own state, not from the name
