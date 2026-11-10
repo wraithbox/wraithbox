@@ -56,7 +56,7 @@ the comment on `HandoffMessage` lists, with the rules `handoff-fd-count`,
 names. A request of a newer generation ends every open request of the
 older one.
 
-The channel carries records both ways. The receiver answers each record
+Records go both ways on the channel. The receiver answers each record
 that decodes, accepted or refused, with a `HandoffAck` once `recvmsg`
 has returned. `wb-vmd` keeps its copy of each descriptor it sent until
 that acknowledgment, or for the connect timeout of 5 s at most, as
