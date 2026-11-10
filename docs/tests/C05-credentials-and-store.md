@@ -130,7 +130,8 @@ searches the output for the value and finds none.
 `TestC05CredsetAdhocWrite` and `TestC05CredsetAdhocRefused` in
 `cmd/wb-credset` run the test binary as `wb-credset` on macOS. They see
 it confine itself, and refuse with `keychain-needs-team` and
-`credset-refused`.
+`credset-refused`. `TestC05CredsetConfineRefused` sees it exit 1 when
+it can't confine itself, before it reads its standard input.
 
 The `wb cred` side is in `internal/credcmd`. Its tests put a copy of the
 test binary at `wb-credset`'s place in a bundle, and run it as the
@@ -145,7 +146,14 @@ name refused with exit 2 before anything is read.
 `TestC05CredHelperKilled` see `wb` print the helper's rule and its fix to the
 user, and a helper that ended on `SIGKILL` named.
 `TestC05CredList`, `TestC05CredListBadName` and `TestC05CredRm` cover
-`list` and `rm`.
+`list` and `rm`. `TestC05CredHelperOutputCut` sees output longer than
+`wb` keeps fail the run, and `TestC05CredHelperNoRead` a helper that
+exits without reading the value. `TestC05CredBundleCheck` sees another
+build version, an unstamped `wb`, a missing `Info.plist` and a linked
+helper path refused. `TestC05CredNoCore` and `TestC05CredPromptLimit`
+cover the core file limit and the prompt's line limit, and
+`TestC05CredHostLater` and `TestC05CredWindowsLater` a host later in
+the platform matrix.
 
 ### Signing profile
 
