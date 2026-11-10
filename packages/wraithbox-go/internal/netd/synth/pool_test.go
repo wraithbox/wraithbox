@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/dnsname"
@@ -147,7 +148,8 @@ func TestAnswerSameAddress(t *testing.T) {
 
 // TestAnswerFails checks that a failed or slow write or report refuses
 // the name with its rule, keeps no entry, and releases the address
-// before it is given again, because the peer may hold it.
+// before it is given again, because the peer may hold it. A slow call
+// succeeds after SendTimeout, so only the pool's timeout refuses it.
 func TestAnswerFails(t *testing.T) {
 	cases := []struct {
 		name  string
@@ -161,23 +163,28 @@ func TestAnswerFails(t *testing.T) {
 		{"report slow", nt.CallReport, nt.Fault{Delay: SendTimeout + 50*time.Millisecond}, netd.RuleHandoffSendFailed},
 	}
 	for _, c := range cases {
+		// The fake clock of a synctest bubble decides the slow cases: the
+		// pool's SendTimeout fires before the fake's Delay ends on every
+		// run, however loaded the machine is.
 		t.Run(c.name, func(t *testing.T) {
-			f := newFixture(t, "198.18.0.0/15")
-			f.calls.Fail(c.kind, c.fault)
-			f.refused("api.example.com", c.rule)
-			if n := f.p.Len(); n != 0 {
-				t.Fatalf("%d live entries after a failed answer", n)
-			}
-			if _, _, ok := f.p.Open(addr("198.18.0.0")); ok {
-				t.Fatal("the failed entry's address opens")
-			}
-			f.calls.Reset()
-			f.calls.Fail(c.kind, nt.Fault{})
-			b := f.answer("api.example.com")
-			if b != addr("198.18.0.1") {
-				t.Fatalf("answer after the failure %v, want the next fresh address", b)
-			}
-			f.wantCalls(append(releaseCalls(addr("198.18.0.0")), entryCalls("api.example.com", b)...)...)
+			synctest.Test(t, func(t *testing.T) {
+				f := newFixture(t, "198.18.0.0/15")
+				f.calls.Fail(c.kind, c.fault)
+				f.refused("api.example.com", c.rule)
+				if n := f.p.Len(); n != 0 {
+					t.Fatalf("%d live entries after a failed answer", n)
+				}
+				if _, _, ok := f.p.Open(addr("198.18.0.0")); ok {
+					t.Fatal("the failed entry's address opens")
+				}
+				f.calls.Reset()
+				f.calls.Fail(c.kind, nt.Fault{})
+				b := f.answer("api.example.com")
+				if b != addr("198.18.0.1") {
+					t.Fatalf("answer after the failure %v, want the next fresh address", b)
+				}
+				f.wantCalls(append(releaseCalls(addr("198.18.0.0")), entryCalls("api.example.com", b)...)...)
+			})
 		})
 	}
 }
