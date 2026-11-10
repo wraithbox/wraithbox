@@ -392,6 +392,27 @@ func TestC02EndedByHandoff(t *testing.T) {
 	}
 }
 
+// TestC02ResetBeforeHelloSend ends a pass stream from the hand-off's
+// side after the dial opened and its end check passed, and before the
+// ClientHello's send (I598). The send checks the end again in one step
+// with the write, so the upstream server gets nothing, and the handler
+// logs neither an allowed stream nor its end.
+func TestC02ResetBeforeHelloSend(t *testing.T) {
+	hello := tlstest.Hello{ServerName: passHost}.Records()
+	srv := newServer(t, func(s *server, c net.Conn) { s.readRest(c) })
+	x := newHarness(t, srv.addr())
+	x.start(testPolicy(t), passHost, 443)
+	x.ctl.beforeSend = x.ctl.handoffReset
+	x.send(hello)
+	x.wantHandoffEnd()
+	if got := srv.received(t); len(got) != 0 {
+		t.Errorf("upstream got %x, want nothing", got)
+	}
+	if n := x.dialer.dials.Load(); n != 1 {
+		t.Errorf("%d upstream dials, want 1", n)
+	}
+}
+
 // wantHandoffEnd checks the hand-off ended the stream, and the handler
 // returned with no log record of its own.
 func (x *harness) wantHandoffEnd() {
