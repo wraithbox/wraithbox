@@ -176,9 +176,9 @@ install is broken.
   once per rule per VM in a window, with the count it held back.
 - Every connection of a VM closes when its run ends, so before its
   generation changes.
-- `wb-vmd` closes its copy of a descriptor once it has passed it, and
-  answers `ConnectGuest` only then. The passed descriptor keeps
-  working, also while `wb-vmd` is stopped.
+- `wb-vmd` answers `ConnectGuest` after it passed the descriptor, and
+  keeps its copy until `wb-hostd` holds it (S07-05-stream-hand-off,
+  "Transport", I648). The descriptor then works while `wb-vmd` is stopped too.
 
 `ConnectGuest` also refuses, each with its rule: a guest port of 1024
 or more (`guest-port-not-reserved`), request ID 0 (`vm-request-id`), a

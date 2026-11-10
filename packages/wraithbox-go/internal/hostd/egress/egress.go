@@ -49,9 +49,10 @@ const (
 	// control channel failed. It ends wb-proxyd.
 	RuleControlFailed = "control-channel-failed"
 	// RuleSetupFailed: a VM start's message to wb-proxyd got no
-	// acknowledgment, or couldn't be sent. The start fails, and both ends
-	// of a new hand-off socket are closed (S07-05-stream-hand-off, "One
-	// hand-off socket per VM").
+	// acknowledgment, or couldn't be sent, or wb-proxyd closed the new
+	// hand-off socket before wb-netd held its end. The start fails. A
+	// Handoff that fails closes both ends of the new hand-off socket
+	// (S07-05-stream-hand-off, "One hand-off socket per VM").
 	RuleSetupFailed = "proxyd-setup-failed"
 	// RuleNoticeStale: a HandoffSocketClosed for a socket that isn't the
 	// VM's current one, or one wb-hostd already acted on. It is logged

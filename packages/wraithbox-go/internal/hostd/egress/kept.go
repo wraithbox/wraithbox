@@ -231,6 +231,15 @@ func (s *State) endOnce(vm string, gen uint64) bool {
 	return true
 }
 
+// handoffEnded reports whether a HandoffSocketClosed ended vm's hand-off
+// socket of generation gen since the VM's start.
+func (s *State) handoffEnded(vm string, gen uint64) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	v, ok := s.vms[vm]
+	return ok && v.started && gen != 0 && v.ended == gen
+}
+
 // Record checks one accounting record from src, and whether a
 // descriptor came with it, and applies it to the kept state. A refusal
 // is a crash of the sender, and nothing of the record is kept

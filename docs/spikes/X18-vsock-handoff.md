@@ -133,6 +133,12 @@ The conditions:
 4. **`wb-vmd` may close its copy of every passed descriptor at once.**
    Nothing in `wb-vmd` has to remain for a passed descriptor to
    work, except the VM itself.
+   *Note (2026-11-10):* "at once" doesn't hold for a socket still in
+   flight. On macOS 27 the kernel can take a socket whose every
+   reference is in a message as garbage, and the receiver gets it dead
+   (I637). `wb-vmd` keeps its copy of a passed socket until `wb-hostd`
+   holds it (S07-05-stream-hand-off, "Transport"). What remains true is
+   that nothing in `wb-vmd` has to remain after that.
 5. **Connections are capped.** `wb-vmd` caps the connections it has
    accepted but not yet passed, per listener and in total, and
    `wb-hostd` caps them per VM and per project. Both log each refusal

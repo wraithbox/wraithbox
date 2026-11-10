@@ -53,6 +53,12 @@ failed. A sender never retries out of order.
 
 Both are logged with the rule `handoff-send-failed`.
 
+A process that passes a socket in a message keeps its copy until the
+receiver holds it. The receiver shows that with an acknowledgment, or
+with its first record or byte on the socket. On macOS 27 the kernel can collect
+a socket in flight that has no other reference, and the receiver gets
+it dead (I637). Pipes and descriptors inherited at spawn are exempt.
+
 ### The contract
 
 The messages of the hand-off socket, the control channels and the
@@ -138,11 +144,13 @@ closes the VM's hand-off socket before the stream's socket, and
 restore, and at the restarts of S04-07-supervision, "Restarting a daemon".
 
 1. It passes one end to `wb-proxyd`.
-2. It waits 10 s for `wb-proxyd` to acknowledge it. Otherwise it closes
-   both ends and refuses the start with `proxyd-setup-failed`.
+2. It waits 10 s for `wb-proxyd` to acknowledge it, holding its copy
+   ("Transport"). Otherwise it closes both ends and refuses the start
+   with `proxyd-setup-failed`.
 3. Only then does it give the other end to `wb-netd`: at start to a new
    `wb-netd`, and on its control channel to a running one.
-4. It starts or resumes the VM only after `wb-netd` holds its end.
+4. It starts or resumes the VM only after `wb-netd` holds its end. A
+   `HandoffSocketClosed` for the socket before then fails the start.
 
 The build VM gets no hand-off socket, and its `wb-netd` hands no
 stream (S07-18-build-network).
@@ -159,7 +167,7 @@ spawn, its control channel (S04-architecture, "Control channels").
 
 Each message (`HandoffSocket`) holds exactly one descriptor, and the
 fields VM and generation. `wb-proxyd` answers with a `HandoffSocketAck`
-that names both. `wb-hostd` keeps each VM's generation in `state.db`,
+that names both, before it reads the socket. `wb-hostd` keeps each VM's generation in `state.db`,
 and only increases it. S07-06-name-mapping ("Lifetime") has the `fresh` field.
 
 `wb-proxyd` refuses the message when:
@@ -215,10 +223,8 @@ these checks pass.
 ### Caps
 
 This section serves SEC13-bounded-resources. Per hand-off socket,
-`wb-proxyd` caps:
-
-- the streams open from it;
-- the hand-off messages it has read but not yet decided on.
+`wb-proxyd` caps the streams open from it and the hand-off messages it
+has read but not yet decided on.
 
 Each cap is configuration with a default. Each hand-off socket has its
 own reader, so one VM's flood doesn't hold up another VM's streams.
@@ -231,19 +237,13 @@ holds, or refuses the stream. The label can only narrow
 
 So a compromised `wb-netd` can hand over a stream only under a name
 and port that the VM's effective policy allows, within the wildcard
-budget. It can't give a stream:
+budget. It can't give a stream another VM's policy, credential
+bindings or CA, or the grants of a project with no session in the VM.
 
-- another VM's policy, credential bindings or CA;
-- the grants of a project with no session in the VM.
-
-Some checks only `wb-netd` makes:
-
-- the link filter, DHCP and its per-VM caps;
-- the query rate;
-- the count of refused lookups in the wildcard budget;
-- the local and quiet answers;
-- approval events and learn lists;
-- the rule that every refusal gets the same answer.
+Some checks only `wb-netd` makes: the link filter, DHCP and its per-VM
+caps, the query rate, and the count of refused lookups in the wildcard
+budget. It alone gives the local and quiet answers and the one answer
+to every refusal, and sends approval events and learn lists.
 
 A compromised `wb-netd` that skips them can refuse or slow its own
 VM's traffic, or send approval events. `wb-hostd` applies the request

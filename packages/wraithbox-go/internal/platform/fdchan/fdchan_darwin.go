@@ -96,7 +96,12 @@ func Socketpair(maxRecord int) (a, b *os.File, err error) {
 // StreamPair makes an AF_UNIX SOCK_STREAM socketpair with close-on-exec
 // set on both ends: the byte stream of one guest connection that wb-netd
 // hands to wb-proxyd (S07-05-stream-hand-off, "Streams"). The caller
-// sends one end in a message and closes it, and keeps the other.
+// sends one end in a message and keeps the other. It closes its copy of
+// the end it sent only once the receiver holds it, as for every socket
+// passed in a message (S07-05-stream-hand-off, "Transport"): on macOS
+// the kernel's collector of sockets in flight can take a socket whose
+// every reference is in a message, and the receiver then reads end of
+// file on it.
 func StreamPair() (a, b *os.File, err error) {
 	syscall.ForkLock.RLock()
 	fds, err := syscall.Socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM, 0)
