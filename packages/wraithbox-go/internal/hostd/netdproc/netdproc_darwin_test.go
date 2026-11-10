@@ -294,7 +294,13 @@ func TestLink(t *testing.T) {
 
 func waitFor(t *testing.T, b *syncBuffer, s string) {
 	t.Helper()
-	deadline := time.Now().Add(5 * time.Second)
+	waitWithin(t, b, s, 5*time.Second)
+}
+
+// waitWithin waits until b holds s, and fails the test after d.
+func waitWithin(t *testing.T, b *syncBuffer, s string, d time.Duration) {
+	t.Helper()
+	deadline := time.Now().Add(d)
 	for !strings.Contains(b.String(), s) {
 		if time.Now().After(deadline) {
 			t.Fatalf("no %q in\n%s", s, b)
@@ -312,14 +318,9 @@ func (s *setup) start(ctx context.Context, slot vm.Slot, generation uint64, mac 
 	return prep.Start(ctx, t)
 }
 
-// A wb-netd that doesn't exit once its control channel closed, here a
-// stopped one, is killed after StopTimeout with netd-stop-timeout.
-func TestNetdStopTimeoutKills(t *testing.T) {
-	s := newSetup(t, netd(t), func(c *netdproc.Config) { c.StopTimeout = 100 * time.Millisecond })
-	run, err := s.start(t.Context(), vm.SlotWork, 1, guestMAC, s.t)
-	if err != nil {
-		t.Fatalf("start: %v\n%s", err, s.netdLog)
-	}
+// pid is the process ID of the wb-netd that started, from the log.
+func (s *setup) pid(t *testing.T) int {
+	t.Helper()
 	m := regexp.MustCompile(`"msg":"wb-netd started".*"pid":(\d+)`).FindStringSubmatch(s.log.String())
 	if m == nil {
 		t.Fatalf("no pid logged\n%s", s.log)
@@ -328,7 +329,18 @@ func TestNetdStopTimeoutKills(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := syscall.Kill(pid, syscall.SIGSTOP); err != nil {
+	return pid
+}
+
+// A wb-netd that doesn't exit once its control channel closed, here a
+// stopped one, is killed after StopTimeout with netd-stop-timeout.
+func TestNetdStopTimeoutKills(t *testing.T) {
+	s := newSetup(t, netd(t), func(c *netdproc.Config) { c.StopTimeout = 100 * time.Millisecond })
+	run, err := s.start(t.Context(), vm.SlotWork, 1, guestMAC, s.t)
+	if err != nil {
+		t.Fatalf("start: %v\n%s", err, s.netdLog)
+	}
+	if err := syscall.Kill(s.pid(t), syscall.SIGSTOP); err != nil {
 		t.Fatal(err)
 	}
 	_ = run.Stop()
@@ -379,13 +391,18 @@ func TestStopReadsPastAFullQueue(t *testing.T) {
 
 // TestStopBoundsASenderThatIgnoresIt is S09-11-audit, "Telling the
 // senders": a wb-netd that keeps sending after its control channel
-// closed gets no more than the stop allowance read past the hold. The
-// stop kills it at StopTimeout, the receiver logs the records past the
-// allowance with event-stop-allowance, and the stop returns.
+// closed gets no more than the stop allowance read past the hold. Once
+// it has written past the allowance it is killed, the receiver logs the
+// records past the allowance with event-stop-allowance, and the stop
+// returns. The test kills it, not the stop at StopTimeout, so the
+// outcome doesn't depend on how fast it writes: TestNetdStopTimeoutKills
+// covers the stop's kill.
 func TestStopBoundsASenderThatIgnoresIt(t *testing.T) {
-	const stopTimeout = time.Second
+	// The stop's own kill must not come first. The wait for the sender
+	// fails the test before it does.
+	const stopTimeout, waitSender = 2 * time.Minute, time.Minute
 	// The allowance is events.stopAllowance. The slack is the records
-	// read before the hold began.
+	// read before the hold began, as flood-netd's pastAllowance counts.
 	const allowance, slack = 2 * eventchan.DefaultQueueCap, 2
 	program, err := buildIgnoreStop()
 	if err != nil {
@@ -401,24 +418,27 @@ func TestStopBoundsASenderThatIgnoresIt(t *testing.T) {
 		t.Fatalf("start: %v\n%s\n%s", err, s.log, s.netdLog)
 	}
 	waitFor(t, s.netdLog, "flood-netd blocked")
+	if n := len(rec.Records()); n > slack {
+		t.Fatalf("%d records read before the stop, more than the slack of %d", n, slack)
+	}
 	stopped := make(chan struct{})
 	go func() {
 		defer close(stopped)
 		run.Stop()
 	}()
+	// What it wrote and the receiver didn't read stays in the socket
+	// after the kill, so the drain finds a record past the allowance.
+	waitWithin(t, s.netdLog, "flood-netd wrote past the allowance", waitSender)
+	if err := syscall.Kill(s.pid(t), syscall.SIGKILL); err != nil {
+		t.Fatal(err)
+	}
 	select {
 	case <-stopped:
-	case <-time.After(stopTimeout + 10*time.Second):
+	case <-time.After(10 * time.Second):
 		t.Fatalf("the stop didn't return\n%s", s.log)
 	}
-	logged := s.log.String()
-	for _, want := range []string{
-		`"rule":"netd-stop-timeout","decision":"kill"`,
-		`"rule":"event-stop-allowance","decision":"drop"`,
-	} {
-		if !strings.Contains(logged, want) {
-			t.Errorf("no %s in the log\n%s", want, logged)
-		}
+	if logged, want := s.log.String(), `"rule":"event-stop-allowance","decision":"drop"`; !strings.Contains(logged, want) {
+		t.Errorf("no %s in the log\n%s", want, logged)
 	}
 	if n := len(rec.Records()); n > allowance+slack {
 		t.Errorf("%d records read, more than the allowance of %d", n, allowance)
