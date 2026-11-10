@@ -49,8 +49,10 @@ func TestConfigRefused(t *testing.T) {
 		if _, err := Start(t.Context(), c); err == nil {
 			t.Errorf("%s: Start succeeded", name)
 		}
+		// A second Close reports ErrClosed on every OS. Stat on a closed
+		// file does not on Windows.
 		if c.ProvisioningPipe != nil {
-			if _, err := c.ProvisioningPipe.Stat(); !errors.Is(err, os.ErrClosed) {
+			if err := c.ProvisioningPipe.Close(); !errors.Is(err, os.ErrClosed) {
 				t.Errorf("%s: Start left the password descriptor open", name)
 			}
 		}
