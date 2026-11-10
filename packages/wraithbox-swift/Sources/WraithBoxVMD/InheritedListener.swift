@@ -1,6 +1,6 @@
 // gRPC on the listening socket wb-vmd inherits as fd 3. Its profile
 // allows no path outside the bundle, so it can't bind one: the spawner
-// binds the socket in `<data>/run/` and passes it (S04-03-self-sandboxing,
+// binds the socket in `<data>/run/` and passes it (S04-11-vmd-start,
 // "How `wb-vmd` is started"). grpc-swift's Custom transport takes this
 // listener, so each accepted connection passes the host handshake before
 // the HTTP/2 pipeline reads from it.

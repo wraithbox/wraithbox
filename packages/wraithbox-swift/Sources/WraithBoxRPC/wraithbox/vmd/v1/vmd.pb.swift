@@ -276,7 +276,7 @@ public nonisolated struct Wraithbox_Vmd_V1_StartRequest: Sendable {
   /// Asks for a start with the macOS provisioning options, which create
   /// the guest's admin user with the build password (S15-04-guest-admin,
   /// "Build"). wb-vmd reads the password from its descriptor 5, never
-  /// from a request (S04-03-self-sandboxing, "How `wb-vmd` is started").
+  /// from a request (S04-11-vmd-start, "How `wb-vmd` is started").
   /// Every slot refuses it with `vmd-provisioning-refused` until the
   /// provisioning check is in the start path (#629). Only the build slot
   /// will accept it.

@@ -1,4 +1,4 @@
-// The start interface of wb-vmd (S04-03-self-sandboxing, "How `wb-vmd`
+// The start interface of wb-vmd (S04-11-vmd-start, "How `wb-vmd`
 // is started"): no arguments, and four inherited descriptors, five in the
 // build slot. wb-vmd checks them after it confines itself, and refuses to
 // run when one is missing or of another kind, so it never serves on a
@@ -22,7 +22,7 @@ public enum InheritedDescriptor: Int32, Sendable, CaseIterable {
     /// "Hand-off on macOS"). Held open here; ConnectGuest uses it.
     case handoff = 4
     /// The read end of the build password pipe, in the build slot only
-    /// (S04-03-self-sandboxing, "How `wb-vmd` is started"). Every other
+    /// (S04-11-vmd-start, "How `wb-vmd` is started"). Every other
     /// slot refuses to start while it is open.
     case provisioning = 5
 

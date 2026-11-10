@@ -157,7 +157,7 @@ const (
 // lock, so no other wb-hostd's wb-vmd serves one, and calls it before
 // any Open. A file of that name that isn't a socket is left in place
 // and logged with ipc-endpoint-unsafe: the bind of a later Open refuses
-// anything at its path anyway (S04-03-self-sandboxing, "How `wb-vmd` is
+// anything at its path anyway (S04-11-vmd-start, "How `wb-vmd` is
 // started").
 func (p *Provider) ClearLeftovers(ctx context.Context) (int, error) {
 	entries, err := os.ReadDir(p.cfg.RunDir)

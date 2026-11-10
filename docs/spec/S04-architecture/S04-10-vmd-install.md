@@ -61,7 +61,7 @@ created, and logs `vmd-xcode-disk-refused` (S06-14-xcode-image).
 ### The build password pipe
 
 In the `build` slot, `wb-vmd` inherits descriptor 5, the read end of
-the build password pipe (S04-03-self-sandboxing, "How `wb-vmd` is
+the build password pipe (S04-11-vmd-start, "How `wb-vmd` is
 started"). It refuses to start with `vmd-descriptor-invalid` when
 descriptor 5 isn't a pipe opened for reading only, and `wb-hostd`
 refuses to pass anything but a pipe.

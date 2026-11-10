@@ -1,7 +1,7 @@
 // Package vmdspawn starts one wb-vmd with the descriptors of its start
 // interface, and connects to it: its VMService client through the
 // version exchange, and its hand-off receiver in a vmdlink.Link
-// (S04-04-vm-processes, "One `wb-vmd` per VM"; S04-03-self-sandboxing,
+// (S04-04-vm-processes, "One `wb-vmd` per VM"; S04-11-vmd-start,
 // "How `wb-vmd` is started"). wb-hostd's VM provider and wb-dev-vm both
 // start wb-vmd through it.
 //
@@ -87,7 +87,7 @@ type Config struct {
 	Logger *slog.Logger
 	// ProvisioningPipe is the read end of the build password pipe, which
 	// wb-vmd gets as descriptor 5. The build slot needs it, and every
-	// other slot refuses it (S04-03-self-sandboxing, "How `wb-vmd` is
+	// other slot refuses it (S04-11-vmd-start, "How `wb-vmd` is
 	// started"). It must be a pipe. Start owns it: it closes it once
 	// wb-vmd has its copy, or when the start fails, so the parent never
 	// holds the read end afterwards.
@@ -259,7 +259,7 @@ func (e *UnsafeEndpointError) Unwrap() error { return e.err }
 // leftover socket or a symbolic link included, is refused with
 // ipc-endpoint-unsafe and left in place: bind(2) follows a dangling
 // link and makes the socket at its target (S04-architecture,
-// "Inter-process contracts"; S04-03-self-sandboxing, "How `wb-vmd` is
+// "Inter-process contracts"; S04-11-vmd-start, "How `wb-vmd` is
 // started"). Only the user writes the run directory, so nothing appears
 // at path between the lstat and the bind.
 func listenFile(log *slog.Logger, path string) (*os.File, error) {
