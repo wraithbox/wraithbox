@@ -101,11 +101,14 @@ before then, so `wb-netd` can still confine itself.
   the VM with the rule `netd-exited`. The stop is recorded as a failure.
 - **Ended.** A channel reader that refuses what `wb-netd` sent ends it
   with `netd-ended`, and the VM stops the same way.
-- **Stop.** At the VM's stop, `wb-hostd` closes the control channel and
-  waits 10 s for the exit. It kills a `wb-netd` that doesn't exit with
-  `netd-stop-timeout`. It then reads what is left on the accounting
-  and event channels, and only then ends the VM's event stream and
-  closes its copy of the transport.
+- **Stop.** At the VM's stop, `wb-hostd` first sends `wb-proxyd` the
+  VM's `HandoffSocketEnd` (S07-21-vm-end). It then closes the control
+  channel and waits 10 s for the exit. It kills a `wb-netd` that
+  doesn't exit with `netd-stop-timeout`. It reads what is left on the
+  accounting and event channels. It ends the VM's event stream only
+  once that is done and `wb-proxyd`'s end exchange is done too
+  (S07-21-vm-end, "Events in band"). Then it closes its copy of the
+  transport.
 - **Hang.** `wb-hostd` doesn't check that a running `wb-netd` is live.
   One that hangs leaves its VM without a network, which fails closed.
   Liveness checks come with the restarts (I480).

@@ -3278,8 +3278,8 @@
 	"536": {
 		"kind": "issue",
 		"state": "open",
-		"title": "wb-proxyd: bound a hand-off stream whose guest stops acknowledging",
-		"summary": "Follow-up from the round 3 code and security reviews of #534 (#482)."
+		"title": "wb-proxyd: bound writes to a stream's socket (stream-write-timeout) and close upstream when it ends",
+		"summary": "Builds S07-20-handoff-sockets, \"Stream bounds\", on wb-proxyd's side (#754, PR #758)."
 	},
 	"537": {
 		"kind": "pr",
@@ -3489,7 +3489,7 @@
 	},
 	"571": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "egress contract: HandoffSocketClosed rule for a StreamReset that can't be sent",
 		"summary": "PR #570 (#491) added a rule to S07-05-stream-hand-off, \"Resets\": when a StreamReset send fails (ENOBUFS or past its deadline), wb-proxyd closes the VM's hand-off socket before the stream's socket, and wb-netd resets…"
 	},
@@ -3603,7 +3603,7 @@
 	},
 	"590": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S04-02-vm-provider: a restore starts a fresh wb-netd for its generation",
 		"summary": "Follow-up from #511, its decision 6, which the PR for #511 doesn't build."
 	},
@@ -4435,8 +4435,8 @@
 	"728": {
 		"kind": "issue",
 		"state": "open",
-		"title": "Hand-off socket contract: a per-socket number, and wb-netd acknowledges its end (with #729)",
-		"summary": "Follow-up from the security review of #727 (F1, parts c and d), for #637."
+		"title": "Hand-off socket contract of S07-20: socket number, HandoffSocketHeld, states, close reports, and a VM's end",
+		"summary": "Builds the hand-off socket contract of S07-20-handoff-sockets (#754, PR #758) in one change, before #480."
 	},
 	"729": {
 		"kind": "issue",
@@ -4448,13 +4448,13 @@
 		"kind": "issue",
 		"state": "open",
 		"title": "wb-netd's hand-off refusals never reach the audit log (Sender has no Events)",
-		"summary": "Follow-up from the security review of #722 (F1), for #569."
+		"summary": "Builds S07-20-handoff-sockets, \"Audit\", for wb-netd (#754, PR #758)."
 	},
 	"731": {
 		"kind": "issue",
 		"state": "open",
-		"title": "Flaky: wb-netd TestChildServes fails with fdchan: send: connection reset by peer",
-		"summary": "Seen once by the builder of #722 (#569) in a local mise run ci on macOS: packages/wraithbox-go/cmd/wb-netd TestChildServes failed with fdchan: send: connection reset by peer."
+		"title": "wb-netd TestChildServes: the test's handoff() closes its copy of the passed socket at once (flaky on macOS 27)",
+		"summary": "Fix the test helper that breaks S04-12-descriptor-passing's keep rule (#754, PR #758)."
 	},
 	"732": {
 		"kind": "issue",
@@ -4573,18 +4573,18 @@
 	"751": {
 		"kind": "issue",
 		"state": "open",
-		"title": "wb-vmd: one bad hand-off ack ends the ack reader, so later hand-offs hold their slot for 5 s",
-		"summary": "Follow-up from the code re-review of #747 (#648), on the design it added."
+		"title": "wb-vmd: a bad hand-off ack or failed receive is skipped, not the end of the ack reader",
+		"summary": "Builds S04-12-descriptor-passing, \"Acknowledgments are input\", in wb-vmd's acknowledgment reader (#754, PR #758)."
 	},
 	"752": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "ci: CodeQL on pushes to main only, and Swift only when Swift changes",
 		"summary": "CodeQL runs as GitHub's default setup on every pull request, every push to main and weekly, for Go, Swift, JavaScript/TypeScript and Actions (docs/github-settings.md, \"Code scanning\")."
 	},
 	"753": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "ci: run the fuzz smoke and the Windows Go leg on pushes to main, not on every pull request",
 		"summary": "On 2026-11-10 CI ran 1,328 jobs over 107 runs."
 	},
@@ -4597,20 +4597,38 @@
 	},
 	"755": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(planning): add V1-M8-hardening and the defect-or-hardening rule",
 		"summary": "Adds one hardening milestone to V1 and the rule for what goes in it."
 	},
 	"756": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "ci: run the fuzz smoke and the Windows Go leg only on the way into main",
 		"summary": "Pull requests no longer run the four fuzz smoke shards or the Windows leg of the Go job."
 	},
 	"757": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "ci: run CodeQL on main only, and Swift only when Swift changes",
 		"summary": "Code scanning stops running on pull requests."
+	},
+	"758": {
+		"kind": "pr",
+		"state": "open",
+		"title": "docs(spec): settle the hand-off contract end to end",
+		"summary": "The rules for passing open sockets between the host daemons, and for the life of each VM's hand-off socket, now each have one place in the spec."
+	},
+	"759": {
+		"kind": "issue",
+		"state": "open",
+		"title": "go.work.sum goes stale after Go dependency updates, and every local mise run ci then fails in swift:build",
+		"summary": "mise run ci on a clean checkout of main fails."
+	},
+	"760": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Prose checks: cspell in every worktree, report pages checked before the train, Vale on changed files, and a batch prose pass",
+		"summary": "A measurement of the prose checks (Vale prose:lint, cspell prose:spell) over 2026-11-05 to 2026-11-10 found low cost: about 2 to 3% of agent tokens and 2.2% of GitHub CI job-minutes."
 	}
 }

@@ -131,6 +131,10 @@ A sender that keeps sending after its stop began has the records past
 the bound left unread, and `wb-hostd` logs that with
 `event-stop-allowance`.
 
+At a VM's stop, `wb-hostd` reads `wb-proxyd`'s channel the same way, up
+to the last record of the VM that `wb-proxyd` names at the VM's end
+(S07-21-vm-end, "Events in band").
+
 Each sender queues its records until a write succeeds, and drops none.
 The queue holds at most 4096 records of up to 4 KiB each, so 16 MiB. At
 that cap the sender stops reading guest input, and refuses new work

@@ -62,6 +62,7 @@ Wraith Box works and why.
 | S07-18-build-network | Build Network | Draft |
 | S07-19-request-decisions | Request Decisions | Draft |
 | S07-20-handoff-sockets | Hand-off Sockets | Draft |
+| S07-21-vm-end | A VM's End in wb-proxyd | Draft |
 | S08-workspace-and-git | Workspace and Git Round Trip | Draft |
 | S08-01-into-the-guest | Into the Guest | Draft |
 | S08-02-export-repository | Export Repository | Draft |

@@ -39,8 +39,8 @@ holder:
 | Leg | Passed | Proof the receiver holds it | Bound on the kept copy |
 |---|---|---|---|
 | `wb-vmd` to `wb-hostd` | a guest connection or the packet transport (`HandoffMessage`) | `HandoffAck` | `wb-vmd`'s connect timeout |
-| `wb-hostd` to `wb-proxyd` | its end of a VM's hand-off socket (`HandoffSocket`) | `HandoffSocketAck` | the setup deadline of S07-20-handoff-sockets |
-| `wb-hostd` to `wb-netd` | the other end (`HandoffSocket`) | `HandoffSocketHeld` | the same deadline |
+| `wb-hostd` to `wb-proxyd` | its end of a VM's hand-off socket (`HandoffSocket`) | `HandoffSocketAck` | `egress.AckTimeout` (S07-20-handoff-sockets) |
+| `wb-hostd` to `wb-netd` | the other end (`HandoffSocket`) | `HandoffSocketHeld` | `egress.AckTimeout` |
 | `wb-netd` to `wb-proxyd` | one end of a stream's socketpair (`Stream`) | `wb-proxyd`'s first byte on it, or a `StreamReset` for it | `StreamHoldTimeout` |
 
 S04-02-vm-provider ("Hand-off on macOS") has the first leg's records
@@ -88,15 +88,17 @@ form follows the channel's own rule instead, which treats it as a crash
 of the daemon that sent it (S04-architecture, "Control channels").
 
 A reader that only reads acknowledgments, such as `wb-vmd`'s, ends in
-two cases:
+these cases:
 
 - its peer closed its end;
-- a run of failed receives in a row reaches a bound in code. A receive
-  fails on an error from `recvmsg`, or on control data that was cut.
+- a record came with control data that was cut. The process may then
+  hold descriptors it can't name, as S07-05-stream-hand-off ("Message
+  form") says for every channel;
+- a run of receives in a row that fail with an error from `recvmsg`
+  reaches a bound in code. A receive that succeeds resets the count.
 
 It logs the end with its rule and the number of copies it keeps. Each
-kept copy then closes when its bound passes. A receive that succeeds
-resets the count.
+kept copy then closes when its bound passes.
 
 ### Records and the channel
 
@@ -125,15 +127,19 @@ the receiver's first record or byte, bounded by a deadline.
 ### One bad acknowledgment never stops the reader
 
 A wrong, duplicate or late acknowledgment is refused and skipped. A
-dedicated reader ends only when its peer closes, or after a run of
-failed receives.
+dedicated reader ends only when its peer closes, on control data that
+was cut, or after a run of failed receives.
 
 - **Why:** an ended reader leaves every later copy kept to its bound.
   On the first leg each holds a connect place in `wb-vmd` for the full
   bound (I751). Skipping a bad record fails closed as well, because an
   unacknowledged copy still closes at its bound.
-- **Rejected:** end the reader at the first bad record. That turns one
-  bad record into a slower VM until `wb-vmd` restarts.
+- **Rejected:**
+  - End the reader at the first bad record. That turns one bad record
+    into a slower VM until `wb-vmd` restarts.
+  - Skip control data that was cut, too. The kernel installs the cut
+    descriptors, which can't be closed, so a run of them leaks
+    descriptors without bound.
 - **Decided:** I754, in this spec (B754-handoff-contract).
 
 **Status:** Draft

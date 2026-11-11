@@ -1,8 +1,9 @@
 # S07-20 - Hand-off Sockets
 
 **Purpose:** The life of one VM's hand-off socket: its identity, the
-acknowledgments of both ends, how it closes and ends, what each restart
-does to it, and which of its decisions reach the audit log.
+acknowledgments of both ends, how it closes, who a failure is charged
+to, what each restart does to it, and which of its decisions reach the
+audit log.
 
 **Requirements:** SEC08-proj-isolation, SEC10-audit,
 SEC13-bounded-resources
@@ -11,7 +12,7 @@ SEC13-bounded-resources
 
 Brief: B754-handoff-contract
 
-![wb-hostd makes each hand-off socket, passes one end to wb-proxyd and, after its acknowledgment, the other to the VM's wb-netd. Each end acknowledges with the socket's number. wb-proxyd reports a socket it closes, and acknowledges the end of one at a VM stop.](S07-20-handoff-sockets.svg)
+![wb-hostd makes each hand-off socket, passes one end to wb-proxyd and, after its acknowledgment, the other to the VM's wb-netd. Each end acknowledges with the socket's number. wb-proxyd reports a socket it closes, and acknowledges the end of a VM's sockets at its stop.](S07-20-handoff-sockets.svg)
 
 ## Design
 
@@ -34,16 +35,19 @@ nothing meant for the old one reaches it.
 
 ### Messages
 
-These are in `proto/wraithbox/egress/v1/control.proto`:
+These are messages of `proto/wraithbox/egress/v1/control.proto`. The
+last column says which ones I728 adds, with the socket number in each.
 
-| Message | From | Means |
-|---|---|---|
-| `HandoffSocket` | `wb-hostd` | here is an end, with its VM, generation and number |
-| `HandoffSocketAck` | `wb-proxyd` | it holds the end it names |
-| `HandoffSocketHeld` | `wb-netd` | it holds the end it names |
-| `HandoffSocketClosed` | `wb-proxyd` | it closed the socket it names, with a rule and a check |
-| `HandoffSocketEnd` | `wb-hostd` | the VM stops: close its socket |
-| `HandoffSocketEnded` | `wb-proxyd` | it closed the socket and sent its counts |
+| Message | From | Means | Added by |
+|---|---|---|---|
+| `HandoffSocket` | `wb-hostd` | here is an end, with its VM, generation and number | the number |
+| `HandoffSocketAck` | `wb-proxyd` | it holds the end it names | the number |
+| `HandoffSocketHeld` | `wb-netd` | it holds the end it names | I728 |
+| `HandoffSocketClosed` | `wb-proxyd` | it closed the socket it names, with a rule and a check | the number and two rules |
+| `HandoffSocketEnd` | `wb-hostd` | close the VM's sockets up to a number | I728 |
+| `HandoffSocketEnded` | `wb-proxyd` | it closed them | I728 |
+
+S07-21-vm-end has the last two.
 
 ### States
 
@@ -57,34 +61,38 @@ These are in `proto/wraithbox/egress/v1/control.proto`:
 | failed | a deadline passed, or a `HandoffSocketClosed` came before serving | nothing |
 | closed | `HandoffSocketClosed` came while serving | nothing |
 | replaced | it offered a newer socket for the VM | nothing |
-| ended | `HandoffSocketEnded` came at a VM stop | nothing |
+| ended | its `wb-netd` exited or was ended, or `wb-hostd` sent a `HandoffSocketEnd` that covers it | nothing |
 
 The last four are final. A VM has at most one socket that isn't final.
+A VM starts or resumes only once its socket is serving. The build VM
+has no hand-off socket (S07-18-build-network).
 
 Each wait from offered and from acknowledged has a deadline in code
 (`egress.AckTimeout`), and `wb-hostd` holds its copies until then
 (S04-12-descriptor-passing). When a socket fails, `wb-hostd` closes
-its copies. At a start or restore it refuses the start with
+its copies and sends `HandoffSocketEnd` for it, so `wb-proxyd` doesn't
+keep it open. At a start or restore it refuses the start with
 `proxyd-setup-failed` and the check: `ack-timeout`, `held-timeout`, or
-`handoff-closed`. For a running VM, it ends the VM's `wb-netd`, which
-counts toward the restart limit (S04-07-supervision, "Restarting a
-daemon").
-
-A VM starts or resumes only once its socket is serving. The build VM
-has no hand-off socket (S07-18-build-network).
+`handoff-closed`. For a running VM, "Who a failure is charged to"
+says what it does.
 
 ### Notices for another socket
 
-A `HandoffSocketAck`, `HandoffSocketHeld`, `HandoffSocketClosed` or
-`HandoffSocketEnded` that names a socket in a final state, or one
-`wb-hostd` never offered, is stale. `wb-hostd` logs it with
-`handoff-notice-stale` and ignores it. It never fails or ends the
-socket that is current. So is a `HandoffSocketAck` or
-`HandoffSocketHeld` that the socket's state doesn't wait for.
+`wb-hostd` sorts each `HandoffSocketAck`, `HandoffSocketHeld` and
+`HandoffSocketClosed` by the socket it names:
 
-So an old socket's notice can't end its replacement's `wb-netd`. A
-socket that failed by its deadline holds nothing back: the next one has
-a new number.
+- **Stale:** the socket is in a final state. `wb-hostd` logs it with
+  `handoff-notice-stale`, rate-limited per VM, and ignores it.
+- **Refused:** `wb-hostd` never offered the socket, or the state
+  doesn't wait for the acknowledgment, such as a second one. From
+  `wb-proxyd` that is a crash of `wb-proxyd`, and from `wb-netd` it
+  ends that `wb-netd` (S04-architecture, "Control channels").
+
+A notice never fails or ends a socket other than the one it names. So
+an old socket's notice can't end its replacement's `wb-netd`. A socket
+that failed by its deadline holds nothing back, because the next one
+has a new number. `HandoffSocketEnded` is never stale
+(S07-21-vm-end).
 
 ### `wb-proxyd`'s end
 
@@ -102,6 +110,16 @@ So no `HandoffSocketClosed` for the socket comes before its
 acknowledgment. If step 3 fails, it closes the socket and sends
 `HandoffSocketClosed` instead of the acknowledgment.
 
+A close never waits on a write to a peer. A write in progress on a
+stream or a socket that closes ends with an error at once. So the
+acknowledgment deadline covers these steps alone, and a `wb-netd` that
+stops reading can't make another VM's socket miss it.
+
+A `HandoffSocketClosed` or `HandoffSocketEnded` that `wb-proxyd` can't
+send ends its control channel, as a write that fails does
+(S04-architecture, "Control channels"). So no socket it closed goes
+unreported.
+
 ### `wb-netd`'s end
 
 `wb-netd` checks its `HandoffSocket` as S04-07-supervision ("New
@@ -113,9 +131,9 @@ it resets (`handoff-socket-ended`).
 ### Isolation between VMs
 
 Only a fault in a message from `wb-hostd` ends `wb-proxyd`'s control
-channel, as `control.proto` says: its form, its socket type, its VM
-slot, or a generation or number older than held (I576). `wb-hostd` is
-the trusted core, so such a fault is a bug in it.
+channel: its form, its socket type, its VM slot, its generation or its
+number, as S07-05-stream-hand-off ("From `wb-hostd`") lists them
+(I576). `wb-hostd` is the trusted core, so such a fault is a bug in it.
 
 Anything that goes wrong on a socket after `wb-proxyd` accepted it
 closes that socket only, with its streams. `wb-proxyd` reports it in
@@ -126,41 +144,39 @@ one `HandoffSocketClosed`, and other VMs' sockets go on.
 `wb-proxyd` closes a VM's socket, with every stream that came on it,
 for one of these rules:
 
-| Rule | Checks | Cause |
-|---|---|---|
-| `name-report-malformed` | `message-form`, `name-form`, `synthetic-range` | S07-06-name-mapping, "Malformed reports" |
-| `stream-reset-unsent` | `buffer-full`, `deadline` | a `StreamReset` it can't send (S07-05-stream-hand-off, "Resets") |
-| `handoff-socket-ended` | `peer-closed`, `receive-failed`, `version-record` | `wb-netd` closed its end, a receive failed or cut control data, or step 3 above failed |
+| Rule | Check | Cause | Charged to |
+|---|---|---|---|
+| `name-report-malformed` | `message-form`, `name-form`, `synthetic-range` | S07-06-name-mapping, "Malformed reports" | `wb-netd` |
+| `stream-reset-unsent` | `buffer-full`, `deadline` | a `StreamReset` it can't send (S07-05-stream-hand-off, "Resets") | `wb-netd` |
+| `handoff-socket-ended` | `peer-closed`, `control-cut` | `wb-netd` closed its end, or sent control data that was cut | `wb-netd` |
+| `handoff-socket-ended` | `receive-failed`, `version-record` | a receive failed with an error, or step 3 above failed | `wb-proxyd` |
 
 For each, it sends one `HandoffSocketClosed` with the rule and the
-check, for the VM, generation and number. A guest can cause each of
-them, through a `wb-netd` it compromised or one it slows down. So
-`wb-hostd` treats each the same. It ends the VM's `wb-netd` and counts
-the exit toward the restart limit. `wb-netd` resets every stream of a
-socket that closed (`handoff-socket-ended`).
+check, for the VM, generation and number. `wb-netd` resets every
+stream of a socket that closed (`handoff-socket-ended`). A socket that
+is replaced or ended sends no `HandoffSocketClosed`.
 
-A socket that is replaced or ended sends no `HandoffSocketClosed`.
+### Who a failure is charged to
 
-### A VM stops
+A guest can cause each failure charged to `wb-netd`, through a
+`wb-netd` it compromised or one it slows down. For one on a running VM,
+`wb-hostd` ends that VM's `wb-netd` with `handoff-netd-ended` and the
+rule or check as the cause. The exit counts toward `wb-netd`'s restart
+limit (S04-07-supervision, "Restarting a daemon"). A `held-timeout` is
+charged the same way, as `wb-netd` withheld its acknowledgment.
 
-When a VM stops or is saved, `wb-hostd` sends `HandoffSocketEnd` for
-its socket. `wb-proxyd`:
+A failure charged to `wb-proxyd` is a fault of `wb-proxyd` or the host,
+which no `wb-netd` can cause. For one on a running VM, `wb-hostd` ends
+`wb-proxyd` with `handoff-proxyd-ended` and the check. An `ack-timeout`
+is charged the same way. The exit counts toward `wb-proxyd`'s restart
+limit, and never toward a `wb-netd`'s.
 
-1. closes the socket and every stream that came on it;
-2. sends the counts of the VM's open runs on the event channel
-   (S04-08-records-and-bounds, "Event records");
-3. answers `HandoffSocketEnded` for the same socket, also for one it no
-   longer holds.
-
-`wb-hostd` ends the VM's events (`Hub.End`) only after that answer, or
-after `wb-proxyd` exits. So the VM's stop record has every count.
-`HandoffSocketEnd` keeps the VM's copy of the name mapping
-(S07-06-name-mapping, "Lifetime").
-
-The answer has the same deadline as an acknowledgment. If it passes,
-`wb-hostd` ends `wb-proxyd` with `handoff-end-timeout`, and the exit
-counts toward its restart limit. An honest `wb-proxyd` answers within
-it, as its event writes are bounded (S04-08-records-and-bounds).
+`wb-proxyd` raises its descriptor limit at its start to cover the caps
+of every VM slot at once: per slot its hand-off socket, two descriptors
+for each stream under S07-05-stream-hand-off ("Caps"), and a margin in
+code. If it can't, it refuses to start with `proxyd-descriptor-limit`.
+So one VM at its caps can't make the other's records arrive at a full
+descriptor table.
 
 ### Generations and restarts
 
@@ -174,9 +190,8 @@ it, as its event writes are bounded (S04-08-records-and-bounds).
 
 A socket for a kept generation replaces the old one. After a
 `wb-proxyd` restart it holds no socket, and each VM's first sets the
-generation and number it holds. `fresh` stays set on each
-`HandoffSocket` after a fresh start until `wb-proxyd` acknowledges
-one, so a socket that fails is followed by a fresh one again.
+generation and number it holds. S07-06-name-mapping ("Lifetime") says
+which `HandoffSocket` is fresh.
 
 ### Stream bounds
 
@@ -206,17 +221,23 @@ The process that makes it sends it on the VM's event channel with its
 rule, rate-limited per rule (S07-02-packet-path, "Events and rate
 limits"). That includes `wb-netd`'s hand-off sender.
 
-| Process | Rules sent as events |
+| Process | Rules it records |
 |---|---|
-| `wb-netd` | `handoff-send-failed`, `handoff-unavailable`, `stream-refused`, `stream-reset`, `guest-write-timeout`, `guest-write-failed`, `proxyd-stream-read-failed`, `handoff-socket-ended`, `proxyd-message-refused` |
-| `wb-proxyd` | `handoff-socket-refused`, `name-report-refused`, `stream-handoff-refused`, `address-conflict`, `stream-write-timeout`, and each rule of "Closing a socket" |
+| `wb-netd` | `handoff-send-failed`, `handoff-unavailable`, `handoff-socket-refused`, `stream-refused`, `stream-reset`, `guest-write-timeout`, `guest-write-failed`, `proxyd-stream-read-failed`, `handoff-socket-ended`, `proxyd-message-refused` |
+| `wb-proxyd` | `handoff-socket-refused`, `name-report-refused`, `stream-handoff-refused`, `fdchan-fd-table-full`, `address-conflict`, `stream-write-timeout`, `stream-end-unrecorded`, and each rule of "Closing a socket" |
+| `wb-hostd` | `proxyd-setup-failed`, `handoff-netd-ended`, `handoff-proxyd-ended`, `handoff-end-timeout`, `proxyd-records-lost`, `proxyd-descriptor-limit` |
 
-`wb-hostd` writes its own decisions to the audit log itself:
-`proxyd-setup-failed`, `handoff-end-timeout`, and the end of a
-`wb-netd` for a `HandoffSocketClosed`. These go only to the daemon log,
-because they decide nothing about a guest's traffic:
-`handoff-notice-stale`, `stream-hold-expired`, `stream-reset-unknown`,
-`vm-fresh-start` and `active-period-start`.
+`wb-hostd` writes its own decisions to the audit log itself. These go
+only to the daemon log, because they decide nothing about a guest's
+traffic: `handoff-notice-stale`, `stream-hold-expired`,
+`stream-reset-unknown`, `vm-fresh-start` and `active-period-start`.
+
+Two processes record `handoff-socket-ended` and
+`handoff-socket-refused`, each with its own meaning. The record's
+`sender`, which `wb-hostd` stamps from the channel, tells them apart,
+so a reader keys on the sender and the rule together. A `wb-netd` can
+only send records about its own VM. So a compromised one can suppress
+its own refusals, but not a decision of `wb-proxyd` or `wb-hostd`.
 
 ## Decisions
 
@@ -243,27 +264,21 @@ names it.
 ### A socket's failure stays with its VM
 
 After `wb-proxyd` accepts a socket, a failure on it closes that socket
-only and is reported. Only a fault in `wb-hostd`'s message ends the
-control channel.
+only and is reported. `wb-hostd` ends the daemon the failure is charged
+to. Only a fault in `wb-hostd`'s message ends the control channel.
 
 - **Why:** one `wb-proxyd` serves every VM (T14-shared-proxyd). A
-  socket fault is the doing of one VM's `wb-netd`. Reporting it lets
-  `wb-hostd` end that `wb-netd` instead of leaving a VM without egress
-  and without a record.
-- **Rejected:** end the control channel on any socket failure, as for a
-  refused `HandoffSocket`. Every VM then loses its network for one
-  VM's fault.
-- **Decided:** I754, in this spec (B754-handoff-contract). I576 decided
-  the refused `HandoffSocket` (2026-11-07), and I571 an unsent reset
-  (2026-11-10).
-
-### A VM's end is acknowledged
-
-- **Why:** a `wb-proxyd` record for a VM whose events have ended can't
-  be attributed. Ending them after the answer keeps every count in the
-  stop record.
-- **Rejected:** end the VM's events at once. A record `wb-proxyd` still
-  queued for the VM would then name a VM that isn't running.
-- **Decided:** I512, decision 4 (2026-10-31).
+  socket fault a guest can cause is the doing of one VM's `wb-netd`.
+  Reporting it lets `wb-hostd` end that `wb-netd` instead of leaving a
+  VM without egress and without a record.
+- **Rejected:**
+  - End the control channel on any socket failure, as for a refused
+    `HandoffSocket` (option B). Every VM then loses its network for one
+    VM's fault.
+  - Close the socket and tell no one (option C). `wb-hostd` then
+    doesn't know the VM has no egress, and no audit record says why.
+- **Decided:** I754 (2026-11-11), option A of B754-handoff-contract.
+  I576 decided the refused `HandoffSocket` (2026-11-07), and I571 an
+  unsent reset (2026-11-10).
 
 **Status:** Draft

@@ -69,10 +69,24 @@ over 4 KiB), and a record that doesn't decode. `wb-hostd` ends VM A's
   `SOCK_STREAM` socket, and see each refused with
   `handoff-socket-refused`. Send a datagram with two descriptors, and see
   it refused with `control-message-refused`. Each refusal ends the
-  control channel. An equal generation replaces the old socket and
-  closes its streams.
+  control channel. A socket number that isn't above the held one is
+  refused the same way. An equal generation with a higher number
+  replaces the old socket and closes its streams
+  (S07-20-handoff-sockets).
 - Change the effective policy, and see it reach `wb-netd` only after
   `wb-proxyd` has acknowledged it.
+- Fill VM A's hand-off socket so a `StreamReset` can't be sent, close
+  `wb-netd`'s end, and send control data that is cut. See each close
+  A's socket with `HandoffSocketClosed` and its rule and check
+  (S07-20-handoff-sockets, "Closing a socket"), and B's streams pass.
+- Stop reading a stream's socket as `wb-netd`, and see the write reset
+  with `stream-write-timeout` and the upstream connection closed. Close
+  the hand-off socket meanwhile, and see the close not wait for the
+  write (S07-20-handoff-sockets, "Stream bounds").
+- Send `HandoffSocketEnd` with streams open on two of A's sockets, and
+  see both closed, the counts queued, and `HandoffSocketEnded` name the
+  last record's sequence, also for a socket already closed and with
+  `wb-proxyd`'s event channel held (S07-21-vm-end).
 
 On macOS, `internal/proxyd/handoff` runs the `wb-proxyd` cases over
 socketpairs (`receiver_darwin_test.go`), and the reset that can't be

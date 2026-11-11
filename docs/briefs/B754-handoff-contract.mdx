@@ -1,14 +1,14 @@
 ---
 title: What happens to one VM's hand-off socket, from its creation to its end?
-description: S04-12-descriptor-passing and S07-20-handoff-sockets settle the hand-off contract in one place. Recommended is that a failure on one VM's socket closes that socket only, is reported to wb-hostd, and ends that VM's wb-netd, so no VM is left without egress and without a record.
+description: S04-12-descriptor-passing, S07-20-handoff-sockets and S07-21-vm-end settle the hand-off contract in one place. A failure on one VM's socket closes that socket only, is reported to wb-hostd, and ends the daemon it is charged to, so no VM is left without egress and without a record.
 ---
 
 import { Aside, Badge } from '@astrojs/starlight/components';
 
-**Awaiting decision.** Source: I754. Adds S04-12-descriptor-passing and S07-20-handoff-sockets, and changes S07-05-stream-hand-off, S07-06-name-mapping, S04-07-supervision and S04-02-vm-provider. It builds on the decisions of I728 and I729 (2026-11-10), I571's triage (2026-11-10), I576 (2026-11-07) and I512, decision 4.
+**Decided 2026-11-11: A.** The decision is in the I754 comment that starts `Decision (2026-11-11): A`. Source: I754. Adds S04-12-descriptor-passing, S07-20-handoff-sockets and S07-21-vm-end, and changes S07-05-stream-hand-off, S07-06-name-mapping, S04-07-supervision, S04-08-records-and-bounds, S04-09-netd-start, S04-02-vm-provider, S09-11-audit and T14-shared-proxyd. It builds on the decisions of I728 and I729 (2026-11-10), I571's triage (2026-11-10), I576 (2026-11-07) and I512, decision 4.
 
 <Aside type="tip" title="You are deciding">
-Whether the two new pages are the contract that the hand-off code is reviewed against. The one choice they make that you haven't made yet is what a failure on one VM's socket does after setup. Recommended: close that socket only, tell `wb-hostd`, and end that VM's `wb-netd`. Accepting it rewrites I728, I571, I536, I730 and I751 to build named sections, which unblocks I512 and with it I513.
+Whether the three new pages are the contract that the hand-off code is reviewed against. You chose A for a failure on one VM's socket: close that socket only, tell `wb-hostd`, and end the daemon it is charged to. One point is still open: whether `wb-hostd` enforces which process may send which rule ("Open points"). Approving the pull request lets I728, I536, I730 and I751 build named sections, which unblocks I512 and with it I513.
 </Aside>
 
 <figure class="wb-figure">
@@ -47,7 +47,7 @@ Whether the two new pages are the contract that the hand-off code is reviewed ag
   <text class="boundary-label" x="470" y="150">closed n, with a rule</text>
 </svg>
 <figcaption>
-Figure 1. One VM's hand-off socket, with the new number and acknowledgments. The red arrow is the report the recommendation adds: today `wb-proxyd` closes a socket for an unsent reset or a peer that closed its end without telling `wb-hostd`. S07-20-handoff-sockets has the full sequence.
+Figure 1. One VM's hand-off socket, with the new number and acknowledgments. The red arrow is the report option A adds: today `wb-proxyd` closes a socket for an unsent reset or a peer that closed its end without telling `wb-hostd`. S07-20-handoff-sockets has the full sequence.
 </figcaption>
 </figure>
 
@@ -56,9 +56,9 @@ Figure 1. One VM's hand-off socket, with the new number and acknowledgments. The
 These are what a failure on a VM's hand-off socket does once `wb-proxyd` has accepted it: `wb-netd` closed its end, a receive failed, the version record couldn't be sent, or a `StreamReset` couldn't be sent. A fault in `wb-hostd`'s own message still ends the control channel in each option, as you decided in I576.
 
 <div class="wb-options">
-<div class="wb-option" data-recommended>
+<div class="wb-option">
 
-### A. Close that socket, report it, end that wb-netd
+### A. Close that socket, report it, end that wb-netd (chosen)
 
 `wb-proxyd` closes the socket and its streams and sends one `HandoffSocketClosed` with the rule. `wb-hostd` ends that VM's `wb-netd` and counts the exit toward its restart limit. Before V1-M6, that stops the VM.
 
@@ -69,7 +69,7 @@ These are what a failure on a VM's hand-off socket does once `wb-proxyd` has acc
 </div>
 <div class="wb-option">
 
-### B. End wb-proxyd's control channel
+### B. End wb-proxyd's control channel (rejected)
 
 Treat any socket failure as I576 treats a refused `HandoffSocket`: `wb-proxyd` ends, and every VM's egress with it.
 
@@ -80,7 +80,7 @@ Treat any socket failure as I576 treats a refused `HandoffSocket`: `wb-proxyd` e
 </div>
 <div class="wb-option">
 
-### C. Close that socket only, tell no one
+### C. Close that socket only, tell no one (rejected)
 
 What the code does today for an unsent reset and a closed peer. The VM keeps running, but its traffic doesn't reach `wb-proxyd`.
 
@@ -93,7 +93,7 @@ What the code does today for an unsent reset and a closed peer. The VM keeps run
 
 **The case for B.** It is the smallest rule: any trouble on the control side ends `wb-proxyd`, and the supervisor restarts it. Each VM then gets a new socket, so no state is kept past a fault, and there is nothing to number or match. Until V1-M6 there are no restarts, so A and B both stop VMs. A only stops fewer of them.
 
-**Confidence:** high. A would be wrong if a socket failure could come from `wb-proxyd` itself in a way that wrongly charges a `wb-netd`. The only such path found is a `StreamReset` that `wb-netd` refuses, and that is a bug in `wb-proxyd`.
+**Confidence:** high. The reviews found failures that come from `wb-proxyd` or the host and would have charged a `wb-netd`: an `ack-timeout`, a receive that fails with an error, and a version record that can't be sent. S07-20-handoff-sockets ("Who a failure is charged to") now charges these to `wb-proxyd`. A `StreamReset` that `wb-netd` refuses is a bug in `wb-proxyd` too.
 
 ## Impact
 
@@ -118,7 +118,8 @@ What the code does today for an unsent reset and a closed peer. The VM keeps run
 - <Badge text="verified" variant="success" /> `wb-netd`'s hand-off sender records with no event channel, so its refusals miss the audit log. Source: `internal/netd/handoff/sender.go:107`, I730.
 - <Badge text="verified" variant="success" /> `wb-vmd`'s acknowledgment reader stops at the first `recvmsg` error or cut control data. Source: `Sources/WraithBoxVMD/HandoffKeeper.swift:199`, I751.
 - <Badge text="inferred" variant="note" /> The flaky test of I731 closes the end it passed to `wb-netd` at once, which the keep-until-held rule forbids. Source: `cmd/wb-netd/child_darwin_test.go:229-237`.
-- <Badge text="assumed" variant="caution" /> An honest `wb-proxyd` answers `HandoffSocketEnd` within the acknowledgment deadline, because its event writes are bounded. If not, a slow audit path ends `wb-proxyd`. I512's tests measure it.
+- <Badge text="verified" variant="success" /> An answer to the VM's end that waited on the event channel could be late, and a record queued before it could name a stopped VM. Either ends the shared `wb-proxyd`. Source: security review of PR758, F1, with `TestProxydNamesStoppedVM` and `TestProxydHoldEndsWithTheVM`. So S07-21-vm-end has `wb-proxyd` answer without waiting on delivery, and name its last record.
+- <Badge text="assumed" variant="caution" /> An honest `wb-proxyd` closes a VM's sockets and streams and queues its records within the acknowledgment deadline. I512's tests measure it.
 
 ## Also in the spec change
 
@@ -128,13 +129,19 @@ Approving the brief approves these too.
 - **A bad acknowledgment is skipped.** A lost one runs to its bound. A wrong, duplicate or late one is refused and the reader goes on. A reader of acknowledgments only ends when its peer closes, or after a run of failed receives (I751).
 - **States of a socket** (S07-20-handoff-sockets): offered, acknowledged, serving, and four final states. `wb-hostd` holds its copies to each deadline.
 - **The socket number and `HandoffSocketHeld`**, as you decided in I728 and I729. `HandoffSocketHeld` doesn't name the VM, because `wb-netd`'s channel is its VM's.
-- **A VM's end is acknowledged.** New `HandoffSocketEnd` and `HandoffSocketEnded`, so the stop record has every count (I512, decision 4). No answer by the deadline ends `wb-proxyd` (`handoff-end-timeout`).
+- **A VM's end is its own exchange** (S07-21-vm-end). `wb-hostd` sends `HandoffSocketEnd` before it stops `wb-netd`, naming the highest socket number it offered. It is valid from any socket state, a refused start included, and its answer is never stale. The answer names `wb-proxyd`'s last event record for the VM, and `wb-hostd` ends the VM's events only after reading up to it, under the stop allowance. No answer by the deadline ends `wb-proxyd` (`handoff-end-timeout`), and lost records are recorded (`proxyd-records-lost`).
+- **Who a failure is charged to.** Failures a guest can cause end that VM's `wb-netd` (`handoff-netd-ended`). Failures of `wb-proxyd` or the host end `wb-proxyd` (`handoff-proxyd-ended`), never charging a `wb-netd`. `wb-proxyd` refuses to start unless its descriptor limit covers every slot's caps.
 - **Stream bounds.** `wb-proxyd` gets a write deadline longer than `wb-netd`'s guest bound (`stream-write-timeout`). A stream where neither side sends is bounded by the caps, not by time.
-- **Audit.** A table of which rule each process sends on the event channel, and which stay in the daemon log.
+- **Audit.** A table of which rule each process records, and which stay in the daemon log. A reader keys on the record's `sender` and rule together.
+
+## Open points
+
+- **Enforce the audit table.** `wb-hostd` checks only a rule's form, so a compromised `wb-netd` can write records about its own VM under another process's rule name. `sender` is stamped from the channel, so none is forged under another sender. The spec has readers key on both. Whether `wb-hostd` also refuses a rule outside the sender's row is yours to decide (security review of PR758, F7).
+- **I741.** Whether one VM's audit budget may hold `wb-proxyd`'s event channel for the other VM stays open. The end of S07-21-vm-end holds under either outcome. With the hold, `wb-hostd` reads past it under the stop allowance, and without it nothing holds.
 
 ## What this unblocks
 
-- I728 (the contract change, with I571 folded in), then I512 and I513, the exit of V1-M3-network-floor.
+- I728 (the contract change, with I571 folded in), then I512 (the VM stop wiring and the event window) and I513, the exit of V1-M3-network-floor.
 - I536, I730 and I751, rewritten to build named sections.
 
 <details>
