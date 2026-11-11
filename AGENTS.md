@@ -57,7 +57,7 @@ Fresh clone: `mise trust && mise install`, then `mise run install`.
 | `mise run prose:lint` | Vale over Markdown and MDX; errors fail, warnings advise |
 | `mise run prose:spell` | cspell (American English) over every tracked file |
 | `mise run audit` | zizmor over `.github/`; needs a GitHub token |
-| `mise run vuln` | osv-scanner + govulncheck; network, no token |
+| `mise run vuln` | osv-scanner + govulncheck; network, no token; govulncheck findings warn |
 | `mise run doc:index` | Rewrite the tables of the indexes in `docs/` (S00-index, …); the build fails when one is stale |
 | `mise run gh:labels` | Create/update GitHub labels from `.github/labels.yml` |
 | `mise run campaign <cmd> <n>` | A campaign's ledger, limits, headless waves and report (`docs/agents/campaigns.md`) |
@@ -172,6 +172,14 @@ ai-tells rules flag them:
   checked that no fixed version exists and filed the issue. Each edit to
   the file asks the maintainer first (an `ask` rule in
   `.claude/settings.json`). Remove the entry once the fix ships.
+- For now, govulncheck findings warn and don't fail `mise run vuln`
+  (#762). govulncheck can't ignore one advisory (golang/go#61211),
+  so a Go standard library advisory would fail every pull request until
+  the toolchain bump passes Renovate's quiet period. The task prints
+  the report, a `WARNING` line and, in GitHub Actions, a `::warning::`
+  annotation. Fix a warning the same way: move Go. Any other govulncheck
+  failure still fails, and osv-scanner findings still fail. #763
+  restores failing on a finding.
 - Pin GitHub Actions to full-length commit SHAs (the commit, not an
   annotated tag object). The repository only allows GitHub-owned and
   allowlisted actions; a new third-party action needs an allowlist

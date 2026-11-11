@@ -268,14 +268,38 @@ done
 
 # Run by `mise run vuln`, not by `go:lint`: it needs network access.
 # Analyses each host OS build, since reachability differs per GOOS.
+# Findings warn and don't fail (#762, the maintainer's decision of
+# 2026-11-11). govulncheck exits 3 when it finds a vulnerability, and it
+# has no way to ignore one advisory (golang/go#61211). So a Go stdlib
+# advisory fails every pull request until the toolchain bump has passed
+# Renovate's 7-day quiet period. Exit 3 prints the full report and a
+# WARNING line, plus a `::warning::` annotation per GOOS in GitHub
+# Actions. Any other non-zero exit (packages that don't load, a network
+# error) still fails: a broken scanner must not pass. #763 restores
+# failing on a finding, with a per-advisory ignore list.
 [tasks."go:vulncheck"]
-description = "govulncheck for darwin, linux and windows (stdlib + deps, reachability-aware)"
+description = "govulncheck for darwin, linux and windows (stdlib + deps, reachability-aware); findings warn"
 dir = "packages/wraithbox-go"
 run = """
-set -e
+set -eu
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
 for os in darwin linux windows; do
   echo "--- govulncheck GOOS=$os"
-  GOOS=$os govulncheck ./...
+  rc=0
+  GOOS=$os govulncheck ./... >"$tmp/out" 2>&1 || rc=$?
+  cat "$tmp/out"
+  if [ "$rc" -eq 3 ]; then
+    ids=$(grep -oE 'GO-[0-9]{4}-[0-9]+' "$tmp/out" | sort -u | tr '\\n' ' ' | sed 's/ $//')
+    msg="govulncheck GOOS=$os found ${ids:-a vulnerability}. Findings warn and don't fail until #763."
+    echo "WARNING: $msg" >&2
+    if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
+      echo "::warning title=govulncheck::$msg"
+    fi
+  elif [ "$rc" -ne 0 ]; then
+    echo "go:vulncheck: govulncheck GOOS=$os failed with exit status $rc, which isn't a finding." >&2
+    exit "$rc"
+  fi
 done
 """
 

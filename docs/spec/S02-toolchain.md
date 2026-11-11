@@ -183,7 +183,15 @@ cross-platform Go (S12-platforms).
   every target.
 - `go:fuzz-long` is the daily fuzz run (S11-verification-and-spikes). The
   `Fuzz` workflow runs it on Linux once a day. It isn't part of `ci`.
-- `go:vulncheck` analyzes each GOOS.
+- `go:vulncheck` analyzes each GOOS. For now its findings warn and
+  don't fail (I762). govulncheck can't ignore one advisory
+  (golang/go#61211), so a Go standard library advisory would fail
+  every pull request until the toolchain bump passes Renovate's 7-day
+  quiet period. On exit status 3, a finding, the task prints the report,
+  a `WARNING` line naming the advisories and, in GitHub Actions, a
+  `::warning::` annotation per GOOS. Any other non-zero exit still
+  fails, and `vuln:osv` still fails on a finding. I763 restores failing
+  on a finding, with an ignore list per advisory.
 
 Swift runs on macOS runners only. Docs, workflow linting, and the
 vulnerability scan run on Linux.
