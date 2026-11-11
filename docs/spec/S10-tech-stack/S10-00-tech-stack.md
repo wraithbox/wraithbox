@@ -119,7 +119,10 @@ host's, within what the Virtualization framework supports.
 ### Quality gates
 
 - Go: `gofumpt`, `goimports`, `golangci-lint`, `go vet`, and
-  `govulncheck` for each host OS.
+  `govulncheck` for each host OS. A `govulncheck` finding warns and
+  doesn't fail for now, because it can't ignore one advisory
+  (golang/go#61211, S02-toolchain, I762). I763 restores failing on a
+  finding.
 - Complexity and size limits in golangci-lint (cognitive and cyclomatic
   complexity, nesting, function, file and signature size) and in
   SwiftLint.
