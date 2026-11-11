@@ -134,7 +134,7 @@ the bound left unread, and `wb-hostd` logs that with
 At a VM's stop, `wb-hostd` reads `wb-proxyd`'s channel the same way, up
 to the last record of the VM that `wb-proxyd` names at the VM's end
 (S07-21-vm-end, "Events in band"). That read's bound adds the records
-the VM's closes may queue past the cap.
+the closes of every VM's sockets may queue past the cap.
 
 Each sender queues its records until a write succeeds, and drops none.
 The queue holds at most 4096 records of up to 4 KiB each, so 16 MiB. At
