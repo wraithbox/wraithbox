@@ -277,8 +277,14 @@ done
 # Actions. Any other non-zero exit (packages that don't load, a network
 # error) still fails: a broken scanner must not pass. #763 restores
 # failing on a finding, with a per-advisory ignore list.
+#
+# `raw` connects the task to mise's own stdout and stderr, so mise doesn't put
+# its `[go:vulncheck]` label in front of each line. GitHub reads a
+# workflow command such as `::warning::` only at the start of a line.
+# `mise run vuln` still runs this task and vuln:osv side by side.
 [tasks."go:vulncheck"]
 description = "govulncheck for darwin, linux and windows (stdlib + deps, reachability-aware); findings warn"
+raw = true
 dir = "packages/wraithbox-go"
 run = """
 set -eu
