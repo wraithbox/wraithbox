@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560" role="img" aria-label="A sequence of messages between wb-netd, wb-hostd and wb-proxyd for one hand-off socket number n. wb-hostd sends HandoffSocket to wb-proxyd, which answers HandoffSocketAck. wb-hostd then sends wb-netd its end, which answers HandoffSocketHeld, and the VM starts. wb-netd sends streams and name reports to wb-proxyd. wb-proxyd reports a socket it closed with HandoffSocketClosed, and at a VM stop answers HandoffSocketEnd with HandoffSocketEnded.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560" role="img" aria-label="A sequence of messages between wb-netd, wb-hostd and wb-proxyd for one hand-off socket number n. wb-hostd sends HandoffSocket to wb-proxyd, which answers HandoffSocketAck. wb-hostd then sends wb-netd its end, which answers HandoffSocketHeld, and the VM starts. wb-netd sends streams and name reports to wb-proxyd. wb-proxyd reports a socket it closed with HandoffSocketClosed, and at a VM stop, before wb-netd stops, answers HandoffSocketEnd with HandoffSocketEnded, which names its last event record for the VM.">
 <style>
 svg { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 15px; }
 .box { fill: #ffffff; stroke: #77767b; stroke-width: 1.5; }
@@ -44,9 +44,9 @@ svg { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 
 <text class="note" x="600" y="342" text-anchor="middle">HandoffSocketClosed n, rule</text>
 <line class="edge" x1="448" y1="380" x2="154" y2="380" marker-end="url(#s0720-arrow)" />
 <text class="note" x="300" y="372" text-anchor="middle">ends this VM's wb-netd</text>
-<text class="note" x="462" y="420">or, at a VM stop:</text>
+<text class="note" x="462" y="420">or, at a VM stop, before wb-netd stops:</text>
 <line class="edge" x1="452" y1="460" x2="746" y2="460" marker-end="url(#s0720-arrow)" />
-<text class="note" x="600" y="452" text-anchor="middle">HandoffSocketEnd n</text>
+<text class="note" x="600" y="452" text-anchor="middle">HandoffSocketEnd up to n, stop</text>
 <line class="edge" x1="748" y1="500" x2="454" y2="500" marker-end="url(#s0720-arrow)" />
-<text class="note" x="600" y="492" text-anchor="middle">HandoffSocketEnded n, after its counts</text>
+<text class="note" x="600" y="492" text-anchor="middle">HandoffSocketEnded, last event record s</text>
 </svg>

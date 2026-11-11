@@ -225,10 +225,8 @@ message (S04-09-netd-start), in a message with exactly one descriptor
 and the VM, generation and socket number. It refuses the message, with
 `handoff-socket-refused`, when the socket type is wrong, the VM or
 generation isn't its own, or the number isn't above the one it holds.
-It then closes the descriptor and logs the refusal, as for the
-hand-off channel of `wb-vmd` (S04-02-vm-provider, "The VM provider
-passes descriptors, not bytes"), and the control channel goes on. A
-message with another descriptor count than one is of the wrong form:
+It then closes the descriptor and logs the refusal, and the control
+channel goes on. A message with another descriptor count than one is of the wrong form:
 every descriptor in it is closed, and the control channel ends.
 
 On each new socket, `wb-netd` first replays the VM's live mapping, so
@@ -274,10 +272,11 @@ down too:
 - a crash that a guest finds in it, until the restart;
 - its given-up state;
 - a blocked event channel (`event-channel-blocked`);
+- a VM's end that it doesn't close in time (`handoff-end-timeout`);
 - the 1Password prompts its restarts cause, after V1.
 
-That is a residual risk to availability, not to egress
-(T14-shared-proxyd).
+A VM's normal stop doesn't end it (S07-21-vm-end). That is a residual
+risk to availability, not to egress (T14-shared-proxyd).
 
 ## Decisions
 

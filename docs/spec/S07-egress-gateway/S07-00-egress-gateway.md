@@ -29,7 +29,8 @@ TCP stream to an allowed name goes on to `wb-proxyd`, the stream path.
 | S07-03-dns | The DNS server of `wb-netd`: synthetic addresses, the name form, negative answers and the wildcard budget |
 | S07-04-dns-refusals | How `wb-netd` refuses a name: approval events, the hold, quiet refusals, and the same answer for every reason |
 | S07-05-stream-hand-off | How a stream passes from `wb-netd` to `wb-proxyd`, and why `wb-netd` can only narrow |
-| S07-20-handoff-sockets | The life of a VM's hand-off socket: its number, both acknowledgments, closing, VM stops, restarts and audit |
+| S07-20-handoff-sockets | The life of a VM's hand-off socket: its number, both acknowledgments, closing, charges, restarts and audit |
+| S07-21-vm-end | How a VM's sockets end in `wb-proxyd`, and how its last event records reach the stop record |
 | S07-06-name-mapping | `wb-proxyd`'s checked copy of the name mapping: reports, releases, replay and the second wildcard count |
 | S07-07-hosts-and-modes | Name binding, the upstream address rule, the inspect, pass and audit modes, and guarded hosts |
 | S07-08-requests-and-credentials | The request form, and credential replacement |

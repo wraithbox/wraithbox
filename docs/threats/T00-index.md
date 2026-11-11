@@ -232,7 +232,11 @@ print about returned work after `wb land` is outside it
   budget counts the records of its `wb-netd` too, so a guest whose
   `wb-netd` ignores its budget notices can have `wb-hostd` hold
   `wb-proxyd`'s event channel, and so the other VM's network, until the
-  budget's minute or day turns (S09-11-audit, "Telling the senders"). Proposed in PR171 (B48-process-supervision).
+  budget's minute or day turns (S09-11-audit, "Telling the senders"). A
+  VM's stop doesn't take the other VM's network down: `wb-proxyd`
+  answers its end without waiting on the event channel, and only one
+  that doesn't close the VM's sockets and streams in time is ended
+  (S07-21-vm-end). Proposed in PR171 (B48-process-supervision).
 - **T15-shared-toolchain: Projects in one guest share the toolchain
   prefix.** Every project user runs tools from the one prefix that
   the toolchain user owns (S06-01-image-layers, "Toolchain prefix"). So

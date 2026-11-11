@@ -122,8 +122,9 @@ idles and is saved and restored keeps the answers its guest cached.
 `wb-proxyd` learns of such a start from a *fresh* `HandoffSocket`
 (S07-05-stream-hand-off, "From `wb-hostd`"). `wb-hostd` sets its
 `fresh` field on each `HandoffSocket` after such a start until
-`wb-proxyd` acknowledges one, so a retry after an acknowledgment
-timeout is fresh too. It sends that message before the run's first
+`wb-proxyd` acknowledges one. So the first socket `wb-proxyd`
+acknowledges after the start is fresh, also when an earlier one failed
+or `wb-proxyd` restarted in between. It sends that message before the run's first
 `PolicyChange`. `wb-netd` refuses a `HandoffSocket` that sets `fresh`
 with `message-form`, since its own start clears its mapping.
 

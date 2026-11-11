@@ -121,7 +121,8 @@ S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-0
   acknowledges the record. A passed connection keeps its place under
   `connect-cap` until then.
 - **Hand-off acknowledgment** (S04-02-vm-provider, "Hand-off on macOS";
-  S07-05-stream-hand-off, "Transport"; `HandoffKeeperTests`). A sent
+  S04-12-descriptor-passing, "Acknowledgments are input";
+  `HandoffKeeperTests`). A sent
   connection and a sent packet transport are kept until their
   `HandoffAck`, accepted or refused, and closed at a short deadline
   without one, logged with `handoff-ack-timeout`. An acknowledgment that
@@ -129,9 +130,12 @@ S09-11-audit, S04-04-vm-processes, S05-03-management-commands ("`wb vm`"), S06-0
   is empty, over 256 bytes, or carries a descriptor is refused with
   `handoff-ack-unexpected` or `handoff-ack-malformed`, and the right
   one still closes the copy. A descriptor that comes with an
-  acknowledgment is closed. A receive that fails after `wb-hostd`
-  closed its end logs `handoff-ack-channel-ended` once, and the kept
-  copy closes at its deadline. Closing the keeper closes every kept
+  acknowledgment is closed. A refused acknowledgment and a single
+  failed receive are skipped, and the next acknowledgment still closes
+  its copy (I751). The reader ends, logged with
+  `handoff-ack-channel-ended` once, when `wb-hostd` closes its end, on
+  control data that was cut, or after the bound of failed receives in a
+  row. The kept copies then close at their deadline. Closing the keeper closes every kept
   copy at once and refuses later sends. `closeRights` closes the
   descriptors of one or two `SCM_RIGHTS` messages and none of a message
   whose length is under the header's or past the end, or of another
@@ -494,6 +498,26 @@ Spec: S04-architecture.
   timed-out attempt and returns the retry on its own.
   `TestPayloadWriteFails` ends `wb-proxyd` with
   `control-channel-failed` and the check `payload-write`.
+- **Hand-off socket states** (S07-20-handoff-sockets, S07-21-vm-end;
+  built in I728 and I512). Over fake channels, in `internal/hostd/egress`:
+  - a `wb-netd` that withholds `HandoffSocketHeld` fails the start with
+    `held-timeout`, and on a running VM is ended with
+    `handoff-netd-ended`;
+  - an `ack-timeout` on a running VM ends `wb-proxyd` with
+    `handoff-proxyd-ended`, and no `wb-netd` restart is counted;
+  - after a `wb-netd` crash and restart, a late `HandoffSocketClosed`
+    for the old socket is stale and doesn't end the new `wb-netd`;
+  - a `HandoffSocketAck` or `HandoffSocketHeld` for a number never
+    offered, or a second one, is refused;
+  - each rule of "Closing a socket" ends the daemon it is charged to,
+    and the other VM's socket goes on;
+  - at a VM stop, `HandoffSocketEnd` comes before `wb-netd`'s control
+    channel closes, covers a socket that closed or failed first, and the
+    VM's events end only after the record its answer names;
+  - no answer by the deadline ends `wb-proxyd` with
+    `handoff-end-timeout` and writes `proxyd-records-lost`;
+  - a `wb-proxyd` record that names a VM and generation outside its
+    window ends `wb-proxyd` with `event-record-invalid`.
 - Block an accounting write past 100 ms, and see the lookup refused
   with `accounting-write-failed`.
 

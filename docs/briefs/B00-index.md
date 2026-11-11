@@ -68,7 +68,7 @@ issue, the spike result, or the spec). A brief explains it.
 | B419-admin-path | How does the person at the host's terminal get root in their own guest, apart from every agent path? | Awaiting decision |
 | B448-admin-channel | Does a second guest daemon give the admin path a root shell while wb-guestd is down? | Answered 2026-11-08: yes, with conditions. Awaiting decision: Full Disk Access for wb-guestroot |
 | B543-project-metrics | Should Wraith Box continue to V1, and at what pace? | Awaiting decision |
-| B754-handoff-contract | What happens to one VM's hand-off socket, from its creation to its end? | Awaiting decision |
+| B754-handoff-contract | What happens to one VM's hand-off socket, from its creation to its end? | Decided 2026-11-11: A |
 
 ## Order to decide
 
