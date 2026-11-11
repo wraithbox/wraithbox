@@ -37,7 +37,7 @@ lockfile = true
 # `minimum_release_age` above applies the same 7-day cooldown to `mise up`
 # and to Renovate's weekly `mise.lock` maintenance.
 [tools]
-go = "1.27.3"
+go = "1.27.4"
 golangci-lint = "2.15.0"
 gofumpt = "0.12.0"
 # Swift maintainability gate (complexity/size rules only; see .swiftlint.yml).
