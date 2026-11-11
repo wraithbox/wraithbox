@@ -4648,5 +4648,11 @@
 		"state": "open",
 		"title": "ci: find a way to ignore single govulncheck advisories, and fail on findings again",
 		"summary": "Find a way to get back to \"fail on a finding, except named advisories until a date\", matching how osv-scanner.toml handles an ignoreUntil entry (AGENTS.md, \"Supply chain\"; scripts/osv-ignores.mjs)."
+	},
+	"764": {
+		"kind": "pr",
+		"state": "open",
+		"title": "ci(vuln): make govulncheck findings warn instead of failing",
+		"summary": "govulncheck now reports a vulnerability it finds as a warning and no longer fails the build."
 	}
 }
