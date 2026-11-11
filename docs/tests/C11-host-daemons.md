@@ -531,8 +531,11 @@ Spec: S04-architecture.
     honest stop answer, past the allowance by the end's records, is
     accepted and read to its sequence;
   - an answer with a sequence past the read's bound is accepted, the
-    read ends at its last sequence, the cut is named in the stop record,
-    and a later record of the generation past that is refused;
+    read ends at its last sequence, and the cut is named in the stop
+    record. Later records of the generation at or below the named
+    sequence are dropped with `event-stop-allowance` up to the read's
+    bound, and one more, or one above the named sequence, ends
+    `wb-proxyd` with `event-record-invalid`;
   - no `PolicyChange` or `ActivePeriodStart` for a VM, and no message
     that names its ended generation, goes out after its stop end;
   - a `wb-netd` that withholds `HandoffSocketHeld` after a `wb-proxyd`

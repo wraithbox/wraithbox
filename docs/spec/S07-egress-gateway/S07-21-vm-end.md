@@ -85,8 +85,8 @@ handler that finishes late drops its record, and the
 `stream-end-unrecorded` count stands for it. After `wb-hostd` sends the
 stop end, it sends `wb-proxyd` no `PolicyChange` or `ActivePeriodStart`
 for the VM, and no message that names the ended generation. The
-placeholder set and the CA messages, `CaRemove` included, don't name a
-generation and stay allowed.
+placeholder set, `CaIssue` and `CaRemove` name no generation, and
+`CaSet` and `CaAccept` name a newer one, so they stay allowed.
 
 ### Events in band
 
@@ -103,8 +103,8 @@ sequence isn't refused, because the read below ends at its own bound.
 
 That read runs under the stop allowance of S09-11-audit ("Telling the
 senders"). It reads past the holds. Its bound is as many records as the
-allowance gives a `wb-netd`, plus the records the VM's closes may queue
-past the cap. So the read's last sequence is the last one read when the
+allowance gives a `wb-netd`, plus the records the closes of every VM's
+sockets may queue past the cap. So the read's last sequence is the last one read when the
 answer came plus that bound. Records of another VM read under it count
 toward that VM's budget as usual. The read ends at the first of:
 
@@ -126,11 +126,16 @@ its stop answer names. `wb-hostd` opens the window before it sends that
 `HandoffSocket`.
 
 A record that names the VM and generation outside the window ends
-`wb-proxyd` with `event-record-invalid`. The one exception is a record
-that comes after the read stopped short, at or below the lower of the
-named sequence and the read's last sequence.
-`wb-hostd` drops it and logs it with `event-stop-allowance`, because
-`wb-proxyd` sent it in the window.
+`wb-proxyd` with `event-record-invalid`. A record above the named
+sequence is outside it.
+
+After a read that stopped short, records of the VM and generation at or
+below the named sequence still come. `wb-hostd` drops each and logs it
+with `event-stop-allowance`, because `wb-proxyd` sent it in the window.
+It drops at most as many as the read's bound, and one more ends
+`wb-proxyd` with `event-record-invalid`. An honest `wb-proxyd` queued
+no more than that for the VM after the read, so a high named sequence gives no open
+license to name a stopped VM.
 
 ### Deadline
 
