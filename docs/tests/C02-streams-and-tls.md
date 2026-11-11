@@ -80,13 +80,24 @@ over 4 KiB), and a record that doesn't decode. `wb-hostd` ends VM A's
   A's socket with `HandoffSocketClosed` and its rule and check
   (S07-20-handoff-sockets, "Closing a socket"), and B's streams pass.
 - Stop reading a stream's socket as `wb-netd`, and see the write reset
-  with `stream-write-timeout` and the upstream connection closed. Close
-  the hand-off socket meanwhile, and see the close not wait for the
-  write (S07-20-handoff-sockets, "Stream bounds").
-- Send `HandoffSocketEnd` with streams open on two of A's sockets, and
-  see both closed, the counts queued, and `HandoffSocketEnded` name the
-  last record's sequence, also for a socket already closed and with
+  with `stream-write-timeout` and the upstream connection closed
+  (S07-20-handoff-sockets, "Stream bounds"). Close the hand-off socket
+  meanwhile, and see the close not wait for the write
+  (S07-20-handoff-sockets, "`wb-proxyd`'s end").
+- Send a stop end with streams open on two of A's sockets, and see both
+  closed, the counts queued, and `HandoffSocketEnded` name the last
+  record's sequence, also for a socket already closed and with
   `wb-proxyd`'s event channel held (S07-21-vm-end).
+- Send a stop end with `wb-proxyd`'s event queue at its cap, and see the
+  end's records queued past it and the answer in time. Send a socket
+  end, and see only the sockets closed and no sequence named.
+- Hold a stream's handler in an upstream dial, a name lookup and a
+  secret fetch, then send a stop end. See each cancelled, a handler past
+  the bound counted in `stream-end-unrecorded`, and no record of the VM
+  after the answer.
+- Start `wb-proxyd` with a descriptor limit it can't raise, and see it
+  exit with `proxyd-descriptor-limit` (S07-20-handoff-sockets, "Who a
+  failure is charged to").
 
 On macOS, `internal/proxyd/handoff` runs the `wb-proxyd` cases over
 socketpairs (`receiver_darwin_test.go`), and the reset that can't be

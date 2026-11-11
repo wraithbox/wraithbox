@@ -8,7 +8,7 @@ import { Aside, Badge } from '@astrojs/starlight/components';
 **Decided 2026-11-11: A.** The decision is in the I754 comment that starts `Decision (2026-11-11): A`. Source: I754. Adds S04-12-descriptor-passing, S07-20-handoff-sockets and S07-21-vm-end, and changes S07-05-stream-hand-off, S07-06-name-mapping, S04-07-supervision, S04-08-records-and-bounds, S04-09-netd-start, S04-02-vm-provider, S09-11-audit and T14-shared-proxyd. It builds on the decisions of I728 and I729 (2026-11-10), I571's triage (2026-11-10), I576 (2026-11-07) and I512, decision 4.
 
 <Aside type="tip" title="You are deciding">
-Whether the three new pages are the contract that the hand-off code is reviewed against. You chose A for a failure on one VM's socket: close that socket only, tell `wb-hostd`, and end the daemon it is charged to. One point is still open: whether `wb-hostd` enforces which process may send which rule ("Open points"). Approving the pull request lets I728, I536, I730 and I751 build named sections, which unblocks I512 and with it I513.
+Whether the three new pages are the contract that the hand-off code is reviewed against. You chose A for a failure on one VM's socket: close that socket only, tell `wb-hostd`, and end the daemon it is charged to. Both "Open points" are still open: whether `wb-hostd` enforces which process may send which rule, and I741, on which the end doesn't depend. Approving the pull request lets I728, I536, I730 and I751 build named sections, which unblocks I512 and with it I513.
 </Aside>
 
 <figure class="wb-figure">
@@ -126,18 +126,18 @@ What the code does today for an unsent reset and a closed peer. The VM keeps run
 Approving the brief approves these too.
 
 - **The rule for passing a socket, in one place** (S04-12-descriptor-passing). A sender keeps its copy until the receiver shows it holds it, for every leg, with the proof and the bound per leg. Pipes and descriptors inherited at spawn are exempt.
-- **A bad acknowledgment is skipped.** A lost one runs to its bound. A wrong, duplicate or late one is refused and the reader goes on. A reader of acknowledgments only ends when its peer closes, or after a run of failed receives (I751).
+- **A bad acknowledgment is skipped.** A lost one runs to its bound. A wrong, duplicate or late one is refused and the reader goes on. A reader of acknowledgments only ends when its peer closes, on cut control data, whose descriptors it can't name, or after a run of failed receives (I751).
 - **States of a socket** (S07-20-handoff-sockets): offered, acknowledged, serving, and four final states. `wb-hostd` holds its copies to each deadline.
 - **The socket number and `HandoffSocketHeld`**, as you decided in I728 and I729. `HandoffSocketHeld` doesn't name the VM, because `wb-netd`'s channel is its VM's.
-- **A VM's end is its own exchange** (S07-21-vm-end). `wb-hostd` sends `HandoffSocketEnd` before it stops `wb-netd`, naming the highest socket number it offered. It is valid from any socket state, a refused start included, and its answer is never stale. The answer names `wb-proxyd`'s last event record for the VM, and `wb-hostd` ends the VM's events only after reading up to it, under the stop allowance. No answer by the deadline ends `wb-proxyd` (`handoff-end-timeout`), and lost records are recorded (`proxyd-records-lost`).
-- **Who a failure is charged to.** Failures a guest can cause end that VM's `wb-netd` (`handoff-netd-ended`). Failures of `wb-proxyd` or the host end `wb-proxyd` (`handoff-proxyd-ended`), never charging a `wb-netd`. `wb-proxyd` refuses to start unless its descriptor limit covers every slot's caps.
+- **A VM's end is its own exchange** (S07-21-vm-end). `wb-hostd` sends `HandoffSocketEnd` before it stops `wb-netd`, naming the highest socket number it offered. It is valid from any socket state, a refused start included, and its answer is never stale. A socket end and a stop end have their own waits, keyed with the stop flag. The answer names `wb-proxyd`'s last event record for the VM, and `wb-hostd` ends the VM's events only after reading up to it, under the stop allowance. The end's records may pass `wb-proxyd`'s queue cap by a bound the per-VM caps give, and after the answer it queues none for the VM. No answer by the deadline ends `wb-proxyd` (`handoff-end-timeout`), an exit of `wb-proxyd` ends every wait sent to it, and lost records are recorded (`proxyd-records-lost`).
+- **Who a failure is charged to.** Failures a guest can cause end that VM's `wb-netd` (`handoff-netd-ended`). Failures of `wb-proxyd` or the host end `wb-proxyd` (`handoff-proxyd-ended`), never charging a `wb-netd`. `wb-proxyd` refuses to start unless its descriptor limit covers every descriptor the `wb-netd`s can make it hold at once.
 - **Stream bounds.** `wb-proxyd` gets a write deadline longer than `wb-netd`'s guest bound (`stream-write-timeout`). A stream where neither side sends is bounded by the caps, not by time.
 - **Audit.** A table of which rule each process records, and which stay in the daemon log. A reader keys on the record's `sender` and rule together.
 
 ## Open points
 
 - **Enforce the audit table.** `wb-hostd` checks only a rule's form, so a compromised `wb-netd` can write records about its own VM under another process's rule name. `sender` is stamped from the channel, so none is forged under another sender. The spec has readers key on both. Whether `wb-hostd` also refuses a rule outside the sender's row is yours to decide (security review of PR758, F7).
-- **I741.** Whether one VM's audit budget may hold `wb-proxyd`'s event channel for the other VM stays open. The end of S07-21-vm-end holds under either outcome. With the hold, `wb-hostd` reads past it under the stop allowance, and without it nothing holds.
+- **I741.** Whether one VM's audit budget may hold `wb-proxyd`'s event channel for the other VM stays open. The end of S07-21-vm-end holds under either outcome. With the hold, `wb-proxyd` queues the end's records past its cap and `wb-hostd` reads past the hold under the stop allowance. Without it, nothing holds.
 
 ## What this unblocks
 

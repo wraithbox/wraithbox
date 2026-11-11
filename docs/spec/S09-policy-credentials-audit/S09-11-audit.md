@@ -133,7 +133,8 @@ the bound left unread, and `wb-hostd` logs that with
 
 At a VM's stop, `wb-hostd` reads `wb-proxyd`'s channel the same way, up
 to the last record of the VM that `wb-proxyd` names at the VM's end
-(S07-21-vm-end, "Events in band").
+(S07-21-vm-end, "Events in band"). That read's bound adds the records
+the end may queue past the cap.
 
 Each sender queues its records until a write succeeds, and drops none.
 The queue holds at most 4096 records of up to 4 KiB each, so 16 MiB. At
@@ -142,6 +143,12 @@ with `event-channel-blocked`, until the queue is empty. Only work the
 sender admitted adds records, so the per-VM caps on lookups,
 connections, streams and requests bound what fills the queue
 (S07-02-packet-path, "Events and rate limits" and "Per-VM caps").
+
+The one exception to the cap is a VM's stop in `wb-proxyd`
+(S07-21-vm-end). Its records go into the queue past the cap, at most
+one for each stream of the VM open at the stop, one for each of the
+VM's open runs, and one `stream-end-unrecorded` count. The per-VM caps
+on streams and the rules that make runs bound them.
 
 `wb-hostd` ends a sender whose record is malformed, or names a VM the
 sender may not name, with the rule `event-record-invalid`. A read of
