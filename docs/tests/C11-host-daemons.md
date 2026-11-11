@@ -523,12 +523,18 @@ Spec: S04-architecture.
   - a `wb-proxyd` that exits with an end unanswered ends that wait,
     writes `proxyd-records-lost` and ends the VM's events, and the new
     `wb-proxyd` gets no end;
-  - an answer whose sequence is below the VM's last record read, or past
-    the allowance, is refused, and a read that doesn't reach the
-    sequence in time ends `wb-proxyd` with `handoff-end-read-timeout`;
-  - a read cut by the allowance names the cut in the stop record;
-  - no `PolicyChange` or `ActivePeriodStart` for a VM goes out after
-    its stop end;
+  - a stop answer whose sequence is below the last record read that
+    names the VM and generation is refused, a socket end's answer with
+    a sequence other than 0 is refused, and a read that doesn't reach
+    the sequence in time ends `wb-proxyd` with `handoff-end-read-timeout`;
+  - with `wb-proxyd`'s queue and socket buffer full under a hold, the
+    honest stop answer, past the allowance by the end's records, is
+    accepted and read to its sequence;
+  - an answer with a sequence past the read's bound is accepted, the
+    read ends at its last sequence, the cut is named in the stop record,
+    and a later record of the generation past that is refused;
+  - no `PolicyChange` or `ActivePeriodStart` for a VM, and no message
+    that names its ended generation, goes out after its stop end;
   - a `wb-netd` that withholds `HandoffSocketHeld` after a `wb-proxyd`
     restart doesn't delay the other VM's socket, and one VM's stop end
     doesn't delay the other VM's acknowledgment;

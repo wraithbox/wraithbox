@@ -23,10 +23,11 @@ four values, also when it holds none of those sockets.
 
 There are two kinds, and `wb-hostd` sends each at most once:
 
-- **A socket end** doesn't stop the VM. `wb-hostd` sends it when a
-  socket that isn't final fails by a deadline, or when its `wb-netd`
-  exits or is ended. It names that socket. `wb-proxyd` runs step 1 of
-  "Order at a VM stop" only, and its answer names no event record.
+- **A socket end** doesn't stop the VM. `wb-hostd` sends it for a
+  socket that wasn't final before one of these: it fails by a deadline,
+  or its `wb-netd` exits or is ended. It names that socket. `wb-proxyd`
+  runs step 1 of "Order at a VM stop" only, and its answer has the
+  sequence 0. `wb-hostd` refuses any other value.
 - **A stop end** says the VM stops. `wb-hostd` sends it once for the
   generation when the VM stops, is saved, or its start is refused. It
   names the highest number `wb-hostd` offered for the generation,
@@ -42,9 +43,9 @@ number have their own waits. That covers these cases:
 - a `wb-netd` exits just before its VM's stop end is sent.
 
 When an end is sent, each socket it covers that isn't final becomes
-ended. A socket already final keeps its state. A socket end is never
-sent for a final socket, so a `wb-netd` that exits after the stop end
-causes none. `HandoffSocketEnded` is never stale. One that matches no
+ended. A socket already final keeps its state. A socket end is sent
+only for a socket that wasn't final before, so a `wb-netd` that exits
+after the stop end causes none. `HandoffSocketEnded` is never stale. One that matches no
 wait is refused, as a crash of `wb-proxyd` (S04-architecture, "Control
 channels").
 
@@ -62,26 +63,30 @@ after it tells that apart from a failure.
 1. closes the VM's sockets and streams up to the number, and cancels
    each of their handlers' upstream dial, name lookup and secret fetch
    in progress;
-2. waits for each of those streams' handlers to queue its last event
-   record, at most a bound in code shorter than the answer's deadline;
+2. waits for every running handler of the VM and generation to queue
+   its last event record, those of streams an earlier socket end closed
+   included, at most a bound in code shorter than the answer's deadline;
 3. counts each handler that didn't in a run with the rule
    `stream-end-unrecorded`, and queues the counts of the VM's open runs;
 4. answers `HandoffSocketEnded` with the sequence number of its last
-   queued event record for the VM, or 0 when it sent none.
+   queued event record that names the VM and generation, or 0 when it
+   sent none.
 
 Step 2 can't wait on a peer, because a close ends every write in
 progress (S07-20-handoff-sockets, "`wb-proxyd`'s end"). No step waits
 on the event channel's delivery or on room in its queue. The records
-of steps 2 and 3 go into the queue even at its cap (S09-11-audit,
-"Telling the senders"). So an honest `wb-proxyd` answers within the
+of a close go into the queue even at its cap, as S09-11-audit
+("Telling the senders") bounds them. So an honest `wb-proxyd` answers within the
 deadline whether or not `wb-hostd` reads its channel.
 
 After its stop answer, `wb-proxyd` queues no record that names the VM
-and generation. A handler that finishes late drops its record, and the
+and generation, and it records nothing for an ended generation. A
+handler that finishes late drops its record, and the
 `stream-end-unrecorded` count stands for it. After `wb-hostd` sends the
-stop end, it sends `wb-proxyd` no message about the VM, such as a
-`PolicyChange` or `ActivePeriodStart`, until a `HandoffSocket` of a
-newer generation.
+stop end, it sends `wb-proxyd` no `PolicyChange` or `ActivePeriodStart`
+for the VM, and no message that names the ended generation. The
+placeholder set and the CA messages, `CaRemove` included, don't name a
+generation and stay allowed.
 
 ### Events in band
 
@@ -91,19 +96,20 @@ sequence the stop answer names, then ends the VM's events (`Hub.End`).
 So the VM's stop record has every count `wb-proxyd` sent, and no record
 of the VM comes after its end.
 
-`wb-hostd` refuses an answer whose sequence is below the one of the
-last record of the VM it read from that `wb-proxyd`, or above the last
-sequence it read on the channel plus the stop allowance. A refused
-answer is a crash of `wb-proxyd`.
+`wb-hostd` refuses a stop answer whose sequence is below the one of
+the last record that names the VM and generation it read from that
+`wb-proxyd`. A refused answer is a crash of `wb-proxyd`. A high
+sequence isn't refused, because the read below ends at its own bound.
 
 That read runs under the stop allowance of S09-11-audit ("Telling the
-senders"). It reads past the holds, for at most as many records as the
-allowance gives a `wb-netd`, plus the records step 2 and 3 may queue
-past the cap. Records of another VM read under it count toward that
-VM's budget as usual. The read ends at the first of:
+senders"). It reads past the holds. Its bound is as many records as the
+allowance gives a `wb-netd`, plus the records the VM's closes may queue
+past the cap. So the read's last sequence is the last one read when the
+answer came plus that bound. Records of another VM read under it count
+toward that VM's budget as usual. The read ends at the first of:
 
 - the named sequence;
-- the allowance, logged with `event-stop-allowance`;
+- the read's last sequence, logged with `event-stop-allowance`;
 - the end of `wb-proxyd`'s channel;
 - a deadline in code, which ends `wb-proxyd` with
   `handoff-end-read-timeout`. The exit counts toward its restart limit.
@@ -121,7 +127,8 @@ its stop answer names. `wb-hostd` opens the window before it sends that
 
 A record that names the VM and generation outside the window ends
 `wb-proxyd` with `event-record-invalid`. The one exception is a record
-at or below that sequence that comes after the read stopped short.
+that comes after the read stopped short, at or below the lower of the
+named sequence and the read's last sequence.
 `wb-hostd` drops it and logs it with `event-stop-allowance`, because
 `wb-proxyd` sent it in the window.
 
