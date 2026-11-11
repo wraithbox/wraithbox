@@ -583,17 +583,27 @@ framework, a `.DS_Store` with arbitrary bytes in `Resources`, mode 6755
 on the main executable, and mode 0777 on `Info.plist` and `Frameworks`
 all passed with exit 0. Its second round found the same for arbitrary
 bytes in `Contents/PkgInfo` and in a `locversion.plist` directly in a
-`Resources/*.lproj`, in every nested bundle. A new file in `Resources`
+`Resources/*.lproj`, in every nested bundle. Its third round found the
+same for an unsealed `CodeResources` at a bundle's resource root and an
+`Info.plist` at a framework's version root. A new file in `Resources`
 and a file in `_CodeSignature` failed with exit 1.
 
 Those files are the `omit` rules of each bundle's `rules2` in
 `_CodeSignature/CodeResources`, plus `_MASReceipt`. In the host's
-Xcode, all 996 bundles with a `CodeResources` omit `^(.*/)?\.DS_Store$`,
+Xcode, all 996 `CodeResources` files omit `^(.*/)?\.DS_Store$`,
 `^Info\.plist$` and `^PkgInfo$`. 834 omit
 `^Resources/.*\.lproj/locversion.plist$`, and the other 162
 `^.*\.lproj/locversion.plist$`. Its 33 `PkgInfo` files are regular
-files of 8 bytes. S06-15-xcode-disk, "What the signature doesn't
-seal", turns that into checks in the shim and in `install-xcode`.
+files of 8 bytes. The third round found that only 529 of the 996
+belong to a bundle that an enclosing bundle's `files2` lists with a
+`cdhash`, and so govern their paths. The other 467 are plain files
+under the enclosing seal. `MacOSX.platform`'s
+`^.*\.lproj/locversion.plist$` would otherwise refuse the
+`locversion.plist` it ships, which its enclosing seal covers. On the
+installed Xcode, three files were outside every seal: the receipt and
+two `PkgInfo` files.
+S06-15-xcode-disk, "What the signature doesn't seal", turns that into
+checks in the shim and in `install-xcode`.
 
 ### Attended steps
 
@@ -644,10 +654,13 @@ past a page's length:
 - the image is sized from the sum of `st_size`, not from blocks;
 - `eraseDisk` mounted the new volume in `/Volumes` in this run. The
   shim instead creates it without that mount and mounts it only on a
-  directory in the bundle, with an invocation I681 measures. It finds the volume by device only, and
+  directory in the bundle, with `addVolume -nomount` and `diskutil
+  mount`, which I681 measures. It checks the mount's flags, finds the
+  volume by device only, and
   requires an empty volume before the copy and only what it copied
   before the unmount;
-- the copy drops `_MASReceipt` and `.DS_Store` at any depth;
+- the copy drops `_MASReceipt` and `.DS_Store` at any depth, and
+  holds every other file to the seal of the bundle that governs it;
 - the copy is checked again, runtimes included, and the reported
   values come from the copy;
 - the profile's additions are named, with `com.apple.trustd.agent` as
