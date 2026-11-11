@@ -4436,7 +4436,7 @@
 		"kind": "issue",
 		"state": "open",
 		"title": "Hand-off socket contract of S07-20: socket number, HandoffSocketHeld, states, close reports, and a VM's end",
-		"summary": "Builds the hand-off socket contract of S07-20-handoff-sockets (#754, PR #758) in one change, before #480."
+		"summary": "Builds the hand-off socket contract of S07-20-handoff-sockets and the end exchange of S07-21-vm-end (#754, PR #758) in one change, before #480."
 	},
 	"729": {
 		"kind": "issue",
@@ -4630,5 +4630,23 @@
 		"state": "open",
 		"title": "Prose checks: cspell in every worktree, report pages checked before the train, Vale on changed files, and a batch prose pass",
 		"summary": "A measurement of the prose checks (Vale prose:lint, cspell prose:spell) over 2026-11-05 to 2026-11-10 found low cost: about 2 to 3% of agent tokens and 2.2% of GitHub CI job-minutes."
+	},
+	"761": {
+		"kind": "pr",
+		"state": "closed",
+		"title": "build(go): move to Go 1.27.4 for GO-2026-6859",
+		"summary": "The required \"Dependency vulnerability scan\" check fails on every pull request since GO-2026-6859 was published today."
+	},
+	"762": {
+		"kind": "issue",
+		"state": "open",
+		"title": "ci: govulncheck findings warn instead of failing the build",
+		"summary": "GO-2026-6859 (a crash in Go's net/http HTTP/1 server, found in go1.27.3 and fixed in go1.27.4) fails go:vulncheck since 2026-11-11."
+	},
+	"763": {
+		"kind": "issue",
+		"state": "open",
+		"title": "ci: find a way to ignore single govulncheck advisories, and fail on findings again",
+		"summary": "Find a way to get back to \"fail on a finding, except named advisories until a date\", matching how osv-scanner.toml handles an ignoreUntil entry (AGENTS.md, \"Supply chain\"; scripts/osv-ignores.mjs)."
 	}
 }

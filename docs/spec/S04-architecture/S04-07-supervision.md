@@ -272,7 +272,8 @@ down too:
 - a crash that a guest finds in it, until the restart;
 - its given-up state;
 - a blocked event channel (`event-channel-blocked`);
-- a VM's end that it doesn't close in time (`handoff-end-timeout`);
+- a socket fault charged to it (`handoff-proxyd-ended`);
+- a VM's end it misses in time (`handoff-end-timeout`, `handoff-end-read-timeout`);
 - the 1Password prompts its restarts cause, after V1.
 
 A VM's normal stop doesn't end it (S07-21-vm-end). That is a residual

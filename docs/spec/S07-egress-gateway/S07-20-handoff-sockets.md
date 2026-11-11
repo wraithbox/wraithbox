@@ -44,8 +44,8 @@ last column says which ones I728 adds, with the socket number in each.
 | `HandoffSocketAck` | `wb-proxyd` | it holds the end it names | the number |
 | `HandoffSocketHeld` | `wb-netd` | it holds the end it names | I728 |
 | `HandoffSocketClosed` | `wb-proxyd` | it closed the socket it names, with a rule and a check | the number and two rules |
-| `HandoffSocketEnd` | `wb-hostd` | close the VM's sockets up to a number | I728 |
-| `HandoffSocketEnded` | `wb-proxyd` | it closed them | I728 |
+| `HandoffSocketEnd` | `wb-hostd` | close the VM's sockets up to a number, and whether the VM stops | I728 |
+| `HandoffSocketEnded` | `wb-proxyd` | it closed them, and at a stop its last event record | I728 |
 
 S07-21-vm-end has the last two.
 
@@ -70,8 +70,8 @@ has no hand-off socket (S07-18-build-network).
 Each wait from offered and from acknowledged has a deadline in code
 (`egress.AckTimeout`), and `wb-hostd` holds its copies until then
 (S04-12-descriptor-passing). When a socket fails, `wb-hostd` closes
-its copies and sends `HandoffSocketEnd` for it, so `wb-proxyd` doesn't
-keep it open. At a start or restore it refuses the start with
+its copies and sends a socket end for it (S07-21-vm-end), so
+`wb-proxyd` doesn't keep it open. At a start or restore it refuses the start with
 `proxyd-setup-failed` and the check: `ack-timeout`, `held-timeout`, or
 `handoff-closed`. For a running VM, "Who a failure is charged to"
 says what it does.
@@ -130,10 +130,13 @@ it resets (`handoff-socket-ended`).
 
 ### Isolation between VMs
 
-Only a fault in a message from `wb-hostd` ends `wb-proxyd`'s control
-channel: its form, its socket type, its VM slot, its generation or its
-number, as S07-05-stream-hand-off ("From `wb-hostd`") lists them
-(I576). `wb-hostd` is the trusted core, so such a fault is a bug in it.
+No fault on a socket ends `wb-proxyd`'s control channel. It ends for a
+fault in a message from `wb-hostd`: its form, its socket type, its VM
+slot, its generation or its number, as S07-05-stream-hand-off ("From
+`wb-hostd`") lists them (I576). `wb-hostd` is the trusted core, so such
+a fault is a bug in it. It also ends for `wb-proxyd`'s own faults on
+the channel: a notice `wb-hostd` refuses ("Notices for another
+socket"), or one it can't send ("`wb-proxyd`'s end").
 
 Anything that goes wrong on a socket after `wb-proxyd` accepted it
 closes that socket only, with its streams. `wb-proxyd` reports it in
@@ -160,7 +163,8 @@ is replaced or ended sends no `HandoffSocketClosed`.
 
 A guest can cause each failure charged to `wb-netd`, through a
 `wb-netd` it compromised or one it slows down. For one on a running VM,
-`wb-hostd` ends that VM's `wb-netd` with `handoff-netd-ended` and the
+`wb-hostd` ends the `wb-netd` the socket was given to, with
+`handoff-netd-ended` and the
 rule or check as the cause. The exit counts toward `wb-netd`'s restart
 limit (S04-07-supervision, "Restarting a daemon"). A `held-timeout` is
 charged the same way, as `wb-netd` withheld its acknowledgment.
@@ -171,11 +175,14 @@ which no `wb-netd` can cause. For one on a running VM, `wb-hostd` ends
 is charged the same way. The exit counts toward `wb-proxyd`'s restart
 limit, and never toward a `wb-netd`'s.
 
-`wb-proxyd` raises its descriptor limit at its start to cover the caps
-of every VM slot at once: per slot its hand-off socket, two descriptors
-for each stream under S07-05-stream-hand-off ("Caps"), and a margin in
-code. If it can't, it refuses to start with `proxyd-descriptor-limit`.
-So one VM at its caps can't make the other's records arrive at a full
+`wb-proxyd` raises its descriptor limit at its start to cover every
+descriptor the `wb-netd`s of all VM slots can make it hold at once. Per
+slot that is its hand-off socket, two for each stream and one for each
+message read but not yet decided under S07-05-stream-hand-off ("Caps"),
+and the most one message can carry (S07-05-stream-hand-off, "Message
+form"). A margin in code covers its own. If it can't, it logs `proxyd-descriptor-limit` and
+exits, as `wb-netd` does for a failed start check (S04-09-netd-start). So
+one VM at its caps can't make the other's records arrive at a full
 descriptor table.
 
 ### Generations and restarts
@@ -219,18 +226,22 @@ A decision about a stream, a name report or a socket is an egress
 decision (SEC10-audit, every egress decision is recorded on the host).
 The process that makes it sends it on the VM's event channel with its
 rule, rate-limited per rule (S07-02-packet-path, "Events and rate
-limits"). That includes `wb-netd`'s hand-off sender.
+limits"). That includes `wb-netd`'s hand-off sender. A decision's record
+is queued before the bytes it allows are forwarded.
 
 | Process | Rules it records |
 |---|---|
 | `wb-netd` | `handoff-send-failed`, `handoff-unavailable`, `handoff-socket-refused`, `stream-refused`, `stream-reset`, `guest-write-timeout`, `guest-write-failed`, `proxyd-stream-read-failed`, `handoff-socket-ended`, `proxyd-message-refused` |
 | `wb-proxyd` | `handoff-socket-refused`, `name-report-refused`, `stream-handoff-refused`, `fdchan-fd-table-full`, `address-conflict`, `stream-write-timeout`, `stream-end-unrecorded`, and each rule of "Closing a socket" |
-| `wb-hostd` | `proxyd-setup-failed`, `handoff-netd-ended`, `handoff-proxyd-ended`, `handoff-end-timeout`, `proxyd-records-lost`, `proxyd-descriptor-limit` |
+| `wb-hostd` | `proxyd-setup-failed`, `handoff-netd-ended`, `handoff-proxyd-ended`, `handoff-end-timeout`, `handoff-end-read-timeout`, `proxyd-records-lost` |
 
 `wb-hostd` writes its own decisions to the audit log itself. These go
 only to the daemon log, because they decide nothing about a guest's
 traffic: `handoff-notice-stale`, `stream-hold-expired`,
 `stream-reset-unknown`, `vm-fresh-start` and `active-period-start`.
+`proxyd-descriptor-limit` is a start check of `wb-proxyd`. Its log
+line reaches `wb-hostd` on the log pipe, and the exit counts toward the
+restart limit (S04-07-supervision, "Restarting a daemon").
 
 Two processes record `handoff-socket-ended` and
 `handoff-socket-refused`, each with its own meaning. The record's
@@ -265,7 +276,7 @@ names it.
 
 After `wb-proxyd` accepts a socket, a failure on it closes that socket
 only and is reported. `wb-hostd` ends the daemon the failure is charged
-to. Only a fault in `wb-hostd`'s message ends the control channel.
+to. No fault on a socket ends the control channel.
 
 - **Why:** one `wb-proxyd` serves every VM (T14-shared-proxyd). A
   socket fault a guest can cause is the doing of one VM's `wb-netd`.

@@ -164,8 +164,8 @@ clears its set for the VM, then sends `wb-proxyd` an
 `wb-proxyd` clears its count for the VM and logs it with the rule
 `active-period-start`. The copy keeps its entries, as `wb-netd`'s
 mapping does. `wb-proxyd` doesn't acknowledge the message. It decides
-control messages in order, so the acknowledgment of a later message
-says this one applied. A fresh `HandoffSocket` clears the count too
+the control messages about a VM in order (S07-21-vm-end), so the
+acknowledgment of a later message about the VM says this one applied. A fresh `HandoffSocket` clears the count too
 ("Lifetime").
 
 Refused lookups never reach `wb-proxyd`, so its count is at most

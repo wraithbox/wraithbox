@@ -514,8 +514,24 @@ Spec: S04-architecture.
   - at a VM stop, `HandoffSocketEnd` comes before `wb-netd`'s control
     channel closes, covers a socket that closed or failed first, and the
     VM's events end only after the record its answer names;
+  - a socket end and a stop end for the same number, after a failure
+    and a stop, a failed start socket and a refused start, or a
+    `wb-netd` exit just before the stop, each get their own answer, and
+    `wb-proxyd` goes on;
   - no answer by the deadline ends `wb-proxyd` with
     `handoff-end-timeout` and writes `proxyd-records-lost`;
+  - a `wb-proxyd` that exits with an end unanswered ends that wait,
+    writes `proxyd-records-lost` and ends the VM's events, and the new
+    `wb-proxyd` gets no end;
+  - an answer whose sequence is below the VM's last record read, or past
+    the allowance, is refused, and a read that doesn't reach the
+    sequence in time ends `wb-proxyd` with `handoff-end-read-timeout`;
+  - a read cut by the allowance names the cut in the stop record;
+  - no `PolicyChange` or `ActivePeriodStart` for a VM goes out after
+    its stop end;
+  - a `wb-netd` that withholds `HandoffSocketHeld` after a `wb-proxyd`
+    restart doesn't delay the other VM's socket, and one VM's stop end
+    doesn't delay the other VM's acknowledgment;
   - a `wb-proxyd` record that names a VM and generation outside its
     window ends `wb-proxyd` with `event-record-invalid`.
 - Block an accounting write past 100 ms, and see the lookup refused
