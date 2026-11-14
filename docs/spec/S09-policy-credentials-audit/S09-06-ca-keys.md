@@ -42,6 +42,16 @@ and on the 1Password backend after V1 (S15-02-secret-store).
 A permanent Secure Enclave key in the access group also works in a
 team-signed build (X29-dev-signing). Wraith Box doesn't use one.
 
+`wb-proxyd` takes any key the Secure Enclave token gives. On a Mac VM
+that token is the hypervisor's virtual Secure Enclave, so a key there
+is only as strong as the hypervisor and its host. Wraith Box doesn't
+support a Mac VM as its host (I509), and no rule refuses one. CI's macOS runners
+are such VMs, and give working keys to an unsigned test binary, so CI
+runs the shim's round trip there (C02-streams-and-tls, "CA key"). A
+Mac without a Secure Enclave gets the error of Security.framework from
+generate and restore. No test covers that error path, because CI has
+no such Mac.
+
 #### Attributes
 
 The key and its item have the attributes X09-keychain-unsigned
@@ -53,6 +63,14 @@ The key has:
 - an access control with `kSecAccessControlPrivateKeyUsage` as its
   only flag, so no signature asks for user presence or biometry;
 - the protection `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`.
+
+`kSecAttrIsPermanent` is what the call asks for. A Secure Enclave key
+made with it false reads it back as true, so a check of the attribute
+can't tell. The check is a search of the keychain for the key, which
+finds nothing. The maintainer's run of 2026-11-10 measured both on a
+Secure Enclave key (I509).
+A restored key has the same access control as the new one, with
+no flag passed at the restore.
 
 The store item has `kSecAttrSynchronizable` false, so it never leaves
 the Mac.
@@ -66,6 +84,14 @@ Passed without that attribute, the ID gives a new key without an error
 (X09-keychain-unsigned). So each time `wb-proxyd` restores a key, it
 checks that the key's public key equals the one in the CA certificate
 before it signs.
+
+The public key a restored key reports comes from the token object ID's
+own bytes. On CI's Mac VM, a token object ID with one byte of its
+wrapped key changed restored with no error and the same public key
+(I509). So the restore signs a fixed digest with the key and verifies
+the signature with that public key, and an error or a signature that
+doesn't verify fails the restore. With that, the public key check is a
+check of the key that signs.
 
 #### Windows
 
@@ -151,7 +177,8 @@ Any other failure is `ca-key-restore`:
 
 - a missing item;
 - a store error;
-- an error from the restore;
+- an error from the restore, including a key whose signature doesn't
+  verify with its own public key;
 - a public key that differs.
 
 Then `wb-proxyd` serves none of the VM's streams, and the VM's start or
@@ -190,5 +217,20 @@ The same wrapped key is used in every build, on the Keychain backend
 and on the 1Password backend after V1 (S15-02-secret-store).
 
 - **Decided:** I23 (B23-keychain-unsigned, decision 2A).
+
+### A Mac VM's virtual Secure Enclave is accepted and tested on CI
+
+`wb-proxyd` takes the key a Mac VM's virtual Secure Enclave gives, and
+CI's macOS runners run the shim's round trip with it. This replaces
+decision 5 on I509, which took a VM to have no Secure Enclave and
+expected generate and restore to fail there. CI's runner
+(`VirtualMac2,1`) gave a working key.
+
+- **Why:** a run on a Mac VM is unsupported, and the round trip on CI
+  is the only CI test of the shim's real calls.
+- **Rejected:** refusing a key on a `VirtualMac` host, because it adds
+  a rule for a case nobody runs. Dropping the test, because the shim
+  then has no CI coverage.
+- **Decided:** I509, by the maintainer, 2026-11-10.
 
 **Status:** Draft

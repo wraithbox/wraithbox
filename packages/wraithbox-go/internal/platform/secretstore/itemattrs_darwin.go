@@ -3,10 +3,11 @@
 package secretstore
 
 // The read-back of an item's attributes, for the host tests only
-// (C05-credentials-and-store, "Host tests"). It matches an item in any
-// of the process's groups, synchronizable or not, so it is behind the
-// wbstorehost tag, which only `mise run store:host-test` sets, and no
-// program's build holds it.
+// (C05-credentials-and-store, "Host tests"; C02-streams-and-tls, "CA
+// key"). It matches an item in any of the process's groups,
+// synchronizable or not, so it is behind the wbstorehost tag, which
+// only `mise run store:host-test` sets, and no program's build holds
+// it.
 
 /*
 #cgo LDFLAGS: -framework Security -framework CoreFoundation
@@ -122,8 +123,8 @@ import "C"
 
 import "unsafe"
 
-// itemAttributes is what the host test reads back about an item.
-type itemAttributes struct {
+// ItemAttributes is what a host test reads back about an item.
+type ItemAttributes struct {
 	// Count is how many items of the name the process reaches.
 	Count int
 	// Group is the access group of the first one, and Account its
@@ -139,10 +140,11 @@ type itemAttributes struct {
 	Synchronizable int
 }
 
-// readItemAttributes reads back the attributes of item, in any of the
-// process's groups, for the host test (C05-credentials-and-store). It
-// never reads a value.
-func readItemAttributes(item string) (itemAttributes, Status) {
+// ReadItemAttributes reads back the attributes of item, in any of the
+// process's groups, for the host tests of this package
+// (C05-credentials-and-store) and of internal/proxyd/ca
+// (C02-streams-and-tls, "CA key"). It never reads a value.
+func ReadItemAttributes(item string) (ItemAttributes, Status) {
 	i := C.CString(item)
 	defer C.free(unsafe.Pointer(i))
 	r := C.wb_item_attributes(i)
@@ -150,9 +152,9 @@ func readItemAttributes(item string) (itemAttributes, Status) {
 	defer C.free(unsafe.Pointer(r.account))
 	defer C.free(unsafe.Pointer(r.accessible))
 	if r.status != 0 {
-		return itemAttributes{}, Status(r.status)
+		return ItemAttributes{}, Status(r.status)
 	}
-	a := itemAttributes{
+	a := ItemAttributes{
 		Count:                      int(r.count),
 		WhenUnlockedThisDeviceOnly: r.when_unlocked_this_device_only != 0,
 		Synchronizable:             int(r.synchronizable),

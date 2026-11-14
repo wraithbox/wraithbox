@@ -21,6 +21,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -35,7 +36,8 @@ const (
 	hostEnv = "WB_STORE_HOST_TEST"
 	// stepEnv names the step of the run: "" for the bundle with the
 	// binding and ca groups, binding-only for the bundle with binding
-	// alone, and confine-after, confine-first, lock and g2.
+	// alone, and confine-after, confine-first, lock, g2, sweep-before and
+	// sweep-after.
 	stepEnv = "WB_STORE_HOST_STEP"
 	// g2OutEnv is the file the maintainer's run of Apple's security tool
 	// writes to in the g2 step.
@@ -301,7 +303,7 @@ func TestC05HostCARoundTrip(t *testing.T) {
 // every write, that doesn't synchronize (G4, S15-02-secret-store, "Backend guarantees").
 func checkAttributes(t *testing.T, item storeitem.Name, role storeitem.Role) {
 	t.Helper()
-	a, st := readItemAttributes(item.String())
+	a, st := ReadItemAttributes(item.String())
 	if st != StatusOK {
 		t.Fatalf("attributes of %s: OSStatus %d", item, st)
 	}
@@ -455,6 +457,99 @@ func TestC05HostConfineAfterOpen(t *testing.T) {
 	}
 	if err := roundTrip(t, credset, proxyd, item); err != nil {
 		t.Error(err)
+	}
+}
+
+// testNames matches the names the host tests make: a binding of
+// testItem, and a CA item of testItem or of internal/proxyd/ca's host
+// tests, whose CA id is 32 hex digits. Each random part is 12 hex
+// digits after hostPrefix.
+var testNames = regexp.MustCompile(`^` + regexp.QuoteMeta(storeitem.Prefix) +
+	`(binding/wbtest-[0-9a-f]{12}|ca/wbtest-[0-9a-f]{12}/(wbtest-[0-9a-f]{12}|[0-9a-f]{32}))$`)
+
+// testShaped reports whether name is a valid item name of a shape a host
+// test makes. A user's binding may start with hostPrefix too, as
+// wbtest-prod, and the sweep must not delete it (SEC12-least-privilege).
+func testShaped(name string) bool {
+	if _, err := storeitem.Parse(name); err != nil {
+		return false
+	}
+	return testNames.MatchString(name)
+}
+
+// TestC05HostSweepShapes: the sweep deletes only names of the shapes the
+// host tests make. It calls no store.
+func TestC05HostSweepShapes(t *testing.T) {
+	for name, want := range map[string]bool{
+		"wraithbox/binding/wbtest-0123456789ab":                             true,
+		"wraithbox/ca/wbtest-0123456789ab/wbtest-ba9876543210":              true,
+		"wraithbox/ca/wbtest-0123456789ab/0123456789abcdef0123456789abcdef": true,
+		"wraithbox/binding/wbtest-prod":                                     false,
+		"wraithbox/binding/wbtest-0123456789abc":                            false,
+		"wraithbox/binding/wbtest-0123456789AB":                             false,
+		"wraithbox/ca/work/wbtest-0123456789ab":                             false,
+		"wraithbox/ca/wbtest-0123456789ab/0123456789abcdef0123456789abcde":  false,
+		"wraithbox/wbadmin/vm/wbtest-0123456789ab/wbtest-0123456789ab":      false,
+		"wraithbox/binding/wbtest-0123456789ab/x":                           false,
+		"other/binding/wbtest-0123456789ab":                                 false,
+	} {
+		if got := testShaped(name); got != want {
+			t.Errorf("testShaped(%q) = %v, want %v", name, got, want)
+		}
+	}
+}
+
+// TestC05HostSweep finds every item with hostPrefix in the bundle's
+// groups through the backend, as the test harness and not as a program,
+// and deletes each by its name when it has a shape a host test makes
+// (testShaped). It fails on any other name with hostPrefix and leaves
+// it. It runs first and last in a run, as the sweep-before and
+// sweep-after steps. The CA key's host tests run as wb-proxyd, which may
+// not list the ca group (S15-03-access-rules, "Declared access"), so
+// this step checks what they left. sweep-before reports and removes what
+// an earlier run left, and sweep-after fails when this run left
+// anything.
+func TestC05HostSweep(t *testing.T) {
+	step := os.Getenv(stepEnv)
+	switch step {
+	case "sweep-before":
+		hostStep(t, "sweep-before")
+	default:
+		hostStep(t, "sweep-after")
+	}
+	k := &keychain{}
+	groups, err := k.Groups()
+	if err != nil {
+		t.Fatalf("the groups: %v", err)
+	}
+	for _, group := range groups {
+		names, st := k.List(t.Context(), group)
+		if st != StatusOK {
+			t.Errorf("listing %s: OSStatus %d", group, st)
+			continue
+		}
+		for _, name := range names {
+			if strings.Contains(name, "/"+hostPrefix) {
+				sweepItem(t, k, step, group, name)
+			}
+		}
+	}
+}
+
+// sweepItem deletes the item name with hostPrefix that a run left in
+// group, when it has a shape a host test makes, and otherwise fails
+// and leaves it. sweep-after fails on any item it finds.
+func sweepItem(t *testing.T, k *keychain, step, group, name string) {
+	t.Helper()
+	if !testShaped(name) {
+		t.Errorf("%s: %s in %s has %q but isn't a name a host test makes, so it isn't deleted",
+			step, name, group, hostPrefix)
+		return
+	}
+	st := k.Delete(t.Context(), group, name)
+	t.Logf("%s: %s was left by a run, deleted: OSStatus %d", step, name, st)
+	if step == "sweep-after" || st != StatusOK {
+		t.Errorf("%s was left in %s", name, group)
 	}
 }
 
