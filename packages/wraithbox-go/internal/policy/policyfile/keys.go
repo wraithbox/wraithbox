@@ -3,7 +3,7 @@ package policyfile
 import (
 	"slices"
 
-	"go.yaml.in/yaml/v3"
+	"go.yaml.in/yaml/v4"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/policy"
 )
