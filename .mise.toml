@@ -37,7 +37,7 @@ lockfile = true
 # `minimum_release_age` above applies the same 7-day cooldown to `mise up`
 # and to Renovate's weekly `mise.lock` maintenance.
 [tools]
-go = "1.27.3"
+go = "1.27.4"
 golangci-lint = "2.15.0"
 gofumpt = "0.12.0"
 # Swift maintainability gate (complexity/size rules only; see .swiftlint.yml).
@@ -57,14 +57,14 @@ actionlint = "1.7.12"
 shellcheck = "0.11.0"
 # Used by `mise run vuln:osv`: one scanner for go.mod, bun.lock and
 # SwiftPM's Package.resolved.
-osv-scanner = "2.7.0"
+osv-scanner = "2.7.1"
 # Used by `mise run go:vulncheck`. Not redundant with osv-scanner: osv
 # reads go.mod, so it never sees the Go *toolchain*, and a Go stdlib CVE
 # is invisible to it. govulncheck also does reachability analysis.
 "go:golang.org/x/vuln/cmd/govulncheck" = "1.9.0"
 # Prose lint (`mise run prose:lint`). Its style packages are vendored
 # under .vale/styles/ (see .vale.ini), so the lint needs no network.
-vale = "3.26.0"
+vale = "3.27.0"
 # Used by `mise run proto:check` and `proto:generate`: lints the .proto
 # contracts, checks them for breaking changes against main, and runs the
 # code generators (B52-proto-contracts). Every plugin it runs is local:
@@ -651,7 +651,7 @@ zizmor --github-token "$token" --collect=all --strict-collection .github
 description = "Validate renovate.json with Renovate's own validator (Docker, network; not part of `ci`)"
 run = """
 docker run --rm -v "$PWD:/work:ro" -w /work --entrypoint renovate-config-validator \
-  ghcr.io/renovatebot/renovate:44.206.2 --strict renovate.json
+  ghcr.io/renovatebot/renovate:44.239.1 --strict renovate.json
 """
 
 # ---------- Dependency vulnerability scanning ----------
