@@ -643,15 +643,28 @@ zizmor --github-token "$token" --collect=all --strict-collection .github
 """
 
 # Renovate's config validator, from the same image the Renovate workflow
-# runs (.github/workflows/renovate.yml). Keep the tag equal to the one
-# there; Renovate bumps both in one PR. Not part of `ci`: it needs Docker
-# and pulls the image over the network. CI runs it in the `actions` job.
-# --strict also fails on a config that only needs migrating.
+# runs. The image and its tag are written in one place, the Renovate step
+# of .github/workflows/renovate.yml, and this task reads them from there.
+# Renovate bumps the tag only in that file: a dependency extracted from
+# .mise.toml that is not a mise tool breaks Renovate's `mise lock` (#769).
+# The task fails unless the workflow names the image exactly once. Not
+# part of `ci`: it needs Docker and pulls the image over the network. CI
+# runs it in the `actions` job. --strict also fails on a config that only
+# needs migrating.
 [tasks."renovate:validate"]
 description = "Validate renovate.json with Renovate's own validator (Docker, network; not part of `ci`)"
 run = """
+set -eu
+workflow=.github/workflows/renovate.yml
+images=$(grep -oE 'ghcr[.]io/renovatebot/renovate:[0-9]+[.][0-9]+[.][0-9]+' "$workflow" || true)
+count=$(printf '%s' "$images" | grep -c . || true)
+if [ "$count" -ne 1 ]; then
+  echo "renovate:validate: expected one pinned Renovate image in $workflow, found $count" >&2
+  exit 1
+fi
+echo "renovate:validate: $images (from $workflow)"
 docker run --rm -v "$PWD:/work:ro" -w /work --entrypoint renovate-config-validator \
-  ghcr.io/renovatebot/renovate:44.206.2 --strict renovate.json
+  "$images" --strict renovate.json
 """
 
 # ---------- Dependency vulnerability scanning ----------
