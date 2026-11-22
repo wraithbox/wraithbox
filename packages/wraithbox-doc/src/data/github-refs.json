@@ -3809,7 +3809,7 @@
 	},
 	"624": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S06-14-xcode-image: measure the host export, signature checks and offline import of Xcode and runtimes",
 		"summary": "From #194 (S06-14-xcode-image, the Xcode image variant)."
 	},
@@ -4554,7 +4554,7 @@
 	},
 	"748": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spec): measure the Xcode export, signatures and offline import",
 		"summary": "The Xcode image design held back the build until a real Mac showed how Xcode and its simulator runtimes are exported, signed, licensed and imported."
 	},
@@ -4590,7 +4590,7 @@
 	},
 	"754": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "S07-05-stream-hand-off and S04: settle the hand-off contract end to end (descriptor passing, acks, identity, close, restarts, audit)",
 		"summary": "The hand-off of sockets and streams between host processes keeps getting patched one review at a time:",
 		"brief": "B754-handoff-contract"
@@ -4615,7 +4615,7 @@
 	},
 	"758": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "docs(spec): settle the hand-off contract end to end",
 		"summary": "The rules for passing open sockets between the host daemons, and for the life of each VM's hand-off socket, now each have one place in the spec."
 	},
@@ -4639,7 +4639,7 @@
 	},
 	"762": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "ci: govulncheck findings warn instead of failing the build",
 		"summary": "GO-2026-6859 (a crash in Go's net/http HTTP/1 server, found in go1.27.3 and fixed in go1.27.4) fails go:vulncheck since 2026-11-11."
 	},
@@ -4651,8 +4651,80 @@
 	},
 	"764": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "ci(vuln): make govulncheck findings warn instead of failing",
 		"summary": "govulncheck now reports a vulnerability it finds as a warning and no longer fails the build."
+	},
+	"765": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "build(deps): update module golang.org/x/crypto to v0.59.0 [security]",
+		"summary": "This PR contains the following updates:"
+	},
+	"766": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "build(deps): update dependency astro to v7.4.7 [security]",
+		"summary": "This PR contains the following updates:"
+	},
+	"767": {
+		"kind": "pr",
+		"state": "open",
+		"title": "build(deps): update all non-major dependencies",
+		"summary": "[!NOTE] This PR body was truncated due to platform limits."
+	},
+	"768": {
+		"kind": "pr",
+		"state": "open",
+		"title": "build(deps): update module go.yaml.in/yaml/v3 to v4",
+		"summary": "This PR contains the following updates:"
+	},
+	"769": {
+		"kind": "issue",
+		"state": "closed",
+		"title": "Renovate: the mise.lock update fails because the Renovate image pin is extracted from .mise.toml",
+		"summary": "Renovate can't update mise.lock when one pull request bumps both a mise tool and Renovate's own image."
+	},
+	"770": {
+		"kind": "issue",
+		"state": "open",
+		"title": "policyfile: move go.yaml.in/yaml from v3 to v4, and refuse the node kinds v4 adds",
+		"summary": "Renovate proposes go.yaml.in/yaml/v3 v3.0.6 to go.yaml.in/yaml/v4 v4.0.0 in #768."
+	},
+	"771": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "fix(ci): write the Renovate image tag only in renovate.yml",
+		"summary": "Renovate's own container image version was written in two places: the workflow that runs Renovate and the config-validation task in the mise configuration."
+	},
+	"772": {
+		"kind": "pr",
+		"state": "open",
+		"title": "fix(go): move the policy file parser to go.yaml.in/yaml/v4",
+		"summary": "The policy file parser now reads YAML with version 4 of the Go YAML library, because version 3 only gets security fixes now."
+	},
+	"773": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Docs site: ThemeSelect fails astro check with Starlight 0.43.1 (StarlightThemeProvider is gone)",
+		"summary": "Renovate's #767 (all non-major updates) moves @astrojs/starlight from 0.42.8 to 0.43.1, with astro 7.4.7 to 7.4.12 and @astrojs/markdown-remark 7.3.5 to 7.3.9."
+	},
+	"774": {
+		"kind": "issue",
+		"state": "open",
+		"title": "Docs site: remark-refs reads the PKCE method S256 in X01 as a spec ID",
+		"summary": "docs/spikes/X01-model-credential.md (line 342) says \"an S256 PKCE challenge\"."
+	},
+	"775": {
+		"kind": "pr",
+		"state": "open",
+		"title": "fix(doc): follow Starlight 0.43's theme select, move to 0.43.1",
+		"summary": "The docs site's theme picker stopped type-checking with the next Starlight release, because Starlight removed the browser-side hook the picker called to update itself."
+	},
+	"776": {
+		"kind": "pr",
+		"state": "merged",
+		"title": "build(deps): lock file maintenance",
+		"summary": "This PR contains the following updates:"
 	}
 }

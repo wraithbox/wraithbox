@@ -13,22 +13,22 @@
  *   'auto'            the reader picked "Auto": follow prefers-color-scheme
  *   anything else     no choice yet: dark
  *
- * Stock Starlight stores "auto" as an empty string, and also writes that
- * empty string on every first visit, so it cannot tell "picked Auto" from
- * "never chose". This override stores 'auto' explicitly and treats the
- * empty string (left behind by an earlier version of the site) as "no
- * choice", i.e. dark.
+ * Stock Starlight stores "auto" as an empty string, so it cannot tell
+ * "picked Auto" from "never chose". This override stores 'auto' explicitly
+ * and treats the empty string (left behind by an earlier version of the
+ * site) as "no choice", that is dark.
  *
- * Copied from @astrojs/starlight 0.42.0's ThemeProvider.astro; only the
- * theme resolution differs. Check it again when upgrading Starlight.
+ * Copied from @astrojs/starlight 0.43.1's ThemeProvider.astro; only the
+ * theme resolution differs. Since 0.43 the theme select no longer uses a
+ * global from this script: ThemeSelect.astro sets its own picker.
+ * Check it again when upgrading Starlight.
  * The script is inline, as upstream's is, so the theme is set before
  * first paint (no flash of the wrong theme).
  */
-import { Icon } from '@astrojs/starlight/components';
 ---
 
 <script is:inline>
-	window.StarlightThemeProvider = (() => {
+	(() => {
 		const stored = typeof localStorage !== 'undefined' && localStorage.getItem('starlight-theme');
 		/** The reader's choice; no choice (or an unknown value) means the dark default. */
 		const choice = stored === 'light' || stored === 'dark' || stored === 'auto' ? stored : 'dark';
@@ -39,28 +39,5 @@ import { Icon } from '@astrojs/starlight/components';
 					: 'dark'
 				: choice;
 		document.documentElement.dataset.theme = theme;
-		return {
-			updatePickers(theme = choice) {
-				document.querySelectorAll('starlight-theme-select').forEach((picker) => {
-					const select = picker.querySelector('select');
-					if (select) select.value = theme;
-					/** @type {HTMLTemplateElement | null} */
-					const tmpl = document.querySelector(`#theme-icons`);
-					const newIcon = tmpl && tmpl.content.querySelector('.' + theme);
-					if (newIcon) {
-						const oldIcon = picker.querySelector('svg.label-icon');
-						if (oldIcon) {
-							oldIcon.replaceChildren(...newIcon.cloneNode(true).childNodes);
-						}
-					}
-				});
-			},
-		};
 	})();
 </script>
-
-<template id="theme-icons">
-	<Icon name="sun" class="light" />
-	<Icon name="moon" class="dark" />
-	<Icon name="laptop" class="auto" />
-</template>
