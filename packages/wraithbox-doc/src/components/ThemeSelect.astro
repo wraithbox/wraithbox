@@ -3,21 +3,23 @@
  * Starlight `ThemeSelect` override: the theme toggle, with dark as the
  * default. See ThemeProvider.astro for how the stored choice is read.
  *
- * Copied from @astrojs/starlight 0.42.0's ThemeSelect.astro. Differences:
+ * Copied from @astrojs/starlight 0.43.1's ThemeSelect.astro. Differences:
  * - "Dark" is the option selected before the inline script runs.
  * - A missing or unknown stored value means dark, not auto.
  * - "Auto" is stored as 'auto' (upstream stores ''), so it survives as an
  *   explicit choice.
  * - Constructing the element does not write to localStorage, so a first
  *   visit records no choice.
+ * As upstream does since 0.43, the select's icon is a slot holding all
+ * three icons, and CSS shows the one whose option is checked.
  * Check it again when upgrading Starlight.
  */
+import { Icon } from '@astrojs/starlight/components';
 import Select from '@astrojs/starlight/components/Select.astro';
 ---
 
 <starlight-theme-select>
 	<Select
-		icon="moon"
 		label={Astro.locals.t('themeSelect.accessibleLabel')}
 		options={[
 			{ label: Astro.locals.t('themeSelect.dark'), selected: true, value: 'dark' },
@@ -25,13 +27,34 @@ import Select from '@astrojs/starlight/components/Select.astro';
 			{ label: Astro.locals.t('themeSelect.auto'), selected: false, value: 'auto' },
 		]}
 		width="6.25em"
-	/>
+	>
+		<Fragment slot="icon">
+			<Icon name="moon" class="sl-theme-icon-dark" />
+			<Icon name="sun" class="sl-theme-icon-light" />
+			<Icon name="laptop" class="sl-theme-icon-auto" />
+		</Fragment>
+	</Select>
 </starlight-theme-select>
 
-{/* Inlined to avoid FOUC. Uses global scope from `ThemeProvider.astro` */}
-<script is:inline>
-	StarlightThemeProvider.updatePickers();
-</script>
+{/* Inlined to avoid FOUC. Uses `set:html` to avoid an incorrect type error, as upstream does. */}
+<script
+	is:inline
+	set:html={`(() => {
+		const theme = typeof localStorage !== 'undefined' && localStorage.getItem('starlight-theme');
+		if (theme === 'light' || theme === 'dark' || theme === 'auto')
+			document.querySelectorAll('starlight-theme-select select').forEach((s) => { s.value = theme; });
+	})();`}
+></script>
+
+<style>
+	@layer starlight.components {
+		starlight-theme-select:has([value='dark']:not(:checked)) :global(.sl-theme-icon-dark),
+		starlight-theme-select:has([value='light']:not(:checked)) :global(.sl-theme-icon-light),
+		starlight-theme-select:has([value='auto']:not(:checked)) :global(.sl-theme-icon-auto) {
+			display: none;
+		}
+	}
+</style>
 
 <script>
 	type Theme = 'auto' | 'dark' | 'light';
@@ -61,9 +84,13 @@ import Select from '@astrojs/starlight/components/Select.astro';
 	const getPreferredColorScheme = (): 'dark' | 'light' =>
 		matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
 
-	/** Update select menu UI and document theme. */
+	/** Update every theme select menu and the document theme. */
 	function applyTheme(theme: Theme): void {
-		StarlightThemeProvider.updatePickers(theme);
+		document
+			.querySelectorAll<HTMLSelectElement>('starlight-theme-select select')
+			.forEach((select) => {
+				select.value = theme;
+			});
 		document.documentElement.dataset.theme = theme === 'auto' ? getPreferredColorScheme() : theme;
 	}
 
