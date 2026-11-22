@@ -647,24 +647,32 @@ zizmor --github-token "$token" --collect=all --strict-collection .github
 # of .github/workflows/renovate.yml, and this task reads them from there.
 # Renovate bumps the tag only in that file: a dependency extracted from
 # .mise.toml that is not a mise tool breaks Renovate's `mise lock` (#769).
-# The task fails unless the workflow names the image exactly once. Not
-# part of `ci`: it needs Docker and pulls the image over the network. CI
-# runs it in the `actions` job. --strict also fails on a config that only
-# needs migrating.
+# The task fails unless the workflow names the image exactly once, as a
+# bare X.Y.Z tag. Not part of `ci`: it needs Docker and pulls the image
+# over the network. CI runs it in the `actions` job. --strict also fails
+# on a config that only needs migrating.
 [tasks."renovate:validate"]
 description = "Validate renovate.json with Renovate's own validator (Docker, network; not part of `ci`)"
 run = """
 set -eu
 workflow=.github/workflows/renovate.yml
-images=$(grep -oE 'ghcr[.]io/renovatebot/renovate:[0-9]+[.][0-9]+[.][0-9]+' "$workflow" || true)
-count=$(printf '%s' "$images" | grep -c . || true)
+# Every mention of the image counts, comments included, up to the next
+# whitespace, so a digest or tag suffix stays on the match.
+image=$(grep -oE 'ghcr[.]io/renovatebot/renovate[^[:space:]]*' "$workflow" || true)
+count=$(printf '%s' "$image" | grep -c . || true)
 if [ "$count" -ne 1 ]; then
-  echo "renovate:validate: expected one pinned Renovate image in $workflow, found $count" >&2
+  echo "renovate:validate: expected $workflow to name the Renovate image once, found $count" >&2
   exit 1
 fi
-echo "renovate:validate: $images (from $workflow)"
+# A bare X.Y.Z tag only: Renovate's custom manager reads just that much, so
+# a digest or suffix would run an image other than the one it tracks.
+if ! printf '%s\n' "$image" | grep -qxE 'ghcr[.]io/renovatebot/renovate:[0-9]+[.][0-9]+[.][0-9]+'; then
+  echo "renovate:validate: expected a bare X.Y.Z tag in $workflow, found $image" >&2
+  exit 1
+fi
+echo "renovate:validate: $image (from $workflow)"
 docker run --rm -v "$PWD:/work:ro" -w /work --entrypoint renovate-config-validator \
-  "$images" --strict renovate.json
+  "$image" --strict renovate.json
 """
 
 # ---------- Dependency vulnerability scanning ----------
