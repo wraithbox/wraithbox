@@ -121,6 +121,12 @@ nothing else: no step depends on a hit, and tests always run.
 runs it as a GitHub App of the `wraithbox` organization, on this
 repository only (`docs/github-settings.md`, "Renovate").
 
+- Renovate's image tag is written once, in
+  `.github/workflows/renovate.yml`, and the `renovate:validate` task
+  reads it from there. Renovate runs `mise lock` with the names of the
+  dependencies it updates in `.mise.toml`, and mise refuses a name that
+  isn't a mise tool, so Renovate extracts no other dependency from
+  `.mise.toml` (I769).
 - Every version is pinned exactly. Actions are pinned to a commit SHA
   with the version in a comment.
 - A release is proposed 7 days after it was published
