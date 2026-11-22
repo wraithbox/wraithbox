@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"go.yaml.in/yaml/v3"
+	"go.yaml.in/yaml/v4"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/policy"
 )
@@ -26,6 +26,10 @@ func FuzzLoadPolicy(f *testing.F) {
 		withRuleAndExt("  pass:\n    - {host: a.example.com, reason: r}\n", "{host: example.com, port: 443}"),
 		"a: &a [1]\nb: *a\n",
 		"version: 1\n---\n",
+		// Inputs v4 reads differently from v3 (I770).
+		"version: ! 1\n",
+		"...\n",
+		":\n",
 	}
 	data, err := os.ReadFile(filepath.Join("testdata", "openshell-multi-agent-notepad.yaml"))
 	if err != nil {

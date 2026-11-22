@@ -123,6 +123,9 @@ stays in `wb-hostd` because it is Go, bounded and fuzzed
   a pointer and expands nothing. An anchor, an alias, a merge key, a
   tag outside YAML's core schema, a duplicate key, a key that isn't a
   string and a second document are refused with `policy-yaml-form`.
+  So are the non-specific tag `!`, which would make any value a
+  string, and a node of a kind other than a document, mapping, list or
+  scalar, such as a stream node (I770).
 - Every level is then checked against its closed key list before any
   value is read: `policy-key-unknown`, `policy-key-refused` and
   `policy-key-unsupported`. `version` is 1 (`policy-version`).
