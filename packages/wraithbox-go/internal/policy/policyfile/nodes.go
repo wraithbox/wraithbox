@@ -4,7 +4,7 @@ import (
 	"iter"
 	"strconv"
 
-	"go.yaml.in/yaml/v3"
+	"go.yaml.in/yaml/v4"
 )
 
 // pairs yields the keys and values of a mapping node. parse has

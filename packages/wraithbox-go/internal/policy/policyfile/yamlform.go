@@ -5,7 +5,7 @@ import (
 	"errors"
 	"io"
 
-	"go.yaml.in/yaml/v3"
+	"go.yaml.in/yaml/v4"
 )
 
 // The decoder's bounds, those of OpenShell's own parser

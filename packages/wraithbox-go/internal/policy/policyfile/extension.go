@@ -4,7 +4,7 @@ import (
 	"math"
 	"strings"
 
-	"go.yaml.in/yaml/v3"
+	"go.yaml.in/yaml/v4"
 
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/dnsname"
 	"github.com/wraithbox/wraithbox/packages/wraithbox-go/internal/policy"
