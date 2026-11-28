@@ -19,15 +19,15 @@
     "astro": "astro"
   },
   "dependencies": {
-    "@astrojs/markdown-remark": "7.3.5",
+    "@astrojs/markdown-remark": "7.3.10",
     "@astrojs/starlight": "0.43.1",
-    "astro": "7.4.7",
+    "astro": "7.4.13",
     "sharp": "0.35.5"
   },
   "devDependencies": {
     "@astrojs/check": "0.9.12",
-    "cspell": "10.4.0",
-    "playwright": "1.64.1",
+    "cspell": "10.5.2",
+    "playwright": "1.65.1",
     "typescript": "6.0.3"
   },
   "comment:overrides": [
