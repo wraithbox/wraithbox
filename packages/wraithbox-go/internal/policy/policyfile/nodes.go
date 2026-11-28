@@ -4,7 +4,7 @@ import (
 	"iter"
 	"strconv"
 
-	"go.yaml.in/yaml/v3"
+	"go.yaml.in/yaml/v4"
 )
 
 // pairs yields the keys and values of a mapping node. parse has
@@ -41,7 +41,12 @@ func kindName(n *yaml.Node) string {
 		return "a list"
 	case yaml.ScalarNode:
 		return "a scalar of type " + n.ShortTag()
-	case yaml.DocumentNode, yaml.AliasNode:
+	case yaml.DocumentNode:
+		return "a document node"
+	case yaml.AliasNode:
+		return "an alias"
+	case yaml.StreamNode:
+		return "a stream node"
 	}
 	return "node kind " + strconv.Itoa(int(n.Kind))
 }
@@ -100,7 +105,7 @@ func uintValue(n *yaml.Node, maxV uint64) (uint64, bool) {
 	if n.Kind != yaml.ScalarNode || n.ShortTag() != "!!int" {
 		return 0, false
 	}
-	// A leading zero is refused: yaml.v3 reads 0443 as octal, and
+	// A leading zero is refused: yaml v3 and v4 read 0443 as octal, and
 	// ParseUint as decimal, so the two would disagree.
 	if len(n.Value) > 1 && n.Value[0] == '0' {
 		return 0, false

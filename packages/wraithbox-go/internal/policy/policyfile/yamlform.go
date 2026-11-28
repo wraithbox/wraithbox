@@ -5,7 +5,7 @@ import (
 	"errors"
 	"io"
 
-	"go.yaml.in/yaml/v3"
+	"go.yaml.in/yaml/v4"
 )
 
 // The decoder's bounds, those of OpenShell's own parser
@@ -30,6 +30,29 @@ var coreTags = map[string]bool{
 	"!!float": true, "!!seq": true, "!!map": true,
 }
 
+// newLoader returns a loader for data with each option that a check in
+// this file depends on set, so a change of v4's defaults doesn't change
+// what loads (I770):
+//   - WithV3Defaults keeps the loader limits and the error text of v3.
+//   - WithStreamNodes(false) keeps stream nodes out of the tree. walker
+//     refuses one all the same.
+//   - WithSingleDocument(false) reads past the first document, so parse
+//     sees and refuses a second one.
+//
+// Duplicate keys, merge keys and aliases are refused by walker, which
+// doesn't depend on an option.
+func newLoader(data []byte) (*yaml.Loader, error) {
+	return yaml.NewLoader(bytes.NewReader(data),
+		yaml.WithV3Defaults(),
+		yaml.WithStreamNodes(false),
+		yaml.WithSingleDocument(false),
+	)
+}
+
+// nonSpecificTag is the tag v4 keeps on a node written with `!` or
+// `!<!>`.
+const nonSpecificTag = "!"
+
 // parse decodes data into one node tree and checks its bounds and form
 // before any value is read. It returns nil for a file with no document,
 // and nil with refusals in c for a refused file.
@@ -41,9 +64,13 @@ func parse(c *collector, data []byte) *yaml.Node {
 		c.add(RuleYAMLBound, 0, "", "", "the file has %d bytes, at most %d", len(data), MaxFileSize)
 		return nil
 	}
-	dec := yaml.NewDecoder(bytes.NewReader(data))
+	loader, err := newLoader(data)
+	if err != nil {
+		c.add(RuleYAMLSyntax, 0, "", "", "the decoder can't start: %s", escape(err.Error()))
+		return nil
+	}
 	var doc yaml.Node
-	if err := dec.Decode(&doc); err != nil {
+	if err := loader.Load(&doc); err != nil {
 		if errors.Is(err, io.EOF) {
 			return nil
 		}
@@ -51,7 +78,7 @@ func parse(c *collector, data []byte) *yaml.Node {
 		return nil
 	}
 	var second yaml.Node
-	if err := dec.Decode(&second); !errors.Is(err, io.EOF) {
+	if err := loader.Load(&second); !errors.Is(err, io.EOF) {
 		c.add(RuleYAMLForm, second.Line, "", "", "the file holds a second document, and a policy file has one")
 		return nil
 	}
@@ -138,24 +165,43 @@ func (w *walker) walk(n *yaml.Node, depth int) {
 		for _, e := range n.Content {
 			w.walk(e, depth)
 		}
-	case yaml.ScalarNode, yaml.AliasNode:
-		// A scalar has no children, and form has refused an alias.
+	case yaml.ScalarNode, yaml.AliasNode, yaml.StreamNode:
+		// A scalar has no children, and form has refused an alias and
+		// a stream node.
 	}
 }
 
-// form refuses an anchor, an alias and an explicit tag outside the core
-// schema. Aliases are how a small file becomes a large tree, and policy
-// needs none of these (I489, decision 3).
+// treeKinds are the node kinds a policy file's tree may hold. Any other
+// kind, such as v4's StreamNode or one a later version adds, is refused
+// (S09-01-policy-files, "Format").
+var treeKinds = map[yaml.Kind]bool{
+	yaml.DocumentNode: true, yaml.MappingNode: true, yaml.SequenceNode: true, yaml.ScalarNode: true,
+}
+
+// form refuses an anchor, an alias, a node of a kind outside treeKinds,
+// and an explicit tag outside the core schema, the non-specific tag `!`
+// included. Aliases are how a small file becomes a large tree, and
+// policy needs none of these (I489, decision 3).
 func (w *walker) form(n *yaml.Node) bool {
 	switch {
 	case n.Kind == yaml.AliasNode:
 		w.c.add(RuleYAMLForm, n.Line, w.path(), n.Value, "the file uses an alias, and policy files may not")
+		return false
+	case !treeKinds[n.Kind]:
+		w.c.add(RuleYAMLForm, n.Line, w.path(), "", "the file holds %s, and policy files may not", kindName(n))
 		return false
 	case n.Anchor != "":
 		w.c.add(RuleYAMLForm, n.Line, w.path(), n.Anchor, "the file sets an anchor, and policy files may not")
 		return false
 	case n.Style&yaml.TaggedStyle != 0 && !coreTags[n.ShortTag()]:
 		w.c.add(RuleYAMLForm, n.Line, w.path(), n.Tag, "the file uses a tag outside YAML's core schema")
+		return false
+	case n.Tag == nonSpecificTag:
+		// v3 dropped the tag and resolved the value as if it had none,
+		// so `! 1` was an integer. v4 keeps it and makes every value a
+		// string, as YAML 1.2 says. Refusing it keeps a value v3 refused
+		// as the wrong type from loading as a string (I770).
+		w.c.add(RuleYAMLForm, n.Line, w.path(), n.Tag, "the file uses the non-specific tag !, outside YAML's core schema")
 		return false
 	}
 	return true
