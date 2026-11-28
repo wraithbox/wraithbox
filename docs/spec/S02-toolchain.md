@@ -148,7 +148,8 @@ repository only (`docs/github-settings.md`, "Renovate").
   API. It leaves the `overrides` advisory floors in the docs site's
   `package.json` alone, except to fix a vulnerability.
 - A Go module major changes the import path, and Renovate rewrites the
-  imports with it (`gomodUpdateImportPaths`).
+  imports with it (`gomodUpdateImportPaths`). For `go.yaml.in/yaml`, v4
+  needs code changes (I770), so Renovate holds it on v3 until then.
 - Linux jobs run on an explicit Ubuntu image (`ubuntu-26.04`), never
   `ubuntu-latest`, which lags behind the newest stable image. Renovate
   proposes the next stable image, but doesn't merge it: PR CI runs only

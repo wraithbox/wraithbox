@@ -4705,7 +4705,7 @@
 	},
 	"773": {
 		"kind": "issue",
-		"state": "open",
+		"state": "closed",
 		"title": "Docs site: ThemeSelect fails astro check with Starlight 0.43.1 (StarlightThemeProvider is gone)",
 		"summary": "Renovate's #767 (all non-major updates) moves @astrojs/starlight from 0.42.8 to 0.43.1, with astro 7.4.7 to 7.4.12 and @astrojs/markdown-remark 7.3.5 to 7.3.9."
 	},
@@ -4717,7 +4717,7 @@
 	},
 	"775": {
 		"kind": "pr",
-		"state": "open",
+		"state": "merged",
 		"title": "fix(doc): follow Starlight 0.43's theme select, move to 0.43.1",
 		"summary": "The docs site's theme picker stopped type-checking with the next Starlight release, because Starlight removed the browser-side hook the picker called to update itself."
 	},
@@ -4726,5 +4726,11 @@
 		"state": "merged",
 		"title": "build(deps): lock file maintenance",
 		"summary": "This PR contains the following updates:"
+	},
+	"777": {
+		"kind": "issue",
+		"state": "open",
+		"title": "renovate: hold go.yaml.in/yaml on v3 until the move to v4 (#770) is taken up again",
+		"summary": "Hold go.yaml.in/yaml on v3 in Renovate for now."
 	}
 }

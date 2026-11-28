@@ -68,6 +68,19 @@
       "enabled": false
     },
     {
+      "description": "Hold go.yaml.in/yaml on v3: v4 changes the API the policy file loader uses and loads some files that v3 refused, so the move is code work (#770), not a bump. Renovate names a Go major by the old module path (go.yaml.in/yaml/v3 -> v4). Minor, patch and vulnerability updates of v3 still run. Remove this rule when #770 lands.",
+      "matchDatasources": [
+        "go"
+      ],
+      "matchPackageNames": [
+        "go.yaml.in/yaml/v3"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "enabled": false
+    },
+    {
       "description": "Lock file maintenance has no release timestamp, and by default (timestamp-required) a minimumReleaseAge without a timestamp is pending forever, so it never automerges. The transitives it pulls in are aged by each ecosystem's own cooldown (packages/wraithbox-doc/bunfig.toml, mise minimum_release_age).",
       "matchUpdateTypes": [
         "lockFileMaintenance"
