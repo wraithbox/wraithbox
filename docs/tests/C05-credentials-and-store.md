@@ -225,7 +225,19 @@ variables each one skips. Each test
 item is `wraithbox/binding/wbtest-<random>` or
 `wraithbox/ca/wbtest-<random>/wbtest-<random>`, removed when its test
 ends, and the run fails when a `wbtest-` item is left. The maintainer
-sees no dialog at any step.
+sees no dialog at any step. The same task runs the CA key's host tests
+of C02-streams-and-tls, "CA key", in the bundles `wb-hwkey-test.app`,
+with the `ca` group, and `wb-proxyd.app`, with both groups. Their CA
+items are `wraithbox/ca/wbtest-<random>/<CA id>`, and each test
+deletes its items by name. `wb-proxyd` may not list the `ca` group.
+`TestC05HostSweep` in `wb-store-test.app` lists the groups through the
+backend instead, outside any program's checks. The `sweep-before` step
+at the start of the run deletes what an earlier run left. The
+`sweep-after` step at the end fails when the run left a `wbtest-` item.
+The sweep deletes only names of the shapes the tests make, each random
+part 12 hex digits and a CA id 32, and fails on any other `wbtest-`
+name and leaves it: a user's binding may be named `wbtest-prod`
+(`TestC05HostSweepShapes`).
 
 - `TestC05HostEnvironment`: the environment holds only the two
   variables, the bundle holds its two groups, and dialogs are off after

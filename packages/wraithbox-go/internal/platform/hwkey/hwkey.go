@@ -11,17 +11,18 @@
 // and no program may import its fake in hwkey/hwkeytest. A test in this
 // package checks both (SEC12-least-privilege).
 //
-// On every platform, until each backend is built, Generate and Restore
-// return an error that wraps errors.ErrUnsupported
-// (S12-01-platform-interfaces, "Unimplemented platforms fail clearly"),
-// which the caller treats as `ca-key-restore`.
+// On darwin with cgo the backend is a Secure Enclave key, through the
+// cgo shim in hwkey_darwin.go. On linux, windows and a darwin build
+// without cgo, no backend is built yet, and Generate and Restore return
+// an error that wraps errors.ErrUnsupported
+// (S12-01-platform-interfaces, "Unimplemented platforms fail clearly").
+// The caller treats every error of Generate and Restore as
+// `ca-key-restore`.
 package hwkey
 
 import (
 	"context"
 	"crypto"
-	"errors"
-	"fmt"
 )
 
 // Key is one hardware key. The caller closes it when it no longer signs
@@ -50,20 +51,4 @@ type Provider interface {
 	// caller compares its public key with the one it expects before it
 	// signs.
 	Restore(ctx context.Context, wrapped []byte) (Key, error)
-}
-
-// unsupported is the Provider of a platform without a backend. what
-// names the backend that isn't built.
-type unsupported struct{ what string }
-
-func (u unsupported) Generate(context.Context) (Key, error) {
-	return nil, u.err()
-}
-
-func (u unsupported) Restore(context.Context, []byte) (Key, error) {
-	return nil, u.err()
-}
-
-func (u unsupported) err() error {
-	return fmt.Errorf("hwkey: %s isn't built: %w", u.what, errors.ErrUnsupported)
 }

@@ -180,16 +180,18 @@ run = "go vet ./..."
 # `go tool -n covdata` builds it once, before the tests, and prints its
 # path.
 #
-# The last command builds the secret store without cgo, as go:cross
-# builds darwin from Linux, and sees it refuse every call with
-# store-shim-missing (TestNoShim, S15-02-secret-store). On Linux it
-# finds no test to run.
+# The last command builds the secret store and the hardware key store
+# without cgo, as go:cross builds darwin from Linux. It sees the store
+# refuse every call with store-shim-missing (TestNoShim,
+# S15-02-secret-store), and the key store refuse every call as
+# unsupported (TestUnsupported, S12-01-platform-interfaces). On Linux it
+# runs TestUnsupported only.
 [tasks."go:test"]
 dir = "packages/wraithbox-go"
 run = [
   "go tool -n covdata",
   "go test -race -cover ./...",
-  "CGO_ENABLED=0 go test -count=1 -run '^TestNoShim$' ./internal/platform/secretstore",
+  "CGO_ENABLED=0 go test -count=1 -run '^(TestNoShim|TestUnsupported)$' ./internal/platform/secretstore ./internal/platform/hwkey",
 ]
 run_windows = ["go tool -n covdata", "go test -cover ./..."]
 
@@ -479,14 +481,15 @@ run = 'go run ./cmd/wb-dev-app install -app "../wraithbox-swift/.build/Wraith Bo
 run_windows = "echo app:install: the bundle needs macOS; skipped on Windows"
 
 # needs-host, attended (docs/agents/host-work.md): the host tests of the
-# secret store (C05-credentials-and-store, "Host tests"). It signs Go
+# secret store (C05-credentials-and-store, "Host tests") and of the
+# Secure Enclave CA key (C02-streams-and-tls, "CA key"). It signs Go
 # test binaries with the team's identity into bundles of their own in
 # .scratch/store-test, with the profile of a team build of app:bundle,
 # and runs them with an empty environment. Needs WB_TEAM_ID and that
-# app:bundle has run with it. `-- --lock` adds the run that waits for
-# the screen to lock. CI doesn't run it.
+# app:bundle has run with it. `-- --lock` runs only the step that waits
+# for the screen to lock. CI doesn't run it.
 [tasks."store:host-test"]
-description = "Run the secret store's host tests in team-signed test bundles (needs-host, WB_TEAM_ID, macOS)"
+description = "Run the secret store's and the CA key's host tests in team-signed test bundles (needs-host, WB_TEAM_ID, macOS)"
 run = "sh scripts/store-host-test.sh"
 run_windows = "echo store:host-test: the Keychain tests need macOS; skipped on Windows"
 

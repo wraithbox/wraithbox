@@ -366,8 +366,8 @@ Spec: S09-06-ca-keys, "Valid CA".
 - Fail an issue's read-back or restore, and see the record unchanged
   and its item deleted.
 - Through the cgo shim, read back a new CA key and its item, and check
-  `kSecAttrIsPermanent` false, `kSecAccessControlPrivateKeyUsage` as
-  the only access control flag,
+  that a keychain search for the key finds nothing,
+  `kSecAccessControlPrivateKeyUsage` as the only access control flag,
   `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`, and
   `kSecAttrSynchronizable` false.
 - On Linux, record "software" on a host with a TPM, and "TPM" on one
@@ -395,6 +395,50 @@ Spec: S09-06-ca-keys, "Valid CA".
     ends (`TestC02StoreLockedCancel`). See an ad-hoc signed build fail
     with `keychain-needs-team` (`TestC02AdHocStore`).
   - See a new CA with exactly the CA profile (`TestC02IssueProfile`).
+- In `internal/platform/hwkey`, on a Mac VM such as CI's macOS
+  runners, run the real shim unsigned against the VM's virtual Secure
+  Enclave (S09-06-ca-keys, "macOS, every build"). Generate a key, and
+  sign a SHA-256 digest that Go verifies. Restore the key from its
+  wrapped form, and see the same public key and a signature that
+  verifies. Changed bytes give an error or another key, and a closed
+  key refuses to sign (`TestC02VMRoundTrip`). It makes no
+  Keychain call and stores nothing, and it skips on a Mac that isn't a
+  VM. A Mac without a Secure Enclave, whose generate and restore give
+  the framework's error, has no test: CI has no such Mac.
+- In `internal/platform/hwkey`, see the check that each restore runs
+  refuse a key whose signature doesn't verify with its public key, and
+  one that fails to sign (`TestCheckPossession`, S09-06-ca-keys,
+  "`kSecAttrTokenOID` is undocumented").
+- On the maintainer's Mac, with the real store and Secure Enclave, in
+  the bundles of `mise run store:host-test` (C05-credentials-and-store,
+  "Host tests"). The run skips them on a Mac VM,
+  and the maintainer watches for a dialog or a Touch ID prompt, which
+  fails them.
+  - In `internal/platform/hwkey`, generate a key, sign and verify with
+    Go, and restore it from its wrapped form in the same process and in
+    a second one, whose signature verifies with the first public key
+    (`TestC02HostKeyRoundTrip`). Read back a new and a restored key and
+    see each in the Secure Enclave, in no keychain, and with
+    `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` and nothing required
+    for any operation (`TestC02HostKeyAttributes`). The same search
+    finds a permanent key that the test makes and deletes again, and
+    the test fails when an earlier run left one with its label
+    (`TestC02HostKeyPermanentProbe`). Restore
+    random bytes and another key's wrapped form, and see each fail or
+    give a key with another public key (`TestC02HostKeyRestoreWrong`).
+  - In `internal/proxyd/ca`, in a bundle named `wb-proxyd`, issue a CA,
+    read back its item's attributes, and restore it in a second process
+    that signs a leaf the CA verifies (`TestC02HostIssueRoundTrip`).
+    Overwrite the item with random bytes and with another CA's wrapped
+    form, and see each CA set fail with `ca-key-restore`
+    (`TestC02HostRestoreWrong`). Issue, restore and sign under
+    `wb-proxyd`'s profile as X23-sandboxed-daemons ran it
+    (`TestC02HostConfined`). The bench step prints the leaf's
+    signature with the Secure Enclave key beside the fake key's
+    (`BenchmarkC02HostLeaf`, `BenchmarkLeaf`).
+  - The run of 2026-11-10 passed every step with no dialog. A wrapped
+    form was 324 bytes, and a leaf took about 4.7 ms with the Secure
+    Enclave key and 0.10 ms with the fake (I509).
 - In `internal/hostd/carecord`, see a restore failure refuse the start
   with `ca-key-restore` and issue nothing, and after `wb vm reset-ca`
   the next boot issue a new CA and remove the old one's item
